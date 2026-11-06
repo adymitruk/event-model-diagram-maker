@@ -1,0 +1,395 @@
+<main class="emd" style="--slices: 5">
+  <div class="sheet">
+  <div class="board">
+    <div class="cell lane"></div>
+    <div class="cell slc-no" data-slc="1">SLC1</div>
+    <div class="cell slc-no" data-slc="2">SLC2</div>
+    <div class="cell slc-no" data-slc="3">SLC3</div>
+    <div class="cell slc-no" data-slc="4">SLC4</div>
+    <div class="cell slc-no" data-slc="5">SLC5</div>
+
+    <div class="cell lane">Workflow</div>
+    <div class="cell wfl" data-slc="1" data-span="5"><span>Stock a bike</span></div>
+
+    <div class="cell lane open">Jim (Customer)</div>
+    <div class="cell uba" data-slc="1" data-lane="jim"></div>
+    <div class="cell uba" data-slc="2" data-lane="jim"></div>
+    <div class="cell uba" data-slc="3" data-lane="jim"></div>
+    <div class="cell uba" data-slc="4" data-lane="jim"></div>
+    <div class="cell uba" data-slc="5" data-lane="jim"></div>
+
+    <div class="cell lane open">Sam (Shop Clerk)</div>
+    <div class="cell uba" data-slc="1" data-lane="sam">
+      <article class="scr" id="scr-receive-bike-form">
+        <h2>Receive Bike Form</h2>
+        <div class="wire">
+          <div class="col">
+            <p class="heading">Receive Bike</p>
+            <label class="text">serialNumber <input value="SN-48213" readonly></label>
+            <label class="text">model <input value="Trailblazer 29" readonly></label>
+            <label class="dropdown">type <select disabled><option>Mountain</option></select></label>
+            <div class="row end">
+              <button type="button">Receive</button>
+            </div>
+          </div>
+        </div>
+      </article>
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+    <div class="cell uba" data-slc="2" data-lane="sam">
+      <article class="scr" id="scr-unregistered-bikes">
+        <h2>Unregistered Bikes</h2>
+        <div class="wire">
+          <div class="col">
+            <p class="heading">Unregistered Bikes</p>
+            <table>
+              <thead>
+                <tr><th>bikeId</th><th>serialNumber</th><th>model</th><th>type</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>B-101</td>
+                  <td>SN-48213</td>
+                  <td>Trailblazer 29</td>
+                  <td>Mountain</td>
+                  <td><button type="button">Register</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+    <div class="cell uba" data-slc="3" data-lane="sam">
+      <article class="scr" id="scr-register-bike-form">
+        <h2>Register Bike Form</h2>
+        <div class="wire">
+          <div class="col">
+            <p class="heading">Register Bike</p>
+            <fieldset class="group">
+              <legend>Bike</legend>
+              <div class="row">
+                <p class="label">bikeId B-101</p>
+                <p class="label">model Trailblazer 29</p>
+                <p class="label">type Mountain</p>
+              </div>
+            </fieldset>
+            <fieldset class="group">
+              <legend>Rate</legend>
+              <label class="text">dailyRate <input value="25.00" readonly></label>
+            </fieldset>
+            <div class="row end">
+              <button type="button">Register</button>
+            </div>
+          </div>
+        </div>
+      </article>
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+    <div class="cell uba" data-slc="4" data-lane="sam">
+      <div class="gear-dock split">
+        <div class="tile turn-br"></div>
+        <div class="arr h"><div class="shaft"></div></div>
+      </div>
+      <div class="arr v fill"><div class="shaft"></div></div>
+    </div>
+    <div class="cell uba" data-slc="5" data-lane="sam">
+      <div class="gear-dock">
+        <div class="arr h">
+          <div class="shaft"></div>
+          <div class="tile arrow-right"></div>
+        </div>
+        <article class="pro" id="pro-bike-lister">
+          <h2>Bike Lister</h2>
+          <svg class="gear" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.26.42.49.42h3.8c.23 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
+          </svg>
+        </article>
+      </div>
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+
+    <div class="cell lane open"></div>
+    <div class="cell mba" data-slc="1">
+      <div class="gap">
+        <div class="arr v">
+          <div class="shaft"></div>
+          <div class="tile arrow-down"></div>
+        </div>
+      </div>
+      <article class="com" id="com-receive-bike">
+        <h2>Receive Bike</h2>
+        <dl class="props">
+          <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
+          <div><dt>model</dt><dd>Trailblazer 29</dd></div>
+          <div><dt>type</dt><dd>Mountain</dd></div>
+          <div><dt>bikeId</dt><dd>B-101</dd></div>
+        </dl>
+      </article>
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+    <div class="cell mba" data-slc="2">
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+      <article class="rmo" id="rmo-unregistered-bikes">
+        <h2>Unregistered Bikes</h2>
+        <dl class="props">
+          <div><dt>bikeId</dt><dd>B-101</dd></div>
+          <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
+          <div><dt>model</dt><dd>Trailblazer 29</dd></div>
+          <div><dt>type</dt><dd>Mountain</dd></div>
+        </dl>
+      </article>
+      <div class="gap">
+        <div class="arr v">
+          <div class="tile arrow-up"></div>
+          <div class="shaft"></div>
+        </div>
+      </div>
+    </div>
+    <div class="cell mba" data-slc="3">
+      <div class="gap">
+        <div class="arr v">
+          <div class="shaft"></div>
+          <div class="tile arrow-down"></div>
+        </div>
+      </div>
+      <article class="com" id="com-register-bike">
+        <h2>Register Bike</h2>
+        <dl class="props">
+          <div><dt>bikeId</dt><dd>B-101</dd></div>
+          <div><dt>dailyRate</dt><dd>25.00</dd></div>
+        </dl>
+      </article>
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+    <div class="cell mba" data-slc="4">
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+      <article class="rmo" id="rmo-bike-listings-todo">
+        <h2>Bike Listings TODO</h2>
+        <dl class="props">
+          <div><dt>bikeId</dt><dd>B-101</dd></div>
+          <div><dt>model</dt><dd>Trailblazer 29</dd></div>
+          <div><dt>dailyRate</dt><dd>25.00</dd></div>
+        </dl>
+      </article>
+      <div class="gap">
+        <div class="arr v">
+          <div class="tile arrow-up"></div>
+          <div class="shaft"></div>
+        </div>
+      </div>
+    </div>
+    <div class="cell mba" data-slc="5">
+      <div class="gap">
+        <div class="arr v">
+          <div class="shaft"></div>
+          <div class="tile arrow-down"></div>
+        </div>
+      </div>
+      <article class="com" id="com-list-bike">
+        <h2>List Bike</h2>
+        <dl class="props">
+          <div><dt>bikeId</dt><dd>B-101</dd></div>
+          <div><dt>model</dt><dd>Trailblazer 29</dd></div>
+          <div><dt>dailyRate</dt><dd>25.00</dd></div>
+        </dl>
+      </article>
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+
+    <div class="cell lane open"></div>
+    <div class="cell connector" data-slc="1">
+      <div class="rail joins-2 source">
+        <div class="rail-band upper">
+          <div class="track center"><div class="shaft"></div></div>
+        </div>
+        <div class="mids">
+          <div class="rail-band mid a">
+            <div class="track center"><div class="tile vline"></div></div>
+            <div class="track offset-1"><div class="tile turn-br"></div></div>
+            <div class="h-run"><div class="shaft"></div></div>
+          </div>
+          <div class="rail-band mid b">
+            <div class="track center"><div class="tile vline"></div></div>
+            <div class="track offset-1"><div class="tile vline"></div></div>
+            <div class="track offset-2"><div class="tile turn-br"></div></div>
+            <div class="h-run"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="rail-band lower">
+          <div class="track center"><div class="shaft"></div></div>
+          <div class="track offset-1"><div class="shaft"></div></div>
+          <div class="track offset-2"><div class="shaft"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cell connector" data-slc="2">
+      <div class="rail joins-2">
+        <div class="rail-band upper">
+          <div class="track center"><div class="shaft"></div></div>
+        </div>
+        <div class="mids">
+          <div class="rail-band mid a">
+            <div class="h-run"><div class="shaft"></div></div>
+            <div class="track"><div class="tile turn-tl"></div></div>
+          </div>
+          <div class="rail-band mid b through">
+            <div class="h-run"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="rail-band lower"></div>
+      </div>
+    </div>
+    <div class="cell connector" data-slc="3">
+      <div class="rail joins-2">
+        <div class="rail-band upper">
+          <div class="track center"><div class="shaft"></div></div>
+        </div>
+        <div class="mids">
+          <div class="rail-band mid a">
+            <div class="track center"><div class="tile vline"></div></div>
+            <div class="track offset-1"><div class="tile turn-br"></div></div>
+            <div class="h-run"><div class="shaft"></div></div>
+          </div>
+          <div class="rail-band mid b">
+            <div class="h-run"><div class="shaft"></div></div>
+            <div class="track center"><div class="tile hop"></div></div>
+            <div class="h-run"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="rail-band lower">
+          <div class="track center"><div class="shaft"></div></div>
+          <div class="track offset-1"><div class="shaft"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cell connector" data-slc="4">
+      <div class="rail joins-2">
+        <div class="rail-band upper">
+          <div class="track center"><div class="shaft"></div></div>
+        </div>
+        <div class="mids">
+          <div class="rail-band mid a">
+            <div class="h-run"><div class="shaft"></div></div>
+            <div class="track"><div class="tile turn-tl"></div></div>
+          </div>
+          <div class="rail-band mid b">
+            <div class="h-run"><div class="shaft"></div></div>
+            <div class="track"><div class="tile turn-tl"></div></div>
+          </div>
+        </div>
+        <div class="rail-band lower"></div>
+      </div>
+    </div>
+    <div class="cell connector" data-slc="5">
+      <div class="rail single">
+        <div class="rail-band upper">
+          <div class="track"><div class="shaft"></div></div>
+        </div>
+        <div class="rail-band mid">
+          <div class="track"><div class="tile vline"></div></div>
+        </div>
+        <div class="rail-band lower">
+          <div class="track"><div class="shaft"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cell lane open lba-head"><div class="lba-head-gap" aria-hidden="true"></div><div class="lba-head-label">Fleet</div></div>
+    <div class="cell lba" data-slc="1" data-lane="fleet">
+      <div class="gap joins-2">
+        <div class="arr v">
+          <div class="shaft"></div>
+          <div class="tile arrow-down"></div>
+        </div>
+        <div class="arr v"><div class="shaft"></div></div>
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+      <article class="evt" id="evt-bike-received">
+        <h2>Bike Received</h2>
+        <dl class="props">
+          <div><dt>bikeId</dt><dd>B-101</dd></div>
+          <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
+          <div><dt>model</dt><dd>Trailblazer 29</dd></div>
+          <div><dt>type</dt><dd>Mountain</dd></div>
+        </dl>
+      </article>
+    </div>
+    <div class="cell lba" data-slc="2" data-lane="fleet"></div>
+    <div class="cell lba" data-slc="3" data-lane="fleet">
+      <div class="gap pair">
+        <div class="arr v">
+          <div class="shaft"></div>
+          <div class="tile arrow-down"></div>
+        </div>
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+      <article class="evt" id="evt-bike-registered">
+        <h2>Bike Registered</h2>
+        <dl class="props">
+          <div><dt>bikeId</dt><dd>B-101</dd></div>
+          <div><dt>dailyRate</dt><dd>25.00</dd></div>
+        </dl>
+      </article>
+    </div>
+    <div class="cell lba" data-slc="4" data-lane="fleet"></div>
+    <div class="cell lba" data-slc="5" data-lane="fleet">
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+
+    <div class="cell lane open">Customer</div>
+    <div class="cell lba" data-slc="1" data-lane="customer"></div>
+    <div class="cell lba" data-slc="2" data-lane="customer"></div>
+    <div class="cell lba" data-slc="3" data-lane="customer"></div>
+    <div class="cell lba" data-slc="4" data-lane="customer"></div>
+    <div class="cell lba" data-slc="5" data-lane="customer">
+      <div class="gap">
+        <div class="arr v"><div class="shaft"></div></div>
+      </div>
+    </div>
+
+    <div class="cell lane foot">Rental</div>
+    <div class="cell lba foot" data-slc="1" data-lane="rental"></div>
+    <div class="cell lba foot" data-slc="2" data-lane="rental"></div>
+    <div class="cell lba foot" data-slc="3" data-lane="rental"></div>
+    <div class="cell lba foot" data-slc="4" data-lane="rental"></div>
+    <div class="cell lba foot" data-slc="5" data-lane="rental">
+      <div class="gap">
+        <div class="arr v">
+          <div class="shaft"></div>
+          <div class="tile arrow-down"></div>
+        </div>
+      </div>
+      <article class="evt" id="evt-bike-listed">
+        <h2>Bike Listed</h2>
+        <dl class="props">
+          <div><dt>bikeId</dt><dd>B-101</dd></div>
+          <div><dt>model</dt><dd>Trailblazer 29</dd></div>
+          <div><dt>dailyRate</dt><dd>25.00</dd></div>
+        </dl>
+      </article>
+    </div>
+  </div>
+  </div>
+</main>

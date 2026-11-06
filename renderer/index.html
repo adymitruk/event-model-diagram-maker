@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; script-src 'self'">
+  <title>EMD</title>
+  <link rel="stylesheet" href="diagram/diagram.css">
+  <link rel="stylesheet" href="shell.css">
+</head>
+<body>
+  <button type="button" id="menu-toggle" class="menu-toggle" aria-expanded="false" aria-controls="side-menu" title="Menu">
+    <span class="menu-toggle-bars" aria-hidden="true"></span>
+    <span class="visually-hidden">Menu</span>
+  </button>
+
+  <aside id="side-menu" class="side-menu" aria-hidden="true">
+    <header class="side-menu-header">
+      <h1>EMD</h1>
+      <button type="button" id="menu-close" class="side-menu-close" aria-label="Close menu">×</button>
+    </header>
+    <nav class="side-menu-nav">
+      <button type="button" id="btn-load" class="menu-item">Load…</button>
+      <button type="button" id="btn-save" class="menu-item">Save</button>
+      <button type="button" id="btn-save-as" class="menu-item">Save as…</button>
+    </nav>
+    <p id="file-label" class="file-label">No file</p>
+  </aside>
+  <div id="menu-backdrop" class="menu-backdrop" hidden></div>
+
+  <div id="board-host" class="board-host"></div>
+
+  <script src="shell.js"></script>
+</body>
+</html>
