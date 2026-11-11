@@ -67,7 +67,7 @@ The column header is the slice number only.
 
 ## Cards
 
-Every card has its name and its example properties. The title is the name only, with no three-letter kind in front of it. A card is a soft rounded panel: no border, a light shadow, the title in bold, and each property on its own row with the name on the left and the value in bold on the right. A card sits in the cell for its swim lane.
+Every card has its name and its example properties. The title is the name only, with no three-letter kind in front of it. A card is a soft rounded panel: no border, a light shadow, the title in bold, and each property on its own row with the name on the left and the value in bold on the right. A card sits in the cell for its swim lane. Long property values wrap inside the card (`overflow-wrap: anywhere` on `dd`) so a URL or other unbroken string never spills out of the column.
 
 | Kind | Class | Cell | Color |
 |---|---|---|---|
@@ -77,7 +77,7 @@ Every card has its name and its example properties. The title is the name only, 
 | read model | `rmo` | middle row | green |
 | event | `evt` | that service's row | orange |
 | error | `err` | the service the command would have changed | red |
-| mapping | `map` | on the arrow, noted in the head cell | amber |
+| mapping | `map` | on the arrow, noted below the COM or RMO | amber |
 
 ```html
 <article class="com">
@@ -196,17 +196,17 @@ An event is past tense. An error names the facts the command was checked against
 
 ## Mapping
 
-A mapping names properties only. No values and no formula. Write it on the arrow it belongs to, and repeat that name in the head cell. Do not write `MAP` in front of it.
+A mapping names properties only. No values and no formula. Write it on the arrow it belongs to. Do not write `MAP` in front of it.
 
 ```html
 <p class="map">Rental End: startDate, days → endDate</p>
 ```
 
-On a command-to-event arrow, the note sits in the service cell, above the event. On an event-to-read-model arrow, the note sits in the middle cell, above the read model.
+Place the note in the middle band, **below** the COM or RMO card, on the shaft of that arrow — never above the card and never on the event. On a command-to-event arrow (`COM → EVT`), put it under the command, between the COM and the lower `.gap` that runs down to the event. On an event-to-read-model arrow (`EVT → RMO`), put it under the read model, between the RMO and the lower `.gap` that holds the join’s `arrow-up`.
 
 ## Arrows
 
-Draw the arrows from step 8 of the event-modeling instructions. Do not use JavaScript and do not overlay an SVG line layer. Build every arrow from HTML corridors whose pieces are 30×30 SVG tiles in `diagram/arrows/`. After editing CSS, bump the `?v=` on the stylesheet link in `diagram.html` so the preview is not stuck on a cached sheet.
+Draw the arrows from step 8 of the event-modeling instructions. Same-slice verticals (`SCR → COM → EVT`, `RMO → SCR`) stay HTML corridors of 30×30 tiles in `diagram/arrows/`. **EVT → RMO projections** use the leftness tile layer in `diagram/connectors.js` (see below) — do not hand-merge several events onto one shared CSS corridor. After editing CSS, bump the `?v=` on the stylesheet link so the preview is not stuck on a cached sheet.
 
 Give each card an `id` of its kind, then its name in kebab case (`evt-bike-received`). The id is for reference only; the arrow markup sits in the cells between the cards.
 
@@ -218,7 +218,7 @@ These are mandatory. Most “broken arrow” bugs are one of them.
 1b. **MBA cards align across slices.** Every middle-row card has a `.gap` above and a `.gap` below so flex equalizes their vertical position.
 2. **True center stays centered.** The COM→EVT (or RMO up) vertical is the geometric midline of the cell. Offset joins share that same grid column and shift right with `left` — never a wider grid that pushes “center” left of the cards.
 3. **Abutting pieces.** Turn right edge must meet the next `.h-run` / `.shaft` left edge (gap `0` or `−1px` across a cell border). Measure if unsure.
-4. **Empty lower lanes.** When an event sits below empty `lba` cells, keep a vertical `.gap > .arr.v > .shaft` through each empty cell so the path does not break.
+4. **Empty lanes on a vertical.** A SCR/PRO or EVT may sit several rows away from the MBA. Keep a vertical `.gap > .arr.v > .shaft` through every empty cell on that path so the shaft does not break. That means: empty `uba` cells *below* the actor whose SCR/PRO is drawn (users whose rows sit between that actor and the MBA), and empty `lba` cells *above* the service whose EVT/ERR is drawn (services whose rows sit between the MBA/connector and that event). The same shafts carry an RMO→SCR path upward through those empty `uba` cells. An empty cell with no shaft on the path is the usual cause of a disconnected arrow between a screen and its command.
 5. **Workflow run.** One `.wfl` cell with `data-span="N"` covering all drawn slices of that workflow. No per-slice empty `.wfl` cells. Bump `N` when the same workflow gains another slice. Leave off `continues` so the arrowhead is at the end of the run.
 6. **Never tee joins.** One event to several read models = parallel tracks, not `tee-up` / one shared horizontal that branches.
 
@@ -250,7 +250,7 @@ A long shaft is a `div.shaft` whose background is the matching line tile with `b
 
 ### Where pieces go
 
-`uba`, `mba`, and `lba` cells are flex columns. Put a `.gap` above and/or below the card. The gap grows to fill the space between cards, so the shaft stretches. Center a single track with `.gap > .arr.v`.
+`uba`, `mba`, and `lba` cells are flex columns. Put a `.gap` above and/or below the card. The gap grows to fill the space between cards, so the shaft stretches. Center a single track with `.gap > .arr.v`. An empty `uba` or `lba` cell that a vertical crosses is not left blank — it holds only that same `.gap > .arr.v > .shaft` so the line continues (see continuity rule 4).
 
 In every `mba` cell, use **both** an upper and a lower `.gap` around the card — including read-model slices, where the upper gap is the shaft continuing down from the uba (gear dock / fill) and the lower gap holds the `arrow-up` from the join. Skipping the upper gap on an RMO pulls that card above the command cards in neighboring slices.
 
@@ -260,19 +260,33 @@ In every `mba` cell, use **both** an upper and a lower `.gap` around the card �
 
 Inside a command slice, put a down arrow into the command (mba `.gap` above the card) and a down arrow into the event (mba out + connector + lba in). When the command failed, the second arrow goes to the error.
 
-Inside a read-model slice, put an up arrow from the read model to the screen or processor when that screen or processor is drawn in the same slice.
+Inside a read-model slice, put an up arrow from the read model to the screen when that screen is drawn in the same slice: in the UBA `.gap` under the SCR, `arrow-up` then shaft (`tile` on top, shaft below), so the head points into the screen. That head is separate from the join’s `arrow-up` under the RMO. Empty `uba` cells the shaft crosses stay shaft-only (no second head). When the reader is a processor in the next slice, use the gear-dock path instead — no UBA `arrow-up` into a screen.
 
 **Processor in the next slice.** Leave the RMO column’s uba as a `.gear-dock.split`: `turn-br` on the card midline + `.arr.h` stretching to the right cell border (`margin-right` bridges the border). In the command column, `.gear-dock` (not `.split`) with an absolute inbound `.arr.h` that ends at the gear, then `arrow-right`, then the `pro`. CSS scopes the absolute run to `.gear-dock:not(.split) > .arr.h` so it does not collapse the split dock’s outbound shaft. Add `.arr.v.fill` under the split dock down to the RMO.
 
-Between slices, the joins section of the EMD says which event connects to which read model. Use it only for that. Do not draw the match, the shared id, or the join symbol. A mapping on that arrow is a note in the head cell, with the mapping's name and its inputs and outputs, and no `MAP` in front.
+Between slices, the joins section of the EMD says which event connects to which read model. Use it only for that. Do not draw the match, the shared id, or the join symbol. A mapping on that arrow is a note below the RMO (or below the COM when the map is on `COM → EVT`), with the mapping's name and its inputs and outputs, and no `MAP` in front.
 
 An error connects to the screen in the next slice with the same tile pieces.
 
 When you add a later slice that joins an earlier event that had no join yet, retrofit that earlier connector from `.rail.single` to `.rail.pair` (or to `.rail.joins-2` if a second join appears — see below). Bump `--slices` and add one cell per row for the new column.
 
-### Parallel joins (one event → several read models)
+### EVT → RMO projections (leftness tiles)
 
-Do **not** merge joins onto one rail. Each join gets its own parallel track.
+When more than one event feeds a read model (or one event feeds several), draw projections with `diagram/connectors.js`, not CSS `.rail.joins-2` merges.
+
+1. Give every EVT and RMO card an `id`.
+2. On `<main class="emd">` set `data-joins="evt-a:rmo-x,evt-b:rmo-x,…"`.
+3. Include `<script src="…/diagram/connectors.js"></script>`.
+4. Keep connector cells as `.rail.single` (COM→EVT vertical only) on write slices. JS-only RMO destination connectors stay empty (no orphan upper shaft). Leave those RMO lower MBA gaps empty — the script draws the `arrow-up` into the RMO.
+5. **Exception — mapping on the join:** if the RMO has a `.map` note, keep that join as a CSS `.rail.pair` corridor (source + arrival) so the map sits on the shaft between the RMO and the lower-gap `arrow-up`. Do not list that join in `data-joins`.
+
+**Leftness.** Each join gets `leftness = fromSlc + toSlc` and a horizontal `span`. Joins are sorted by leftness; each is assigned the first free track whose spans do not overlap (tracks only search at/above the last assigned track). The result is one independent step-path per join — `turn-br` + `hline` (+ `hop` over write-slice verticals) + `turn-tl` + `arrow-up` — on its own Y, never teed onto a neighbour’s horizontal.
+
+**Anchors.** Multiple joins on the same EVT top or RMO bottom are spaced `0.5 × --tile` apart around center (with a phantom center slot so the CSS COM→EVT shaft stays clear).
+
+### Parallel joins (legacy CSS — one event → several read models)
+
+Prefer leftness tiles above. If you must stay CSS-only for a single event to two RMOs: do **not** merge joins onto one rail. Each join gets its own parallel track.
 
 **Spacing.** Half a tile (`0.5 * --tile` = 15px) between line centers:
 
@@ -292,7 +306,13 @@ Do **not** merge joins onto one rail. Each join gets its own parallel track.
 
 **Near arrival:** `turn-tl` on `mid.a`; `mid.b.through` is a full-width `.h-run` (far join continues).
 
-**Pass-through (far join only, and a vertical COM→EVT in that column):** `mid.a` keeps the centered `vline`; `mid.b` uses inbound `.h-run` + `tile.hop` + outbound `.h-run`. The hop is an arc bridge over the vertical — not a `+` cross — so the joins read as separate lines.
+**Pass-through (far join only — near already arrived):** `mid.a` keeps the centered `vline`; `mid.b` uses inbound `.h-run` + `tile.hop` + outbound `.h-run`. The hop is an arc bridge over the vertical — not a `+` cross — so the joins read as separate lines.
+
+**Pass-through (both joins — near not yet arrived):** use `.rail.joins-2.continue-both`. Both `mid.a` and `mid.b` are inbound `.h-run` + `tile.hop` + outbound `.h-run`. Do not drop `mid.a` until the near arrival column — otherwise the near join’s shaft goes nowhere.
+
+**Merge (later EVT joins the same two RMOs):** use `.rail.joins-2.continue-both.merge` on a continue-both column that also records a new EVT feeding those RMOs. Keep both hops, and add `turn-br` on `offset-1` (near / `mid.a`) and `offset-2` (far / `mid.b`) so this EVT’s LBA offsets join the continuing horizontals. Every EVT that an RMO projects must either be the corridor source or a merge column on that corridor (information completeness).
+
+**Merge far-only (near already arrived):** use `.rail.joins-2.merge-far` when a later EVT feeds only the continuing far RMO. Keep `mid.a` centered `vline`; on `mid.b` keep the hop and add `turn-br` on `offset-2`. LBA uses `.gap.joins-2` with center (arrow) + empty offset-1 placeholder + offset-2 shaft — do not draw an offset-1 shaft when nothing turns onto near.
 
 **Far arrival:** `mid.a` has centered `tile.vline` bridging `upper` down to `mid.b`; `mid.b` has inbound `.h-run` + `turn-tl`.
 
@@ -437,7 +457,7 @@ Do **not** merge joins onto one rail. Each join gets its own parallel track.
   <div class="rail-band lower"></div>
 </div>
 
-<!-- column with COM→EVT vertical that the far join crosses -->
+<!-- column with COM→EVT vertical that the far join crosses (near already arrived) -->
 <div class="rail joins-2">
   <div class="rail-band upper">
     <div class="track center"><div class="shaft"></div></div>
@@ -454,6 +474,76 @@ Do **not** merge joins onto one rail. Each join gets its own parallel track.
   </div>
   <div class="rail-band lower">
     <div class="track center"><div class="shaft"></div></div>
+  </div>
+</div>
+
+<!-- both joins continue (near not yet arrived); hop each mid over the COM→EVT vertical -->
+<div class="rail joins-2 continue-both">
+  <div class="rail-band upper">
+    <div class="track center"><div class="shaft"></div></div>
+  </div>
+  <div class="mids">
+    <div class="rail-band mid a">
+      <div class="h-run"><div class="shaft"></div></div>
+      <div class="track center"><div class="tile hop"></div></div>
+      <div class="h-run"><div class="shaft"></div></div>
+    </div>
+    <div class="rail-band mid b">
+      <div class="h-run"><div class="shaft"></div></div>
+      <div class="track center"><div class="tile hop"></div></div>
+      <div class="h-run"><div class="shaft"></div></div>
+    </div>
+  </div>
+  <div class="rail-band lower">
+    <div class="track center"><div class="shaft"></div></div>
+  </div>
+</div>
+
+<!-- later EVT merges onto the same two RMO joins (continue-both + turn-br into each mid) -->
+<div class="rail joins-2 continue-both merge">
+  <div class="rail-band upper">
+    <div class="track center"><div class="shaft"></div></div>
+  </div>
+  <div class="mids">
+    <div class="rail-band mid a">
+      <div class="h-run"><div class="shaft"></div></div>
+      <div class="track center"><div class="tile hop"></div></div>
+      <div class="track offset-1"><div class="tile turn-br"></div></div>
+      <div class="h-run"><div class="shaft"></div></div>
+    </div>
+    <div class="rail-band mid b">
+      <div class="h-run"><div class="shaft"></div></div>
+      <div class="track center"><div class="tile hop"></div></div>
+      <div class="track offset-2"><div class="tile turn-br"></div></div>
+      <div class="h-run"><div class="shaft"></div></div>
+    </div>
+  </div>
+  <div class="rail-band lower">
+    <div class="track center"><div class="shaft"></div></div>
+    <div class="track offset-1"><div class="shaft"></div></div>
+    <div class="track offset-2"><div class="shaft"></div></div>
+  </div>
+</div>
+
+<!-- later EVT merges onto the far join only (near already arrived) -->
+<div class="rail joins-2 merge-far">
+  <div class="rail-band upper">
+    <div class="track center"><div class="shaft"></div></div>
+  </div>
+  <div class="mids">
+    <div class="rail-band mid a">
+      <div class="track center"><div class="tile vline"></div></div>
+    </div>
+    <div class="rail-band mid b">
+      <div class="h-run"><div class="shaft"></div></div>
+      <div class="track center"><div class="tile hop"></div></div>
+      <div class="track offset-2"><div class="tile turn-br"></div></div>
+      <div class="h-run"><div class="shaft"></div></div>
+    </div>
+  </div>
+  <div class="rail-band lower">
+    <div class="track center"><div class="shaft"></div></div>
+    <div class="track offset-2"><div class="shaft"></div></div>
   </div>
 </div>
 
@@ -484,6 +574,8 @@ Do **not** merge joins onto one rail. Each join gets its own parallel track.
     <div class="arr v"><div class="shaft"></div></div>
   </div>
   <article class="rmo" id="rmo-session-reset-todo">…</article>
+  <!-- optional: EVT→RMO map sits under the RMO, on the join arrow -->
+  <p class="map">Signup Url: signupToken → signupUrl</p>
   <div class="gap">
     <div class="arr v">
       <div class="tile arrow-up"></div>

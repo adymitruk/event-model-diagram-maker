@@ -58,9 +58,8 @@
       flex-wrap: wrap;
       gap: 0.5rem 1rem;
       align-items: center;
-      padding: 0.75rem 1rem;
+      padding: 0.55rem 1rem;
       background: #fff;
-      border-bottom: 1px solid var(--line);
     }
 
     .toolbar button {
@@ -69,6 +68,7 @@
       border: 1px solid var(--line);
       background: #fafafa;
       cursor: pointer;
+      flex: 0 0 auto;
     }
 
     .toolbar button:hover { background: #eee; }
@@ -76,22 +76,23 @@
       background: #e8f0ff;
       border-color: #a8c0ef;
     }
-    .hint { color: #555; flex: 1 1 12rem; }
 
     .history-bar {
+      flex: 1 1 16rem;
       display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-      padding: 0.55rem 1rem;
-      background: #fafafa;
-      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      align-items: center;
+      min-width: 0;
     }
 
     .history-controls {
+      flex: 1 1 12rem;
       display: flex;
       flex-wrap: wrap;
       gap: 0.65rem 1rem;
       align-items: center;
+      min-width: 0;
     }
 
     .history-bar label {
@@ -103,7 +104,7 @@
     }
 
     .history-bar label.history-slider-label {
-      flex: 1 1 12rem;
+      flex: 1 1 10rem;
       min-width: 8rem;
     }
 
@@ -123,13 +124,13 @@
     }
 
     .history-meta {
+      flex: 0 1 auto;
       font-size: 12px;
       color: #555;
       font-variant-numeric: tabular-nums;
-      min-height: 1.2em;
+      white-space: nowrap;
     }
 
-    .history-meta.fork-warn { color: #a35b00; }
 
     .help-backdrop {
       display: none;
@@ -382,15 +383,73 @@
     .slice:hover > .upper.conn-from:hover { background: var(--cmd-2); }
     .slice:hover > .upper.conn-to:hover { background: var(--read-2); }
 
-    .upper.selected,
-    .lower.selected {
-      outline: 2px solid var(--sel);
-      outline-offset: -2px;
+    /* Selection / path endpoint: same double-highlight as slice+card hover (no outline).
+       Beat `.slice:hover > …` so a sibling endpoint stays lit when another card in the slice is hovered. */
+    .upper.selected:not(.conn-from):not(.conn-to),
+    .lower.selected:not(.conn-to),
+    .upper.endpoint-hot:not(.conn-from):not(.conn-to),
+    .lower.endpoint-hot:not(.conn-to),
+    .slice:hover > .upper.endpoint-hot:not(.conn-from):not(.conn-to),
+    .slice:hover > .lower.endpoint-hot:not(.conn-to),
+    .slice:hover > .upper.selected:not(.conn-from):not(.conn-to),
+    .slice:hover > .lower.selected:not(.conn-to) {
+      background: var(--idle-2);
+    }
+    .lower.conn-to.selected,
+    .lower.conn-to.endpoint-hot,
+    .slice:hover > .lower.conn-to.endpoint-hot,
+    .slice:hover > .lower.conn-to.selected { background: var(--event-2); }
+    .upper.conn-from.selected,
+    .upper.conn-from.endpoint-hot,
+    .slice:hover > .upper.conn-from.endpoint-hot,
+    .slice:hover > .upper.conn-from.selected { background: var(--cmd-2); }
+    .upper.conn-to.selected,
+    .upper.conn-to.endpoint-hot,
+    .slice:hover > .upper.conn-to.endpoint-hot,
+    .slice:hover > .upper.conn-to.selected { background: var(--read-2); }
+
+    /* Connectors: grey idle, black when a related card is hovered.
+       Hops use 4 baked SVGs (V/H × grey/black) — exclude from filter fade. */
+    .tile:not(.hop),
+    .shaft-v,
+    .shaft-h {
+      opacity: 0.45;
+    }
+
+    .tile.path-hot:not(.hop),
+    .shaft-v.path-hot,
+    .shaft-h.path-hot {
+      opacity: 1;
+      filter: brightness(0);
+      z-index: 3;
     }
 
     .upper.disabled,
     .lower.disabled {
       cursor: not-allowed;
+    }
+
+    .upper .make-prompt,
+    .lower .make-prompt {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0.65rem;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #555;
+      pointer-events: none;
+      user-select: none;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+
+    .upper:hover .make-prompt,
+    .lower:hover .make-prompt {
+      opacity: 1;
     }
 
     /* Under a read model the lower stays laid out but white — no faded card. */
@@ -405,6 +464,8 @@
       position: absolute;
       z-index: 2;
       pointer-events: auto;
+      cursor: pointer;
+      transition: opacity 0.12s ease, filter 0.12s ease;
     }
 
     .tile {
@@ -431,30 +492,40 @@
     .elbow-bl { background-image: url("arrows/turn-bl.svg?v=curve"); }
     .vline { background-image: url("arrows/vline.svg"); }
     .hop {
-      background-image: url("arrows/hop.svg?v=hop2");
+      opacity: 1;
+      filter: none;
       transform: scaleY(-1); /* arc bridges above the mid-line */
+      background-image: url("arrows/hop-gg.svg?v=hop4");
     }
+    .hop.hot-v:not(.hot-h) { background-image: url("arrows/hop-vg.svg?v=hop4"); }
+    .hop.hot-h:not(.hot-v) { background-image: url("arrows/hop-gh.svg?v=hop4"); }
+    .hop.hot-v.hot-h {
+      background-image: url("arrows/hop-vh.svg?v=hop4");
+      z-index: 3;
+    }
+    .hop.hot-v,
+    .hop.hot-h { z-index: 3; }
   </style>
 </head>
 <body>
   <div class="top-chrome">
-    <div class="history-bar">
-      <div class="history-controls">
-        <label>
-          Branch
-          <select id="branch-select" aria-label="Event history branch"></select>
-        </label>
-        <label class="history-slider-label">
-          History
-          <input type="range" id="history-slider" min="0" max="0" value="0" aria-label="History position" />
-        </label>
-      </div>
-      <div class="history-meta" id="history-meta">0 / 0 · initial board</div>
-    </div>
     <div class="toolbar">
-      <button type="button" id="clear-joins">Clear joins</button>
+      <button type="button" id="clear-board">Clear board</button>
+      <button type="button" id="load-example">Load example</button>
       <button type="button" class="primary" id="help-btn">Help</button>
-      <span class="hint" id="hint">Event model wiring: command → event in the same slice; event → later read model. See Help for the full rules.</span>
+      <div class="history-bar">
+        <div class="history-controls">
+          <label>
+            Branch
+            <select id="branch-select" aria-label="Event history branch"></select>
+          </label>
+          <label class="history-slider-label">
+            History
+            <input type="range" id="history-slider" min="0" max="0" value="0" aria-label="History position" />
+          </label>
+        </div>
+        <div class="history-meta" id="history-meta">0 / 0 · initial board</div>
+      </div>
     </div>
   </div>
   <div class="board-scroll">
@@ -467,40 +538,50 @@
       <h2 id="help-title">Event model connector playground</h2>
       <p>
         Each column is a <strong>slice</strong> on the timeline.
-        The <strong>upper</strong> cell is a <strong>command</strong> or <strong>read model</strong>;
-        the <strong>lower</strong> cell is where an <strong>event</strong> lands.
-        Arrows in the middle band are the tiled connectors between them.
+        The <strong>upper</strong> is a <strong>command</strong> or <strong>state view</strong> (read model);
+        the <strong>lower</strong> is where an <strong>event</strong> lands.
+        Connectors in the middle band are discrete tiles — never overlapping.
       </p>
 
       <h3>How to wire</h3>
       <ul>
-        <li>Click a valid source, then a valid target.</li>
-        <li>Click the same cell again to cancel selection.</li>
-        <li>With an <strong>event</strong> (lower) selected, click to the <strong>right of the last slice</strong> to add a later slice and project that event into the new upper (read model).</li>
+        <li>Hover a blank <strong>upper</strong> for <em>click to make command and event</em>, then click once — same-slice command → event.</li>
+        <li>Hover an <strong>event</strong> for <em>click to select, then click again on where to connect to</em>. Click it to select, then click a later upper (hover shows <em>click to connect the selected event to a state view here</em>), or click to the <strong>right of the last slice</strong> to add a slice and project into it.</li>
+        <li>Click the selected event again to cancel.</li>
       </ul>
 
       <h3>What you can connect</h3>
       <ul>
-        <li><strong>Command → event:</strong> only <em>same-slice</em> upper → lower (centered down arrow). You never write an event from a different slice’s command.</li>
-        <li><strong>Event → read model:</strong> lower → upper on a <em>later</em> slice only (time moves right; no leftward or same-slice projections).</li>
+        <li><strong>Command → event:</strong> only <em>same-slice</em> upper → lower (centered down arrow).</li>
+        <li><strong>Event → state view:</strong> lower → upper on a <em>later</em> slice only (time moves right; no leftward or same-slice projections).</li>
       </ul>
 
       <h3>Causality locks</h3>
       <ul>
-        <li>An <strong>event</strong> cannot project until it exists: always wire same-slice command → event first, then you may join from that lower.</li>
-        <li>A <strong>command</strong> that has already written its event (upper with an <em>outgoing</em> join) is locked — nothing more to or from it.</li>
-        <li>A <strong>read model</strong> upper that already has an <em>incoming</em> projection cannot issue a command (it can still take more event inputs).</li>
+        <li>An <strong>event</strong> cannot project until it exists: make command → event first, then you may join from that lower.</li>
+        <li>A <strong>command</strong> that has already written its event is locked — nothing more to or from it.</li>
+        <li>A <strong>state view</strong> upper that already has an incoming projection cannot issue a command (it can still take more event inputs).</li>
+      </ul>
+
+      <h3>Hover &amp; highlight</h3>
+      <ul>
+        <li>Hover a connected card to double-highlight it and its path endpoints, and to blacken that join’s tiles.</li>
+        <li>Hover a <strong>connector</strong> tile to highlight that join and both end cards the same way.</li>
+        <li><strong>Click a connector</strong> to bring any end that is fully off-screen into view (scrolls that slice into the viewport).</li>
+        <li>Connectors are <strong>grey</strong> when idle and <strong>black</strong> when highlighted.</li>
+        <li>A <strong>hop</strong> (horizontal crossing a vertical) highlights each side independently: the vertical for the write/stub/rise join, the bridge for the projection.</li>
       </ul>
 
       <h3>Colors (event-model palette)</h3>
       <ul>
         <li><span class="swatch" style="background:#ffe6d5"></span> <strong>Event</strong> — lower with an incoming command arrow</li>
         <li><span class="swatch" style="background:#d7eef4"></span> <strong>Command</strong> — upper that wrote an event</li>
-        <li><span class="swatch" style="background:#d5ffd5"></span> <strong>Read model</strong> — upper fed by one or more events</li>
+        <li><span class="swatch" style="background:#d5ffd5"></span> <strong>State view</strong> — upper fed by one or more events</li>
       </ul>
 
       <h3>Slices on the timeline</h3>
       <ul>
+        <li><strong>Load example</strong> fills the board with 15 slices and a mix of writes, multi-input state views, and hops.</li>
         <li>Hover a <strong>slice boundary</strong> to reveal <strong>+</strong> and insert a blank slice; later indexes shift so existing wiring stays consistent.</li>
         <li>Hover the area <strong>to the right of the last slice</strong> for an Add slice pop-out. With an <strong>event</strong> selected, that also projects into the new upper.</li>
       </ul>
@@ -508,17 +589,17 @@
       <h3>Connector routing</h3>
       <ul>
         <li><strong>Write path:</strong> same-slice command → event is a centered vertical shaft into the event.</li>
-        <li><strong>Projection path:</strong> from the event, joins leave to the right of the write shaft, travel on a horizontal band, and rise into the target read model. Multiple inputs into a read model are centered as a group; the write shaft alone stays locked to center and pushes other columns aside.</li>
+        <li><strong>Projection path:</strong> from the event, joins leave to the right of the write shaft, travel on a horizontal band, and rise into the target state view. Multiple inputs are centered as a group; the write shaft stays locked to center and pushes other columns aside.</li>
         <li><strong>Leftness:</strong> projections claim bands in <code>fromSlice + toSlice</code> order (smaller sum higher). A worse claim cannot sit above a better one; a line moves up only when there is room (no elbow clash at another join’s source/dest).</li>
-        <li>Where a horizontal run crosses a vertical (write shaft, stub, or rise), a <strong>hop</strong> tile is required — never overlapping plain tiles.</li>
+        <li>Where a horizontal crosses a vertical, a <strong>hop</strong> tile owns that cell (draws both segments). Vertical shafts break around hops — no stacked tiles.</li>
       </ul>
 
       <h3>Event-sourced history</h3>
       <ul>
+        <li>Branch and History live in the top toolbar next to Clear board / Help.</li>
         <li>Every insert, join, and clear is an <strong>event</strong> on the active branch. The board is a projection of events up to the slider position.</li>
-        <li>Scrub the <strong>History</strong> slider to view the board at any past version.</li>
-        <li>If you change the board while not at the branch tip, a <strong>new branch</strong> forks from that point.</li>
-        <li>Use the <strong>Branch</strong> dropdown to switch to another branch’s head (tip).</li>
+        <li>Slide the <strong>History</strong> slider to view any past version. Changing the board while not at the tip <strong>forks a new branch</strong>.</li>
+        <li>Use the <strong>Branch</strong> dropdown to switch to another branch’s head.</li>
       </ul>
     </div>
   </div>
@@ -528,13 +609,13 @@
 
     const ARROW_DOWN = `
       <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
-        <rect x="14.25" y="0" width="1.5" height="20" fill="#444"/>
-        <polygon points="8,18 22,18 15,30" fill="#444"/>
+        <rect x="14.25" y="0" width="1.5" height="20" fill="#888"/>
+        <polygon points="8,18 22,18 15,30" fill="#888"/>
       </svg>`;
     const ARROW_UP = `
       <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
-        <rect x="14.25" y="10" width="1.5" height="20" fill="#444"/>
-        <polygon points="8,12 22,12 15,0" fill="#444"/>
+        <rect x="14.25" y="10" width="1.5" height="20" fill="#888"/>
+        <polygon points="8,12 22,12 15,0" fill="#888"/>
       </svg>`;
 
     let sliceCount = 3;
@@ -566,7 +647,7 @@
     let cursor = 0; // events applied on active branch
 
     const board = document.getElementById("board");
-    const hint = document.getElementById("hint");
+    const boardScroll = document.querySelector(".board-scroll");
     const branchSelect = document.getElementById("branch-select");
     const historySlider = document.getElementById("history-slider");
     const historyMeta = document.getElementById("history-meta");
@@ -596,7 +677,8 @@
           });
           state.nextJoinId = Math.max(state.nextJoinId, e.join.id + 1);
           break;
-        case "JoinsCleared":
+        case "BoardCleared":
+          state.sliceCount = 3;
           state.joins = [];
           break;
       }
@@ -615,7 +697,7 @@
         const { from, to } = e.join;
         return `join S${from.si} ${from.part} → S${to.si} ${to.part}`;
       }
-      if (e.type === "JoinsCleared") return "cleared joins";
+      if (e.type === "BoardCleared") return "cleared board";
       return e.type;
     }
 
@@ -625,12 +707,7 @@
       historySlider.max = String(n);
       historySlider.value = String(cursor);
       const last = cursor > 0 ? branch.events[cursor - 1] : null;
-      const behind = cursor < n;
       historyMeta.textContent = `${cursor} / ${n} · ${describeEvent(last)}`;
-      historyMeta.classList.toggle("fork-warn", behind);
-      if (behind) {
-        historyMeta.textContent += " · edit will fork";
-      }
 
       branchSelect.innerHTML = "";
       for (const b of branches) {
@@ -671,7 +748,6 @@
         branches.push(forked);
         activeBranchId = id;
         cursor = forked.events.length;
-        setHint(`Forked ${name} from position ${cursor - newEvents.length}.`);
       } else {
         branch.events.push(...newEvents);
         cursor = branch.events.length;
@@ -741,10 +817,6 @@
       );
     }
 
-    function setHint(text) {
-      hint.textContent = text;
-    }
-
     function insertSliceAt(at) {
       const joinFrom =
         selecting &&
@@ -764,9 +836,6 @@
             to: { si: at, part: "upper" },
           },
         });
-        setHint(`Inserted S${at} and joined S${joinFrom.si} lower → S${at} upper.`);
-      } else {
-        setHint(`Inserted blank slice at S${at}.`);
       }
       commit(events);
     }
@@ -774,16 +843,13 @@
     /** Append a slice and join selecting → new upper (lower→upper only). */
     function extendAndJoinToNewUpper() {
       if (!selecting || selecting.part !== "lower") {
-        setHint("Select a lower first, then click to the right to add a slice and join its upper.");
         return;
       }
       if (!canOriginateFrom(selecting.si, selecting.part)) {
-        setHint("Can't originate from that lower.");
         return;
       }
       const from = { ...selecting };
       const newSi = sliceCount;
-      setHint(`Added S${newSi} and joined S${from.si} lower → S${newSi} upper.`);
       commit([
         { type: "SliceInserted", at: newSi },
         {
@@ -828,6 +894,8 @@
           el.className = part;
           if (part !== "middle") {
             el.addEventListener("click", () => onPartClick(si, part));
+            el.addEventListener("mouseenter", () => highlightConnections(si, part));
+            el.addEventListener("mouseleave", () => clearConnectionHighlight());
           }
           slice.appendChild(el);
         }
@@ -865,47 +933,35 @@
     function onPartClick(si, part) {
       const target = { si, part };
       if (!selecting) {
-        if (!canOriginateFrom(si, part)) {
-          if (part === "lower")
-            setHint(`S${si} lower has no connection yet — connect to it before joining from it.`);
-          else if (upperHasOutgoing(si))
-            setHint(`S${si} upper already has an outgoing join — locked.`);
-          else
-            setHint(`S${si} upper already has an incoming join — can't originate from it.`);
+        if (!canOriginateFrom(si, part)) return;
+        // Blank upper → one-click command writing this slice's event
+        if (part === "upper") {
+          commit([
+            {
+              type: "JoinAdded",
+              join: {
+                id: nextId,
+                from: { si, part: "upper" },
+                to: { si, part: "lower" },
+              },
+            },
+          ]);
           return;
         }
         selecting = target;
-        setHint(
-          part === "lower"
-            ? `Selected S${si} lower. Click an upper on a later slice, or click right of the board to add one.`
-            : `Selected S${si} upper. Click this slice's lower (same-slice down only).`
-        );
         updateSelectionStyles();
         return;
       }
 
       if (selecting.si === si && selecting.part === part) {
         selecting = null;
-        setHint("Selection cleared. Click an upper or lower to start a join.");
         updateSelectionStyles();
         return;
       }
 
-      if (!isValidTarget(selecting, target)) {
-        if (target.si < selecting.si) setHint("Can't join to a previous slice.");
-        else if (target.part === selecting.part) setHint("Only upper↔lower joins are allowed.");
-        else if (target.part === "lower" && selecting.si !== target.si)
-          setHint("Downward joins are same-slice only (upper → lower).");
-        else if (target.si === selecting.si && selecting.part === "lower")
-          setHint("Can't join lower→upper within the same slice.");
-        else if (target.part === "upper" && upperHasOutgoing(target.si))
-          setHint(`S${target.si} upper already has an outgoing join — can't connect to it.`);
-        else setHint("Invalid or duplicate join. Pick another target.");
-        return;
-      }
+      if (!isValidTarget(selecting, target)) return;
 
       const from = { ...selecting };
-      setHint("Joined.");
       commit([
         {
           type: "JoinAdded",
@@ -930,6 +986,45 @@
           if (upperHasOutgoing(si)) el.classList.add("conn-from");
           else if (upperHasIncoming(si)) el.classList.add("conn-to");
         }
+      });
+    }
+
+    function setCardPrompt(el, text) {
+      let prompt = el.querySelector(".make-prompt");
+      if (text) {
+        if (!prompt) {
+          prompt = document.createElement("span");
+          prompt.className = "make-prompt";
+          el.appendChild(prompt);
+        }
+        prompt.textContent = text;
+      } else if (prompt) {
+        prompt.remove();
+      }
+    }
+
+    function updateMakePrompts() {
+      board.querySelectorAll(".upper").forEach((el) => {
+        const si = Number(el.parentElement.dataset.si);
+        let text = null;
+        if (!selecting && canOriginateFrom(si, "upper")) {
+          text = "click to make command and event";
+        } else if (
+          selecting &&
+          selecting.part === "lower" &&
+          isValidTarget(selecting, { si, part: "upper" })
+        ) {
+          text = "click to connect the selected event to a state view here";
+        }
+        setCardPrompt(el, text);
+      });
+      board.querySelectorAll(".lower").forEach((el) => {
+        const si = Number(el.parentElement.dataset.si);
+        const text =
+          !selecting && canOriginateFrom(si, "lower")
+            ? "click to select, then click again on where to connect to"
+            : null;
+        setCardPrompt(el, text);
       });
     }
 
@@ -958,6 +1053,7 @@
         if (selecting.si === si && selecting.part === part) el.classList.add("selected");
         else if (!isValidTarget(selecting, { si, part })) el.classList.add("disabled");
       });
+      updateMakePrompts();
     }
 
     function centerX(middle) {
@@ -973,17 +1069,122 @@
       return { stubY, bands };
     }
 
-    function placeTile(middle, className, x, y) {
+    function tagJoins(el, joinIds) {
+      if (!joinIds || !joinIds.length) return;
+      el.dataset.joinIds = joinIds.join(",");
+    }
+
+    function isPartiallyInScroller(el) {
+      const er = el.getBoundingClientRect();
+      const cr = boardScroll.getBoundingClientRect();
+      return (
+        er.right > cr.left &&
+        er.left < cr.right &&
+        er.bottom > cr.top &&
+        er.top < cr.bottom
+      );
+    }
+
+    /** If a join end card is fully off-screen, scroll its slice into view. */
+    function revealJoinEndpointSlices(joinIdsCsv) {
+      const idSet = new Set(
+        String(joinIdsCsv || "")
+          .split(",")
+          .filter(Boolean)
+      );
+      const related = joins.filter((j) => idSet.has(String(j.id)));
+      const hiddenSlices = [];
+      const seen = new Set();
+      for (const j of related) {
+        for (const end of [j.from, j.to]) {
+          const card = board.querySelector(`.slice[data-si="${end.si}"] > .${end.part}`);
+          if (!card || isPartiallyInScroller(card)) continue;
+          const slice = card.closest(".slice");
+          if (!slice || seen.has(slice)) continue;
+          seen.add(slice);
+          hiddenSlices.push(slice);
+        }
+      }
+      if (!hiddenSlices.length) return;
+
+      if (hiddenSlices.length === 1) {
+        hiddenSlices[0].scrollIntoView({
+          behavior: "smooth",
+          inline: "nearest",
+          block: "nearest",
+        });
+        return;
+      }
+
+      // Several ends off-screen: center the scroller on the span of all related ends.
+      const cards = [];
+      for (const j of related) {
+        for (const end of [j.from, j.to]) {
+          const card = board.querySelector(`.slice[data-si="${end.si}"] > .${end.part}`);
+          if (card) cards.push(card);
+        }
+      }
+      if (!cards.length) return;
+      let minL = Infinity;
+      let maxR = -Infinity;
+      let minT = Infinity;
+      let maxB = -Infinity;
+      for (const card of cards) {
+        const r = card.getBoundingClientRect();
+        minL = Math.min(minL, r.left);
+        maxR = Math.max(maxR, r.right);
+        minT = Math.min(minT, r.top);
+        maxB = Math.max(maxB, r.bottom);
+      }
+      const cr = boardScroll.getBoundingClientRect();
+      boardScroll.scrollBy({
+        left: (minL + maxR) / 2 - (cr.left + cr.right) / 2,
+        top: (minT + maxB) / 2 - (cr.top + cr.bottom) / 2,
+        behavior: "smooth",
+      });
+    }
+
+    function bindConnectorHover(el) {
+      if (!el.dataset.joinIds) return;
+      el.addEventListener("mouseenter", () => highlightByJoinIds(el.dataset.joinIds));
+      el.addEventListener("mouseleave", () => clearConnectionHighlight());
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        highlightByJoinIds(el.dataset.joinIds);
+        revealJoinEndpointSlices(el.dataset.joinIds);
+      });
+    }
+
+    function placeTile(middle, className, x, y, joinIds) {
       const el = document.createElement("div");
       el.className = "tile " + className;
       el.dataset.tile = className;
       el.style.left = x + "px";
       el.style.top = y + "px";
+      tagJoins(el, joinIds);
+      bindConnectorHover(el);
       middle.appendChild(el);
       return el;
     }
 
-    function placeArrow(middle, x, y, svg, kind) {
+    /** Hop cell: independent V/H highlight via data-v-join-ids / data-h-join-ids. */
+    function placeHop(middle, x, y, hJoinIds, vJoinIds) {
+      const el = document.createElement("div");
+      el.className = "tile hop";
+      el.dataset.tile = "hop";
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      const hIds = hJoinIds || [];
+      const vIds = vJoinIds || [];
+      if (hIds.length) el.dataset.hJoinIds = hIds.join(",");
+      if (vIds.length) el.dataset.vJoinIds = vIds.join(",");
+      tagJoins(el, [...new Set([...hIds, ...vIds])]);
+      bindConnectorHover(el);
+      middle.appendChild(el);
+      return el;
+    }
+
+    function placeArrow(middle, x, y, svg, kind, joinIds) {
       const el = document.createElement("div");
       el.className = "tile arrow " + kind;
       el.dataset.tile = kind;
@@ -995,10 +1196,12 @@
       node.style.height = "100%";
       node.style.display = "block";
       node.style.pointerEvents = "none";
+      tagJoins(el, joinIds);
+      bindConnectorHover(el);
       middle.appendChild(el);
     }
 
-    function placeShaftV(middle, x, y, h) {
+    function placeShaftV(middle, x, y, h, joinIds) {
       if (h <= 0) return;
       const el = document.createElement("div");
       el.className = "shaft-v";
@@ -1006,10 +1209,12 @@
       el.style.left = x + "px";
       el.style.top = y + "px";
       el.style.height = h + "px";
+      tagJoins(el, joinIds);
+      bindConnectorHover(el);
       middle.appendChild(el);
     }
 
-    function placeShaftH(middle, x, y, w) {
+    function placeShaftH(middle, x, y, w, joinIds) {
       if (w <= 0) return;
       const el = document.createElement("div");
       el.className = "shaft-h";
@@ -1017,7 +1222,61 @@
       el.style.left = x + "px";
       el.style.top = y + "px";
       el.style.width = w + "px";
+      tagJoins(el, joinIds);
+      bindConnectorHover(el);
       middle.appendChild(el);
+    }
+
+    function clearConnectionHighlight() {
+      board.querySelectorAll(".path-hot").forEach((el) => el.classList.remove("path-hot"));
+      board.querySelectorAll(".hop.hot-v, .hop.hot-h").forEach((el) => {
+        el.classList.remove("hot-v", "hot-h");
+      });
+      board.querySelectorAll(".endpoint-hot").forEach((el) => el.classList.remove("endpoint-hot"));
+    }
+
+    function applyJoinHighlight(idSet) {
+      if (!idSet.size) return;
+      board.querySelectorAll("[data-join-ids]").forEach((el) => {
+        if (el.classList.contains("hop")) {
+          const hIds = (el.dataset.hJoinIds || "").split(",").filter(Boolean);
+          const vIds = (el.dataset.vJoinIds || "").split(",").filter(Boolean);
+          if (hIds.some((id) => idSet.has(id))) el.classList.add("hot-h");
+          if (vIds.some((id) => idSet.has(id))) el.classList.add("hot-v");
+          return;
+        }
+        const ids = el.dataset.joinIds.split(",");
+        if (ids.some((id) => idSet.has(id))) el.classList.add("path-hot");
+      });
+
+      joins
+        .filter((j) => idSet.has(String(j.id)))
+        .forEach((j) => {
+          for (const end of [j.from, j.to]) {
+            const card = board.querySelector(`.slice[data-si="${end.si}"] > .${end.part}`);
+            if (card) card.classList.add("endpoint-hot");
+          }
+        });
+    }
+
+    function highlightByJoinIds(joinIdsCsv) {
+      clearConnectionHighlight();
+      const idSet = new Set(
+        String(joinIdsCsv || "")
+          .split(",")
+          .filter(Boolean)
+      );
+      applyJoinHighlight(idSet);
+    }
+
+    function highlightConnections(si, part) {
+      clearConnectionHighlight();
+      const related = joins.filter(
+        (j) =>
+          (j.from.si === si && j.from.part === part) ||
+          (j.to.si === si && j.to.part === part)
+      );
+      applyJoinHighlight(new Set(related.map((j) => String(j.id))));
     }
 
     function renderJoins() {
@@ -1092,21 +1351,32 @@
       inTo.forEach((list) => list.sort(byLeftness));
 
       /** Horizontal run that hops every vertical obstacle in [x0, x1). */
-      function placeShaftHHopped(middle, y, x0, x1, obstacles) {
+      function placeShaftHHopped(middle, y, x0, x1, obstacles, joinIds, vIdsAt) {
         const hits = obstacles
           .filter((x) => x + TILE > x0 && x < x1)
           .sort((a, b) => a - b);
         let x = x0;
         for (const ox of hits) {
-          if (ox > x) placeShaftH(middle, x, y, ox - x);
-          if (ox >= x0 && ox + TILE <= x1) placeTile(middle, "hop", ox, y);
-          else if (ox < x1 && ox + TILE > x0) {
-            // obstacle partially in range — still hop at tile origin if visible
-            placeTile(middle, "hop", ox, y);
+          if (ox > x) placeShaftH(middle, x, y, ox - x, joinIds);
+          if (ox + TILE > x0 && ox < x1) {
+            placeHop(middle, ox, y, joinIds, vIdsAt ? vIdsAt(ox) : []);
           }
           x = Math.max(x, ox + TILE);
         }
-        if (x1 > x) placeShaftH(middle, x, y, x1 - x);
+        if (x1 > x) placeShaftH(middle, x, y, x1 - x, joinIds);
+      }
+
+      /** Vertical run that leaves hop cells empty (hop.svg already draws the vertical). */
+      function placeShaftVHopped(middle, x, y0, y1, hopYs, joinIds) {
+        const hops = [...new Set(hopYs)]
+          .filter((y) => y + TILE > y0 && y < y1)
+          .sort((a, b) => a - b);
+        let y = y0;
+        for (const hy of hops) {
+          if (hy > y) placeShaftV(middle, x, y, hy - y, joinIds);
+          y = Math.max(y, hy + TILE);
+        }
+        if (y1 > y) placeShaftV(middle, x, y, y1 - y, joinIds);
       }
 
       requestAnimationFrame(() => {
@@ -1124,17 +1394,15 @@
           const inStart = cx - ((nIn - 1) * TILE) / 2;
           const inXs = inTo[si].map((_, ii) => inStart + TILE * ii);
 
-          if (vertical[si] === "down") {
-            placeShaftV(middle, cx, 0, stubY);
-            placeArrow(middle, cx, stubY, ARROW_DOWN, "arrow-down");
-          }
-
           // Through-runs: one hopped shaft per band that crosses this slice
-          const throughBands = new Set();
+          const throughByBand = new Map();
           for (const j of cross) {
             if (j.from.si >= si || j.to.si <= si) continue;
-            throughBands.add(bandOf.get(j.id));
+            const b = bandOf.get(j.id);
+            if (!throughByBand.has(b)) throughByBand.set(b, []);
+            throughByBand.get(b).push(j.id);
           }
+          const throughBands = new Set(throughByBand.keys());
 
           /** Verticals that actually occupy band `b` in this slice (hop only these). */
           function obstaclesOnBand(b, { skipOutOi = -1, skipInIi = -1 } = {}) {
@@ -1142,65 +1410,188 @@
             if (hasVert) obstacles.push(cx);
             outFrom[si].forEach((j, oi) => {
               if (oi === skipOutOi) return;
-              // Mid stub above a lower elbow occupies lower bands only.
               if (bandOf.get(j.id) < b) obstacles.push(outXs[oi]);
             });
             inTo[si].forEach((j, ii) => {
               if (ii === skipInIi) return;
-              // Rise from a lower elbow crosses higher bands on the way up.
               if (bandOf.get(j.id) > b) obstacles.push(inXs[ii]);
             });
             return obstacles;
+          }
+
+          /** Band Ys where a horizontal will place a hop at column x. */
+          function hopYsAt(x) {
+            const ys = [];
+            for (let b = 0; b < nBands; b++) {
+              if (!obstaclesOnBand(b).some((ox) => Math.abs(ox - x) < 0.5)) continue;
+              let covers = throughBands.has(b);
+              outFrom[si].forEach((j, oi) => {
+                if (bandOf.get(j.id) !== b) return;
+                if (outXs[oi] + TILE <= x + 0.5 && x < w) covers = true;
+              });
+              inTo[si].forEach((j, ii) => {
+                if (bandOf.get(j.id) !== b) return;
+                if (x < inXs[ii]) covers = true;
+              });
+              if (covers) ys.push(bands[b]);
+            }
+            return ys;
+          }
+
+          const localJoinIds = local
+            .filter((j) => j.from.si === si && j.from.part === "upper" && j.to.part === "lower")
+            .map((j) => j.id);
+
+          /** Join ids owning the vertical segment at column x (write / stub / rise). */
+          function vJoinIdsAt(x) {
+            const ids = [];
+            if (hasVert && Math.abs(x - cx) < 0.5) ids.push(...localJoinIds);
+            outFrom[si].forEach((j, oi) => {
+              if (Math.abs(outXs[oi] - x) < 0.5) ids.push(j.id);
+            });
+            inTo[si].forEach((j, ii) => {
+              if (Math.abs(inXs[ii] - x) < 0.5) ids.push(j.id);
+            });
+            return ids;
+          }
+
+          if (vertical[si] === "down") {
+            placeShaftVHopped(middle, cx, 0, stubY, hopYsAt(cx), localJoinIds);
+            placeArrow(middle, cx, stubY, ARROW_DOWN, "arrow-down", localJoinIds);
           }
 
           outFrom[si].forEach((j, oi) => {
             const band = bandOf.get(j.id);
             const y = bands[band];
             const ox = outXs[oi];
+            const ids = [j.id];
+            const hops = new Set(hopYsAt(ox));
 
             if (j.from.part === "lower") {
-              placeTile(middle, "vline", ox, stubY);
-              // Bands below the elbow: hop owns the cell when a through-run crosses here.
+              placeTile(middle, "vline", ox, stubY, ids);
               for (let b = nBands - 1; b > band; b--) {
-                if (throughBands.has(b)) continue;
-                placeTile(middle, "vline", ox, bands[b]);
+                if (hops.has(bands[b])) continue;
+                placeTile(middle, "vline", ox, bands[b], ids);
               }
-              placeTile(middle, "elbow-br", ox, y);
+              placeTile(middle, "elbow-br", ox, y, ids);
             } else {
-              placeShaftV(middle, ox, 0, y);
-              placeTile(middle, "elbow-tr", ox, y);
+              placeShaftVHopped(middle, ox, 0, y, [...hops], ids);
+              placeTile(middle, "elbow-tr", ox, y, ids);
             }
-            placeShaftHHopped(middle, y, ox + TILE, w, obstaclesOnBand(band, { skipOutOi: oi }));
+            placeShaftHHopped(
+              middle,
+              y,
+              ox + TILE,
+              w,
+              obstaclesOnBand(band, { skipOutOi: oi }),
+              ids,
+              vJoinIdsAt
+            );
           });
 
           for (const b of throughBands) {
-            placeShaftHHopped(middle, bands[b], 0, w, obstaclesOnBand(b));
+            placeShaftHHopped(
+              middle,
+              bands[b],
+              0,
+              w,
+              obstaclesOnBand(b),
+              throughByBand.get(b),
+              vJoinIdsAt
+            );
           }
 
           inTo[si].forEach((j, ii) => {
             const band = bandOf.get(j.id);
             const y = bands[band];
             const ax = inXs[ii];
+            const ids = [j.id];
+            const hops = hopYsAt(ax);
 
-            placeShaftHHopped(middle, y, 0, ax, obstaclesOnBand(band, { skipInIi: ii }));
+            placeShaftHHopped(
+              middle,
+              y,
+              0,
+              ax,
+              obstaclesOnBand(band, { skipInIi: ii }),
+              ids,
+              vJoinIdsAt
+            );
 
             if (j.to.part === "upper") {
-              placeTile(middle, "elbow-tl", ax, y);
-              if (y > TILE) placeShaftV(middle, ax, TILE, y - TILE);
-              placeArrow(middle, ax, 0, ARROW_UP, "arrow-up");
+              placeTile(middle, "elbow-tl", ax, y, ids);
+              if (y > TILE) placeShaftVHopped(middle, ax, TILE, y, hops, ids);
+              placeArrow(middle, ax, 0, ARROW_UP, "arrow-up", ids);
             } else {
-              placeTile(middle, "elbow-bl", ax, y);
-              if (stubY > y + TILE) placeShaftV(middle, ax, y + TILE, stubY - y - TILE);
-              placeArrow(middle, ax, stubY, ARROW_DOWN, "arrow-down");
+              placeTile(middle, "elbow-bl", ax, y, ids);
+              if (stubY > y + TILE) placeShaftVHopped(middle, ax, y + TILE, stubY, hops, ids);
+              placeArrow(middle, ax, stubY, ARROW_DOWN, "arrow-down", ids);
             }
           });
         }
       });
     }
 
-    document.getElementById("clear-joins").addEventListener("click", () => {
-      setHint("Joins cleared.");
-      commit([{ type: "JoinsCleared" }]);
+    function loadExampleBoard() {
+      selecting = null;
+      const events = [{ type: "BoardCleared" }];
+      for (let at = 3; at < 15; at++) {
+        events.push({ type: "SliceInserted", at });
+      }
+
+      let joinId = 1;
+      const addJoin = (fromSi, fromPart, toSi, toPart) => {
+        events.push({
+          type: "JoinAdded",
+          join: {
+            id: joinId++,
+            from: { si: fromSi, part: fromPart },
+            to: { si: toSi, part: toPart },
+          },
+        });
+      };
+
+      // Command → event writes (centered shafts; leave 2,5,8,11,14 as state views)
+      for (const si of [0, 1, 3, 4, 6, 7, 9, 10, 12, 13]) {
+        addJoin(si, "upper", si, "lower");
+      }
+
+      // Multi-input state views + long projections (hops over write shafts)
+      addJoin(0, "lower", 2, "upper");
+      addJoin(1, "lower", 2, "upper");
+
+      addJoin(0, "lower", 5, "upper");
+      addJoin(3, "lower", 5, "upper");
+      addJoin(4, "lower", 5, "upper");
+
+      addJoin(1, "lower", 8, "upper");
+      addJoin(3, "lower", 8, "upper");
+      addJoin(6, "lower", 8, "upper");
+      addJoin(7, "lower", 8, "upper");
+
+      addJoin(4, "lower", 11, "upper");
+      addJoin(6, "lower", 11, "upper");
+      addJoin(9, "lower", 11, "upper");
+      addJoin(10, "lower", 11, "upper");
+
+      addJoin(9, "lower", 14, "upper");
+      addJoin(12, "lower", 14, "upper");
+      addJoin(13, "lower", 14, "upper");
+
+      // Extra cross traffic for layered bands / hops
+      addJoin(0, "lower", 11, "upper");
+      addJoin(7, "lower", 14, "upper");
+
+      commit(events);
+    }
+
+    document.getElementById("clear-board").addEventListener("click", () => {
+      selecting = null;
+      commit([{ type: "BoardCleared" }]);
+    });
+
+    document.getElementById("load-example").addEventListener("click", () => {
+      loadExampleBoard();
     });
 
     historySlider.addEventListener("input", () => {
@@ -1213,7 +1604,6 @@
       activeBranchId = branchSelect.value;
       cursor = activeBranch().events.length; // jump to chosen branch head
       selecting = null;
-      setHint(`Switched to ${activeBranch().name} head.`);
       syncFromStore();
     });
 

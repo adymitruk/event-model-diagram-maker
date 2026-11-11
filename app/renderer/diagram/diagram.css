@@ -18,6 +18,44 @@
 body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui, sans-serif; }
 .emd { position: relative; overflow: auto; }
 .sheet { position: relative; width: max-content; }
+/* Leftness tile joins (EVT→RMO) — absolute 30×30 tiles over the sheet.
+   Layer and run boxes do not capture clicks; only the tile cells do, so
+   empty flex filler cannot sit above an arrow and block inspection. */
+#connector-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  color: #444;
+}
+#connector-layer .join-tile {
+  position: absolute;
+  width: var(--tile);
+  height: var(--tile);
+  pointer-events: auto;
+}
+#connector-layer .join-tile.join-run {
+  width: auto;
+  height: auto;
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#connector-layer .join-tile.join-run > .join-cell {
+  width: var(--tile);
+  height: var(--tile);
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+#connector-layer .join-tile svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 .board {
   display: grid;
   grid-template-columns: var(--lane) repeat(var(--slices), var(--col));
@@ -29,6 +67,7 @@ body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0; /* let long prop values wrap inside --col instead of overflowing */
   /* Vertical padding would break continuous shafts across cells. */
   padding-top: 0;
   padding-bottom: 0;
@@ -125,12 +164,12 @@ body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui
 .wfl:not(.continues)::after { content: none; }
 .slc-no { text-align: center; font-weight: 600; }
 
-article { border: 0; border-radius: 16px; padding: 0.85rem 1rem 0.95rem; background: #fff; box-shadow: 0 1px 2px rgba(28, 28, 28, 0.05), 0 8px 18px rgba(28, 28, 28, 0.08); }
+article { border: 0; border-radius: 16px; padding: 0.85rem 1rem 0.95rem; background: #fff; box-shadow: 0 1px 2px rgba(28, 28, 28, 0.05), 0 8px 18px rgba(28, 28, 28, 0.08); box-sizing: border-box; max-width: 100%; min-width: 0; }
 article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
-.props { margin: 0; display: flex; flex-direction: column; gap: 0.15rem; }
-.props div { display: flex; justify-content: space-between; gap: 1rem; }
-.props dt { font-weight: 400; }
-.props dd { margin: 0; font-weight: 700; text-align: right; }
+.props { margin: 0; display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.props div { display: flex; justify-content: space-between; gap: 1rem; min-width: 0; }
+.props dt { font-weight: 400; flex: 0 1 auto; }
+.props dd { margin: 0; font-weight: 700; text-align: right; min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
 .com { background: var(--com); border-radius: 2px; }
 .rmo { background: var(--rmo); border-radius: 2px; }
 .evt { background: var(--evt); border-radius: 2px; }
@@ -155,6 +194,16 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
 .pro h2 { margin: 0; padding: 0; background: none; color: #000; font-size: 0.95rem; }
 .pro .gear { width: 2.25rem; height: 2.25rem; }
 .map { background: var(--map); border: 1px solid #e6d48a; border-radius: 4px; padding: 0.2rem 0.4rem; font-size: 0.85rem; }
+/* Map sits on the join shaft: keep the lower-gap arrow tight under it. */
+.mba > .map { margin: 0; }
+.mba > .map + .gap {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+.mba > .map + .gap > .arr.v {
+  flex: 1 1 auto;
+}
+
 
 @font-face {
   font-family: "Patrick Hand";
@@ -177,7 +226,7 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
   font-size: 1.05rem;
 }
 .wire .heading { margin: 0; font-size: 1.25rem; }
-.wire .label { margin: 0; }
+.wire .label { margin: 0; overflow-wrap: anywhere; }
 .wire .col, .wire .row { display: flex; gap: 0.4rem; }
 .wire .col { flex-direction: column; align-items: stretch; align-self: stretch; }
 .wire .row { flex-direction: row; align-items: center; }
@@ -309,11 +358,11 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
 }
 .tile.vline { background-image: url("arrows/vline.svg"); }
 .tile.hline { background-image: url("arrows/hline.svg"); }
-.tile.turn-tr { background-image: url("arrows/turn-tr.svg"); }
-.tile.turn-tl { background-image: url("arrows/turn-tl.svg"); }
-.tile.turn-br { background-image: url("arrows/turn-br.svg"); }
-.tile.turn-bl { background-image: url("arrows/turn-bl.svg"); }
-.tile.hop { background-image: url("arrows/hop.svg"); }
+.tile.turn-tr { background-image: url("arrows/turn-tr.svg?v=curve"); }
+.tile.turn-tl { background-image: url("arrows/turn-tl.svg?v=curve"); }
+.tile.turn-br { background-image: url("arrows/turn-br.svg?v=curve"); }
+.tile.turn-bl { background-image: url("arrows/turn-bl.svg?v=curve"); }
+.tile.hop { background-image: url("arrows/hop.svg?v=hop2"); }
 .tile.arrow-down { background-image: url("arrows/arrow-down.svg"); }
 .tile.arrow-up { background-image: url("arrows/arrow-up.svg"); }
 .tile.arrow-right { background-image: url("arrows/arrow-right.svg"); }
@@ -506,6 +555,74 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
 }
 .rail.joins-2.source .rail-band.mid.b .h-run {
   margin-left: var(--tile);
+}
+/* Both joins still running (near not arrived): each mid hops the COM→EVT vertical. */
+.rail.joins-2.continue-both .rail-band.mid {
+  grid-template-columns: 1fr var(--tile) 1fr;
+  grid-template-rows: 1fr;
+}
+.rail.joins-2.continue-both .track.center,
+.rail.joins-2.continue-both .track.offset-1,
+.rail.joins-2.continue-both .track.offset-2 {
+  grid-column: 2;
+  grid-row: 1;
+}
+.rail.joins-2.continue-both .track.offset-1 {
+  position: relative;
+  left: calc(var(--tile) * 0.5);
+}
+.rail.joins-2.continue-both .track.offset-2 {
+  position: relative;
+  left: var(--tile);
+}
+.rail.joins-2.continue-both .rail-band.mid > .h-run:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  margin-left: calc(-0.4rem - 1px);
+}
+.rail.joins-2.continue-both .rail-band.mid > .h-run:last-child {
+  grid-column: 3;
+  grid-row: 1;
+  margin-right: calc(-0.4rem - 1px);
+}
+/* Merge: this column's EVT also feeds the same two RMOs — turn-br into each continuing mid. */
+.rail.joins-2.continue-both.merge .rail-band.mid.a > .h-run:last-child {
+  margin-left: calc(var(--tile) * 0.5);
+}
+.rail.joins-2.continue-both.merge .rail-band.mid.b > .h-run:last-child {
+  margin-left: var(--tile);
+}
+.rail.joins-2.continue-both.merge .rail-band.lower .track.offset-1,
+.rail.joins-2.continue-both.merge .rail-band.lower .track.offset-2 {
+  grid-column: 2;
+  position: relative;
+}
+.rail.joins-2.continue-both.merge .rail-band.lower .track.offset-1 {
+  left: calc(var(--tile) * 0.5);
+}
+.rail.joins-2.continue-both.merge .rail-band.lower .track.offset-2 {
+  left: var(--tile);
+}
+/* Far-only merge: near already arrived; this EVT feeds only the continuing far join. */
+.rail.joins-2.merge-far .rail-band.mid.b {
+  grid-template-rows: 1fr;
+}
+.rail.joins-2.merge-far .rail-band.mid.b .track.center,
+.rail.joins-2.merge-far .rail-band.mid.b .track.offset-2 {
+  grid-column: 2;
+  grid-row: 1;
+}
+.rail.joins-2.merge-far .rail-band.mid.b .track.offset-2 {
+  position: relative;
+  left: var(--tile);
+}
+.rail.joins-2.merge-far .rail-band.mid.b > .h-run:last-child {
+  margin-left: var(--tile);
+}
+.rail.joins-2.merge-far .rail-band.lower .track.offset-2 {
+  grid-column: 2;
+  position: relative;
+  left: var(--tile);
 }
 .rail-band .track {
   display: flex;
