@@ -567,7 +567,7 @@
       <ul>
         <li>Hover a connected card to double-highlight it and its path endpoints, and to blacken that join’s tiles.</li>
         <li>Hover a <strong>connector</strong> tile to highlight that join and both end cards the same way.</li>
-        <li><strong>Click a connector</strong> to bring any end that is fully off-screen into view (scrolls that slice into the viewport).</li>
+        <li><strong>Click a connector</strong> to bring any end that is partly out of view fully into the viewport (scrolls that slice).</li>
         <li>Connectors are <strong>grey</strong> when idle and <strong>black</strong> when highlighted.</li>
         <li>A <strong>hop</strong> (horizontal crossing a vertical) highlights each side independently: the vertical for the write/stub/rise join, the bridge for the projection.</li>
       </ul>
@@ -1074,18 +1074,19 @@
       el.dataset.joinIds = joinIds.join(",");
     }
 
-    function isPartiallyInScroller(el) {
+    /** True when the whole element lies inside the board scroller viewport. */
+    function isFullyInScroller(el) {
       const er = el.getBoundingClientRect();
       const cr = boardScroll.getBoundingClientRect();
       return (
-        er.right > cr.left &&
-        er.left < cr.right &&
-        er.bottom > cr.top &&
-        er.top < cr.bottom
+        er.left >= cr.left &&
+        er.right <= cr.right &&
+        er.top >= cr.top &&
+        er.bottom <= cr.bottom
       );
     }
 
-    /** If a join end card is fully off-screen, scroll its slice into view. */
+    /** If a join end card is partly (or fully) out of view, scroll its slice into view. */
     function revealJoinEndpointSlices(joinIdsCsv) {
       const idSet = new Set(
         String(joinIdsCsv || "")
@@ -1093,22 +1094,22 @@
           .filter(Boolean)
       );
       const related = joins.filter((j) => idSet.has(String(j.id)));
-      const hiddenSlices = [];
+      const clippedSlices = [];
       const seen = new Set();
       for (const j of related) {
         for (const end of [j.from, j.to]) {
           const card = board.querySelector(`.slice[data-si="${end.si}"] > .${end.part}`);
-          if (!card || isPartiallyInScroller(card)) continue;
+          if (!card || isFullyInScroller(card)) continue;
           const slice = card.closest(".slice");
           if (!slice || seen.has(slice)) continue;
           seen.add(slice);
-          hiddenSlices.push(slice);
+          clippedSlices.push(slice);
         }
       }
-      if (!hiddenSlices.length) return;
+      if (!clippedSlices.length) return;
 
-      if (hiddenSlices.length === 1) {
-        hiddenSlices[0].scrollIntoView({
+      if (clippedSlices.length === 1) {
+        clippedSlices[0].scrollIntoView({
           behavior: "smooth",
           inline: "nearest",
           block: "nearest",
@@ -1116,7 +1117,7 @@
         return;
       }
 
-      // Several ends off-screen: center the scroller on the span of all related ends.
+      // Several clipped ends: center the scroller on the span of all related ends.
       const cards = [];
       for (const j of related) {
         for (const end of [j.from, j.to]) {
