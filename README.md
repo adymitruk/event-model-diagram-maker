@@ -1,8 +1,15 @@
-# EMD app
+# Event modeling framework
 
-Electron viewer for event-model diagrams. Boards are plain `.emd` files: HTML with a root `<main class="emd">` element. Diagram CSS, arrow tiles, and fonts ship with the app; the file only carries the board markup.
+Generic event modeling and event-sourcing tooling. No client or product-specific models live here.
 
-## Run
+| Path | Role |
+|---|---|
+| [`event-modeling-instructions.md`](event-modeling-instructions.md) | How to construct an EMD |
+| [`html-css.md`](html-css.md) | How to draw an EMD in HTML/CSS (tiles, corridors, cards) |
+| [`diagram/`](diagram/) | Shared diagram CSS, arrow tiles, and fonts |
+| [`app/`](app/) | Electron viewer — load and save `.emd` boards |
+
+## App
 
 ```bash
 cd app
@@ -10,10 +17,8 @@ npm install
 npm start
 ```
 
-Opens with `examples/bike-rental.emd` (WFL1 · Stock a bike). Click the ☰ control for the side menu: **Load…**, **Save**, and **Save as…**.
+Opens the bike-rental example (generic). Side menu: **Load…**, **Save**, **Save as…**.
 
-If `npm install` skips Electron’s download script, run `npm run postinstall` (or `node scripts/ensure-electron.js`) once so the binary is extracted.
+## `.emd` files
 
-## `.emd` format
-
-An `.emd` file is the outer HTML of `<main class="emd" style="--slices: N">…</main>`. It does not embed CSS or tiles — the shell loads `renderer/diagram/` from the app bundle. This package ships only the bike-rental example; it does not include the conference-kiosk EMD.
+An `.emd` is the outer HTML of `<main class="emd" style="--slices: N">…</main>`. CSS and tiles stay in the app/diagram bundles; the file is board markup only.

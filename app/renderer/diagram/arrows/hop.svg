@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
+  <!-- Vertical shaft continues under the hop. -->
+  <rect x="14.25" y="0" width="1.5" height="30" fill="#444"/>
+  <!-- Horizontal: straight in, arc up over the vertical, straight out. -->
+  <rect x="0" y="14.25" width="9" height="1.5" fill="#444"/>
+  <path d="M9 15 A6 6 0 0 1 21 15" fill="none" stroke="#444" stroke-width="1.5"/>
+  <rect x="21" y="14.25" width="9" height="1.5" fill="#444"/>
+</svg>

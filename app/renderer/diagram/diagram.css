@@ -1,0 +1,530 @@
+:root {
+  --lane: 11rem;
+  --col: 16rem;
+  --tile: 30px;
+  /* Footprint of an .evt/.com/.rmo card with one prop row — keeps lba-head gap = arrow corridor. */
+  --evt-card-one-prop: 5.125rem;
+  --line: 1px solid #c8c8c8;
+  --com: #c5e8f8;
+  --rmo: #d8f3df;
+  --evt: #ffe0c2;
+  --err: #f8d0d0;
+  --pro: #ececec;
+  --map: #fff3cd;
+  --ink: #1c1c1c;
+  --wfl: #0055ff;
+}
+
+body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui, sans-serif; }
+.emd { position: relative; overflow: auto; }
+.sheet { position: relative; width: max-content; }
+.board {
+  display: grid;
+  grid-template-columns: var(--lane) repeat(var(--slices), var(--col));
+  grid-auto-rows: auto;
+  align-items: stretch;
+}
+.cell { border-right: var(--line); border-bottom: var(--line); padding: 0.4rem; min-height: 2.5rem; }
+.uba, .mba, .lba, .connector {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Vertical padding would break continuous shafts across cells. */
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/* Cards stay flush with vertical shafts; only outer ends keep a little air. */
+.uba > article:first-child { margin-top: 0.4rem; }
+.lba > article:last-child { margin-bottom: 0.4rem; }
+.connector { min-height: calc(var(--tile) * 3); }
+.uba, .mba, .connector, .lba, .lane.open { border-bottom: 0; }
+.foot { border-bottom: var(--line); }
+.slc-no, .wfl, .lane:not(.open):not(.foot) { border-bottom: 0; }
+/* Sticky lane column sits above scrolling slice content (cards, lba, etc.). */
+.lane {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: #fafafa;
+  font-weight: 600;
+}
+/* First LBA swim lane: mirror the LBA cell — flex gap above, label beside the EVTs.
+   The label box is sized like a one-prop .evt card so the flex gap matches the arrow corridor. */
+.lane.lba-head {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0;
+  padding-bottom: 0.4rem; /* match .lba > article:last-child margin */
+}
+.lane.lba-head > .lba-head-gap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.lane.lba-head > .lba-head-label {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-height: var(--evt-card-one-prop);
+  display: flex;
+  align-items: flex-start;
+}
+/* Slice body cells stay under the sticky labels while scrolling horizontally. */
+.uba, .mba, .lba, .connector, .slc-no {
+  position: relative;
+  z-index: 0;
+  background: #fff;
+}
+.wfl {
+  --arrow-bottom: 0.85rem;
+  position: relative;
+  z-index: 2;
+  background-color: #fff;
+  /* Spanning WFL cell: redraw slice borders inside the run. */
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(var(--col) - 1px),
+    #c8c8c8 calc(var(--col) - 1px),
+    #c8c8c8 var(--col)
+  );
+  font-weight: 600;
+}
+.wfl[data-span="2"] { grid-column: span 2; }
+.wfl[data-span="3"] { grid-column: span 3; }
+.wfl[data-span="4"] { grid-column: span 4; }
+.wfl[data-span="5"] { grid-column: span 5; }
+.wfl[data-span="6"] { grid-column: span 6; }
+.wfl[data-span="7"] { grid-column: span 7; }
+.wfl[data-span="8"] { grid-column: span 8; }
+.wfl > span {
+  position: sticky;
+  left: calc(var(--lane) + 0.4rem);
+  z-index: 3;
+  display: inline-block;
+  max-width: calc(100% - 0.8rem);
+  background: #fff;
+  padding: 0.05rem 0.35rem 0.05rem 0;
+}
+.wfl::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: var(--arrow-bottom);
+  height: 4px;
+  background: var(--wfl);
+}
+.wfl:has(span)::before { left: 0.4rem; }
+.wfl.continues::before { right: -1px; }
+.wfl:not(.continues)::before {
+  right: 0.35rem;
+  height: 16px;
+  bottom: calc(var(--arrow-bottom) - 6px);
+  clip-path: polygon(0 6px, calc(100% - 14px) 6px, calc(100% - 14px) 0, 100% 8px, calc(100% - 14px) 16px, calc(100% - 14px) 10px, 0 10px);
+}
+.wfl:not(.continues)::after { content: none; }
+.slc-no { text-align: center; font-weight: 600; }
+
+article { border: 0; border-radius: 16px; padding: 0.85rem 1rem 0.95rem; background: #fff; box-shadow: 0 1px 2px rgba(28, 28, 28, 0.05), 0 8px 18px rgba(28, 28, 28, 0.08); }
+article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
+.props { margin: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.props div { display: flex; justify-content: space-between; gap: 1rem; }
+.props dt { font-weight: 400; }
+.props dd { margin: 0; font-weight: 700; text-align: right; }
+.com { background: var(--com); border-radius: 2px; }
+.rmo { background: var(--rmo); border-radius: 2px; }
+.evt { background: var(--evt); border-radius: 2px; }
+.com h2, .rmo h2, .evt h2 { margin: -0.85rem -1rem 0.65rem; padding: 0.5rem 1rem; border-radius: 2px 2px 0 0; color: #000; }
+.com h2 { background: #7ebfe0; }
+.rmo h2 { background: #8dcea4; }
+.evt h2 { background: #f0b07a; }
+.err { background: var(--err); }
+.pro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: #444;
+}
+.pro h2 { margin: 0; padding: 0; background: none; color: #000; font-size: 0.95rem; }
+.pro .gear { width: 2.25rem; height: 2.25rem; }
+.map { background: var(--map); border: 1px solid #e6d48a; border-radius: 4px; padding: 0.2rem 0.4rem; font-size: 0.85rem; }
+
+@font-face {
+  font-family: "Patrick Hand";
+  src: url("fonts/PatrickHand-Regular.ttf") format("truetype");
+}
+.wire {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.55rem;
+  background: #fff;
+  color: #222;
+  border: 2px solid #222;
+  border-radius: 2px;
+  box-shadow: 3px 3px 0 #222;
+  font-family: "Patrick Hand", "Comic Sans MS", cursive;
+  font-size: 1.05rem;
+}
+.wire .heading { margin: 0; font-size: 1.25rem; }
+.wire .label { margin: 0; }
+.wire .col, .wire .row { display: flex; gap: 0.4rem; }
+.wire .col { flex-direction: column; align-items: stretch; align-self: stretch; }
+.wire .row { flex-direction: row; align-items: center; }
+.wire .row.end { align-self: stretch; justify-content: flex-end; }
+.wire .group { margin: 0; border: 2px solid #222; border-radius: 2px; padding: 0.35rem 0.45rem 0.45rem; }
+.wire .group legend { padding: 0 0.25rem; }
+.wire button,
+.wire input:not([type="checkbox"]),
+.wire select {
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+  border: 2px solid #222;
+  box-shadow: 2px 2px 0 #222;
+}
+.wire button { border-radius: 10px; padding: 0.15rem 0.7rem; width: fit-content; white-space: nowrap; }
+.wire input, .wire select { border-radius: 2px; padding: 0.1rem 0.35rem; width: 100%; box-sizing: border-box; }
+.wire select {
+  background-image: linear-gradient(45deg, transparent 50%, #222 50%), linear-gradient(135deg, #222 50%, transparent 50%);
+  background-position: calc(100% - 12px) 55%, calc(100% - 7px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 1.2rem;
+}
+.wire table { width: 100%; border-collapse: collapse; }
+.wire th, .wire td { border: 2px solid #222; padding: 0.15rem 0.3rem; text-align: left; }
+
+/* Arrow corridors: 30x30 SVG tiles. Long shafts tile via background-repeat. No JS. */
+.gap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 auto;
+  min-height: var(--tile);
+  min-width: 0;
+}
+/* Center track on the card midline; offset join sits one tile to its right.
+   Both must share row 1 — without it, grid auto-placement stacks them. */
+.gap.pair {
+  display: grid;
+  grid-template-columns: 1fr var(--tile) 1fr;
+  grid-template-rows: 1fr;
+}
+.gap.pair > .arr {
+  width: var(--tile);
+  height: 100%;
+  min-height: var(--tile);
+  grid-column: 2;
+  grid-row: 1;
+}
+.gap.pair > .arr:last-child {
+  position: relative;
+  left: var(--tile);
+}
+.gap.pair > .arr:last-child .shaft {
+  flex: 1 1 auto;
+  min-height: var(--tile);
+}
+/* Two parallel joins from one event: true center into the card; offsets shift right. */
+.gap.joins-2 {
+  display: grid;
+  grid-template-columns: 1fr var(--tile) 1fr;
+  grid-template-rows: 1fr;
+}
+.gap.joins-2 > .arr {
+  width: var(--tile);
+  height: 100%;
+  min-height: var(--tile);
+  grid-column: 2;
+  grid-row: 1;
+}
+.gap.joins-2 > .arr:nth-child(2) {
+  position: relative;
+  left: calc(var(--tile) * 0.5);
+}
+.gap.joins-2 > .arr:nth-child(3) {
+  position: relative;
+  left: var(--tile);
+}
+.gap.joins-2 > .arr .shaft {
+  flex: 1 1 auto;
+  min-height: var(--tile);
+}
+
+.arr {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.arr.v {
+  flex-direction: column;
+  align-items: center;
+  width: var(--tile);
+  flex: 1 1 auto;
+  align-self: center;
+  min-height: 0;
+}
+.arr.h {
+  flex-direction: row;
+  align-items: center;
+  height: var(--tile);
+  flex: 1 1 auto;
+  width: 100%;
+}
+.arr .shaft {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+.arr.v .shaft {
+  width: var(--tile);
+  background: url("arrows/vline.svg") center top / var(--tile) var(--tile) repeat-y;
+}
+.arr.h .shaft {
+  height: var(--tile);
+  background: url("arrows/hline.svg") left center / var(--tile) var(--tile) repeat-x;
+}
+
+.arr .tile,
+.gear-dock .tile,
+.rail-band .tile {
+  flex: 0 0 var(--tile);
+  width: var(--tile);
+  height: var(--tile);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: var(--tile) var(--tile);
+}
+.tile.vline { background-image: url("arrows/vline.svg"); }
+.tile.hline { background-image: url("arrows/hline.svg"); }
+.tile.turn-tr { background-image: url("arrows/turn-tr.svg"); }
+.tile.turn-tl { background-image: url("arrows/turn-tl.svg"); }
+.tile.turn-br { background-image: url("arrows/turn-br.svg"); }
+.tile.turn-bl { background-image: url("arrows/turn-bl.svg"); }
+.tile.hop { background-image: url("arrows/hop.svg"); }
+.tile.arrow-down { background-image: url("arrows/arrow-down.svg"); }
+.tile.arrow-up { background-image: url("arrows/arrow-up.svg"); }
+.tile.arrow-right { background-image: url("arrows/arrow-right.svg"); }
+
+/* Gear dock: horizontal run into the processor gear. */
+.gear-dock {
+  --gear: 2.25rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  min-height: 4.5rem;
+  width: 100%;
+}
+.gear-dock .pro {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.gear-dock .balance { grid-column: 3; min-width: 0; }
+/* Incoming run ends at the gear (slice center), not the wide title. */
+.gear-dock:not(.split) > .arr.h {
+  position: absolute;
+  left: calc(-0.4rem - 1px);
+  bottom: 0;
+  width: calc(50% - (var(--gear) / 2) + 0.4rem + 1px);
+  margin: 0;
+}
+/* Split dock: turn on the card midline, horizontal run to the right. */
+.gear-dock.split {
+  display: grid;
+  grid-template-columns: 1fr var(--tile) 1fr;
+  align-items: end;
+  position: relative;
+}
+.gear-dock.split .tile,
+.gear-dock.split .arr.h {
+  grid-row: 1;
+  align-self: end;
+  position: static;
+}
+.gear-dock.split .tile { grid-column: 2; }
+.gear-dock.split .arr.h {
+  grid-column: 3;
+  width: auto;
+  min-width: 0;
+  justify-self: stretch;
+  margin-left: 0;
+  margin-right: calc(-0.4rem - 1px);
+}
+.uba .arr.v.fill {
+  flex: 1 1 auto;
+  width: var(--tile);
+  align-self: center;
+}
+
+/* Connector rail: upper | mid (horizontal) | lower */
+.rail {
+  display: grid;
+  grid-template-rows: 1fr var(--tile) 1fr;
+  flex: 1 1 auto;
+  min-height: calc(var(--tile) * 3);
+  width: 100%;
+}
+.rail-band {
+  display: grid;
+  min-height: 0;
+  align-items: stretch;
+}
+.rail.single .rail-band { grid-template-columns: 1fr var(--tile) 1fr; }
+.rail.single .track { grid-column: 2; }
+.rail.single .rail-band.mid .h-run {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+/* Inbound run (left of center). Alone or first of a pass-through. */
+.rail.single .rail-band.mid > .h-run:first-child {
+  grid-column: 1;
+  margin-left: calc(-0.4rem - 1px);
+}
+/* Outbound run when a join continues past this column. */
+.rail.single .rail-band.mid > .h-run:last-child:not(:first-child) {
+  grid-column: 3;
+  margin-right: calc(-0.4rem - 1px);
+}
+.rail.pair .rail-band {
+  grid-template-columns: 1fr var(--tile) 1fr;
+  grid-template-rows: 1fr;
+}
+.rail.pair .track.center,
+.rail.pair .track.offset {
+  grid-column: 2;
+  grid-row: 1;
+}
+.rail.pair .track.offset {
+  position: relative;
+  left: var(--tile);
+}
+.rail.pair .rail-band.mid .h-run {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: var(--tile);
+  margin-right: calc(-0.4rem - 1px);
+}
+/* Two parallel join horizontals: mid.a (near) and mid.b (far), never teed together.
+   .mids is 1.5 tiles tall; the two bands pin top/bottom so line centers are half a tile apart. */
+.rail.joins-2 {
+  grid-template-rows: 1fr calc(var(--tile) * 1.5) 1fr;
+  min-height: calc(var(--tile) * 3.5);
+}
+.rail.joins-2 > .rail-band.upper { grid-row: 1; }
+.rail.joins-2 > .mids {
+  grid-row: 2;
+  position: relative;
+  min-height: 0;
+}
+.rail.joins-2 > .rail-band.lower { grid-row: 3; }
+.rail.joins-2 .mids > .rail-band.mid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--tile);
+  grid-template-columns: 1fr var(--tile) 1fr;
+}
+.rail.joins-2 .mids > .rail-band.mid.a { top: 0; }
+.rail.joins-2 .mids > .rail-band.mid.b { bottom: 0; }
+.rail.joins-2 .rail-band {
+  grid-template-columns: 1fr var(--tile) 1fr;
+}
+.rail.joins-2 .track.center,
+.rail.joins-2 .rail-band.mid > .track:not(.offset-1):not(.offset-2) {
+  grid-column: 2;
+}
+.rail.joins-2 .rail-band.mid .h-run {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.rail.joins-2 .rail-band.mid > .h-run:first-child {
+  grid-column: 1;
+  margin-left: calc(-0.4rem - 1px);
+}
+.rail.joins-2 .rail-band.mid > .h-run:last-child:not(:first-child) {
+  grid-column: 3;
+  margin-right: calc(-0.4rem - 1px);
+}
+/* Full-width pass-through on a parallel band (no turn). */
+.rail.joins-2 .rail-band.mid.through {
+  grid-template-columns: 1fr;
+}
+.rail.joins-2 .rail-band.mid.through > .h-run {
+  grid-column: 1;
+  margin-left: calc(-0.4rem - 1px);
+  margin-right: calc(-0.4rem - 1px);
+}
+/* Source column: true-centered vertical; offset turns share that column and shift right. */
+.rail.joins-2.source .rail-band {
+  grid-template-columns: 1fr var(--tile) 1fr;
+  grid-template-rows: 1fr;
+}
+.rail.joins-2.source .track.center,
+.rail.joins-2.source .track.offset-1,
+.rail.joins-2.source .track.offset-2 {
+  grid-column: 2;
+  grid-row: 1;
+}
+.rail.joins-2.source .track.offset-1 {
+  position: relative;
+  left: calc(var(--tile) * 0.5);
+}
+.rail.joins-2.source .track.offset-2 {
+  position: relative;
+  left: var(--tile);
+}
+.rail.joins-2.source .rail-band.mid .h-run {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-right: calc(-0.4rem - 1px);
+}
+.rail.joins-2.source .rail-band.mid.a .h-run {
+  margin-left: calc(var(--tile) * 0.5);
+}
+.rail.joins-2.source .rail-band.mid.b .h-run {
+  margin-left: var(--tile);
+}
+.rail-band .track {
+  display: flex;
+  flex-direction: column;
+  width: var(--tile);
+  min-height: 0;
+}
+.rail-band.mid .track { flex-direction: row; align-items: center; }
+.rail-band .track .shaft,
+.rail-band .h-run .shaft {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+.rail-band .track .shaft {
+  width: var(--tile);
+  background: url("arrows/vline.svg") center top / var(--tile) var(--tile) repeat-y;
+}
+.rail-band .h-run .shaft {
+  height: var(--tile);
+  background: url("arrows/hline.svg") left center / var(--tile) var(--tile) repeat-x;
+}

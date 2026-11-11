@@ -1,3 +1,8 @@
-node_modules/
-npm-debug.log*
-.DS_Store
+# Electron
+app/node_modules/
+
+# Client / local artefacts (not part of the generic framework)
+compare-slices.html
+instruction-rebuild/
+lucid-chart/
+diagram/diagram.html
