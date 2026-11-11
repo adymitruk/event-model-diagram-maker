@@ -13,11 +13,31 @@
     }
 
     * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
       color: var(--ink);
       font: 14px/1.35 system-ui, sans-serif;
       background: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .top-chrome {
+      flex: 0 0 auto;
+      z-index: 11;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .board-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
     }
 
     .toolbar {
@@ -28,9 +48,6 @@
       padding: 0.75rem 1rem;
       background: #fff;
       border-bottom: 1px solid var(--line);
-      position: sticky;
-      top: 0;
-      z-index: 10;
     }
 
     .toolbar button {
@@ -47,6 +64,59 @@
       border-color: #a8c0ef;
     }
     .hint { color: #555; flex: 1 1 12rem; }
+
+    .history-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding: 0.55rem 1rem;
+      background: #fafafa;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .history-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem 1rem;
+      align-items: center;
+    }
+
+    .history-bar label {
+      font-size: 12px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .history-bar label.history-slider-label {
+      flex: 1 1 12rem;
+      min-width: 8rem;
+    }
+
+    .history-bar select {
+      font: inherit;
+      padding: 0.25rem 0.4rem;
+      border: 1px solid var(--line);
+      background: #fff;
+      max-width: 14rem;
+    }
+
+    .history-bar input[type="range"] {
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      accent-color: var(--sel);
+    }
+
+    .history-meta {
+      font-size: 12px;
+      color: #555;
+      font-variant-numeric: tabular-nums;
+      min-height: 1.2em;
+    }
+
+    .history-meta.fork-warn { color: #a35b00; }
 
     .help-backdrop {
       display: none;
@@ -127,6 +197,7 @@
       padding: 1.5rem;
       width: max-content;
       min-width: 100%;
+      box-sizing: border-box;
     }
 
     .slice {
@@ -151,10 +222,6 @@
     }
 
     .slice-insert.before { left: -7px; }
-    .slice-insert.after {
-      right: -7px;
-      left: auto;
-    }
 
     .slice-insert button {
       position: absolute;
@@ -190,17 +257,61 @@
     }
 
     .extend-zone {
-      flex: 0 0 6rem;
+      position: relative;
+      flex: 0 0 5.5rem;
       align-self: stretch;
       min-height: 22rem;
-      cursor: cell;
-      border-radius: 4px;
+      cursor: pointer;
+      border-radius: 0 8px 8px 0;
+      margin-left: -1px;
+    }
+
+    .extend-zone-pop {
+      position: absolute;
+      top: 0.75rem;
+      left: 0.35rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.2rem;
+      padding: 0.55rem 0.75rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+      opacity: 0;
+      transform: translateX(-6px) scale(0.96);
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .extend-zone-pop .plus {
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1;
+      color: var(--sel);
+    }
+
+    .extend-zone-pop .label {
+      font-size: 12px;
+      color: #555;
+    }
+
+    .extend-zone:hover .extend-zone-pop,
+    .extend-zone:focus-within .extend-zone-pop,
+    .extend-zone.active .extend-zone-pop {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
     }
 
     .extend-zone.active {
-      background: rgba(42, 109, 244, 0.06);
-      outline: 1px dashed rgba(42, 109, 244, 0.35);
-      outline-offset: -4px;
+      background: linear-gradient(90deg, rgba(42, 109, 244, 0.04), rgba(42, 109, 244, 0.1));
+    }
+
+    .extend-zone.active .extend-zone-pop .label {
+      color: var(--sel);
     }
 
     .upper,
@@ -297,14 +408,31 @@
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <button type="button" id="add-slice">Add blank slice at end</button>
-    <button type="button" id="clear-joins">Clear joins</button>
-    <button type="button" id="clear-select">Clear selection</button>
-    <button type="button" class="primary" id="help-btn">Help</button>
-    <span class="hint" id="hint">Event model wiring: command → event in the same slice; event → later read model. See Help for the full rules.</span>
+  <div class="top-chrome">
+    <div class="history-bar">
+      <div class="history-controls">
+        <label>
+          Branch
+          <select id="branch-select" aria-label="Event history branch"></select>
+        </label>
+        <label class="history-slider-label">
+          History
+          <input type="range" id="history-slider" min="0" max="0" value="0" aria-label="History position" />
+        </label>
+      </div>
+      <div class="history-meta" id="history-meta">0 / 0 · initial board</div>
+    </div>
+    <div class="toolbar">
+      <button type="button" id="add-slice">Add blank slice at end</button>
+      <button type="button" id="clear-joins">Clear joins</button>
+      <button type="button" id="clear-select">Clear selection</button>
+      <button type="button" class="primary" id="help-btn">Help</button>
+      <span class="hint" id="hint">Event model wiring: command → event in the same slice; event → later read model. See Help for the full rules.</span>
+    </div>
   </div>
-  <div class="board" id="board"></div>
+  <div class="board-scroll">
+    <div class="board" id="board"></div>
+  </div>
 
   <div class="help-backdrop" id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
     <div class="help-dialog">
@@ -348,7 +476,7 @@
       <ul>
         <li><strong>Add blank slice at end</strong> appends the next step in time.</li>
         <li>Hover a <strong>slice boundary</strong> to reveal <strong>+</strong> and insert a blank slice; later indexes shift so existing wiring stays consistent.</li>
-        <li>With an <strong>event</strong> selected, inserting a slice <em>to its right</em> (via <strong>+</strong> or the right-side click zone) also projects that event into the new upper.</li>
+        <li>Hover the area <strong>to the right of the last slice</strong> for an Add slice pop-out. With an <strong>event</strong> selected, that also projects into the new upper.</li>
       </ul>
 
       <h3>Connector routing</h3>
@@ -357,6 +485,14 @@
         <li><strong>Projection path:</strong> from the event, joins leave to the right of that shaft, travel on a horizontal band, and rise into the target read model. The first input to a read model arrives on center; further inputs sit one tile further right without moving the first.</li>
         <li><strong>Leftness:</strong> projection bands are ordered by <code>fromSlice + toSlice</code>. Smaller sum sits higher (e.g. event in slice 1 → read model in 3 sums to 4 above 2→3 summing to 5), which prefers left-origin runs on top and reduces hops.</li>
         <li>Where a projection crosses another slice’s write-path shaft, a <strong>hop</strong> tile bridges the crossing.</li>
+      </ul>
+
+      <h3>Event-sourced history</h3>
+      <ul>
+        <li>Every insert, join, and clear is an <strong>event</strong> on the active branch. The board is a projection of events up to the slider position.</li>
+        <li>Scrub the <strong>History</strong> slider to view the board at any past version.</li>
+        <li>If you change the board while not at the branch tip, a <strong>new branch</strong> forks from that point.</li>
+        <li>Use the <strong>Branch</strong> dropdown to switch to another branch’s head (tip).</li>
       </ul>
     </div>
   </div>
@@ -380,8 +516,142 @@
     let selecting = null;
     let nextId = 1;
 
+    function formatBranchTime(date = new Date()) {
+      const p = (n) => String(n).padStart(2, "0");
+      return (
+        date.getFullYear() +
+        "-" +
+        p(date.getMonth() + 1) +
+        "-" +
+        p(date.getDate()) +
+        " " +
+        p(date.getHours()) +
+        ":" +
+        p(date.getMinutes()) +
+        ":" +
+        p(date.getSeconds())
+      );
+    }
+
+    let nextBranchNum = 2;
+    const initialBranchName = formatBranchTime();
+    let branches = [{ id: "b1", name: initialBranchName, events: [] }];
+    let activeBranchId = "b1";
+    let cursor = 0; // events applied on active branch
+
     const board = document.getElementById("board");
     const hint = document.getElementById("hint");
+    const branchSelect = document.getElementById("branch-select");
+    const historySlider = document.getElementById("history-slider");
+    const historyMeta = document.getElementById("history-meta");
+
+    function emptyState() {
+      return { sliceCount: 3, joins: [], nextJoinId: 1 };
+    }
+
+    function activeBranch() {
+      return branches.find((b) => b.id === activeBranchId);
+    }
+
+    function applyEvent(state, e) {
+      switch (e.type) {
+        case "SliceInserted":
+          for (const j of state.joins) {
+            if (j.from.si >= e.at) j.from.si += 1;
+            if (j.to.si >= e.at) j.to.si += 1;
+          }
+          state.sliceCount += 1;
+          break;
+        case "JoinAdded":
+          state.joins.push({
+            id: e.join.id,
+            from: { si: e.join.from.si, part: e.join.from.part },
+            to: { si: e.join.to.si, part: e.join.to.part },
+          });
+          state.nextJoinId = Math.max(state.nextJoinId, e.join.id + 1);
+          break;
+        case "JoinsCleared":
+          state.joins = [];
+          break;
+      }
+    }
+
+    function fold(events) {
+      const state = emptyState();
+      for (const e of events) applyEvent(state, e);
+      return state;
+    }
+
+    function describeEvent(e) {
+      if (!e) return "initial board (3 slices)";
+      if (e.type === "SliceInserted") return `inserted slice at S${e.at}`;
+      if (e.type === "JoinAdded") {
+        const { from, to } = e.join;
+        return `join S${from.si} ${from.part} → S${to.si} ${to.part}`;
+      }
+      if (e.type === "JoinsCleared") return "cleared joins";
+      return e.type;
+    }
+
+    function updateHistoryUi() {
+      const branch = activeBranch();
+      const n = branch.events.length;
+      historySlider.max = String(n);
+      historySlider.value = String(cursor);
+      const last = cursor > 0 ? branch.events[cursor - 1] : null;
+      const behind = cursor < n;
+      historyMeta.textContent = `${cursor} / ${n} · ${describeEvent(last)}`;
+      historyMeta.classList.toggle("fork-warn", behind);
+      if (behind) {
+        historyMeta.textContent += " · edit will fork";
+      }
+
+      branchSelect.innerHTML = "";
+      for (const b of branches) {
+        const opt = document.createElement("option");
+        opt.value = b.id;
+        opt.textContent = `${b.name} (head ${b.events.length})`;
+        branchSelect.appendChild(opt);
+      }
+      branchSelect.value = activeBranchId;
+    }
+
+    function syncFromStore({ keepSelecting = false } = {}) {
+      const state = fold(activeBranch().events.slice(0, cursor));
+      sliceCount = state.sliceCount;
+      joins = state.joins.map((j) => ({
+        id: j.id,
+        from: { ...j.from },
+        to: { ...j.to },
+      }));
+      nextId = state.nextJoinId;
+      if (!keepSelecting) selecting = null;
+      updateHistoryUi();
+      buildSlices();
+    }
+
+    /** Append domain events; forks a new branch when not at the tip. */
+    function commit(newEvents) {
+      if (!newEvents.length) return;
+      const branch = activeBranch();
+      if (cursor < branch.events.length) {
+        const name = formatBranchTime();
+        const id = "b" + nextBranchNum++;
+        const forked = {
+          id,
+          name,
+          events: branch.events.slice(0, cursor).concat(newEvents),
+        };
+        branches.push(forked);
+        activeBranchId = id;
+        cursor = forked.events.length;
+        setHint(`Forked ${name} from position ${cursor - newEvents.length}.`);
+      } else {
+        branch.events.push(...newEvents);
+        cursor = branch.events.length;
+      }
+      syncFromStore();
+    }
 
     function opposite(part) {
       return part === "upper" ? "lower" : "upper";
@@ -449,13 +719,6 @@
       hint.textContent = text;
     }
 
-    function shiftJoinsForInsert(at) {
-      for (const j of joins) {
-        if (j.from.si >= at) j.from.si += 1;
-        if (j.to.si >= at) j.to.si += 1;
-      }
-    }
-
     function insertSliceAt(at) {
       const joinFrom =
         selecting &&
@@ -465,22 +728,21 @@
           ? { ...selecting }
           : null;
 
-      shiftJoinsForInsert(at);
-      // Source index is unchanged when inserting strictly to its right (at > from.si).
-      sliceCount += 1;
+      const events = [{ type: "SliceInserted", at }];
       if (joinFrom) {
-        joins.push({
-          id: nextId++,
-          from: joinFrom,
-          to: { si: at, part: "upper" },
+        events.push({
+          type: "JoinAdded",
+          join: {
+            id: nextId,
+            from: joinFrom,
+            to: { si: at, part: "upper" },
+          },
         });
-        selecting = null;
         setHint(`Inserted S${at} and joined S${joinFrom.si} lower → S${at} upper.`);
       } else {
-        selecting = null;
         setHint(`Inserted blank slice at S${at}.`);
       }
-      buildSlices();
+      commit(events);
     }
 
     /** Append a slice and join selecting → new upper (lower→upper only). */
@@ -495,15 +757,18 @@
       }
       const from = { ...selecting };
       const newSi = sliceCount;
-      sliceCount += 1;
-      joins.push({
-        id: nextId++,
-        from,
-        to: { si: newSi, part: "upper" },
-      });
-      selecting = null;
       setHint(`Added S${newSi} and joined S${from.si} lower → S${newSi} upper.`);
-      buildSlices();
+      commit([
+        { type: "SliceInserted", at: newSi },
+        {
+          type: "JoinAdded",
+          join: {
+            id: nextId,
+            from,
+            to: { si: newSi, part: "upper" },
+          },
+        },
+      ]);
     }
 
     function makeInsertHandle(at, side) {
@@ -511,12 +776,7 @@
       wrap.className = "slice-insert " + side;
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.title =
-        at === 0
-          ? "Insert slice at start"
-          : at >= sliceCount
-            ? "Insert slice at end"
-            : `Insert slice before S${at}`;
+      btn.title = at === 0 ? "Insert slice at start" : `Insert slice before S${at}`;
       btn.setAttribute("aria-label", btn.title);
       btn.textContent = "+";
       btn.addEventListener("click", (e) => {
@@ -536,9 +796,6 @@
 
         // Hover the border before this slice to insert here
         slice.appendChild(makeInsertHandle(si, "before"));
-        if (si === sliceCount - 1) {
-          slice.appendChild(makeInsertHandle(sliceCount, "after"));
-        }
 
         for (const part of ["upper", "middle", "lower"]) {
           const el = document.createElement("div");
@@ -557,8 +814,26 @@
 
       const extend = document.createElement("div");
       extend.className = "extend-zone";
-      extend.title = "Click to add a slice and join its upper";
-      extend.addEventListener("click", () => extendAndJoinToNewUpper());
+      extend.tabIndex = 0;
+      extend.setAttribute("role", "button");
+      extend.title = "Add a slice at the end";
+      const pop = document.createElement("div");
+      pop.className = "extend-zone-pop";
+      pop.innerHTML = '<div class="plus">+</div><div class="label">Add slice</div>';
+      extend.appendChild(pop);
+      extend.addEventListener("click", () => {
+        if (selecting && selecting.part === "lower" && canOriginateFrom(selecting.si, "lower")) {
+          extendAndJoinToNewUpper();
+        } else {
+          insertSliceAt(sliceCount);
+        }
+      });
+      extend.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          extend.click();
+        }
+      });
       board.appendChild(extend);
 
       updateSelectionStyles();
@@ -607,15 +882,18 @@
         return;
       }
 
-      joins.push({
-        id: nextId++,
-        from: { ...selecting },
-        to: { ...target },
-      });
-      selecting = null;
-      setHint(`Joined. ${joins.length} join(s).`);
-      updateSelectionStyles();
-      renderJoins();
+      const from = { ...selecting };
+      setHint("Joined.");
+      commit([
+        {
+          type: "JoinAdded",
+          join: {
+            id: nextId,
+            from,
+            to: { ...target },
+          },
+        },
+      ]);
     }
 
     function updateConnectionColors() {
@@ -637,10 +915,11 @@
       updateConnectionColors();
       const extend = board.querySelector(".extend-zone");
       if (extend) {
-        extend.classList.toggle(
-          "active",
-          !!(selecting && selecting.part === "lower" && canOriginateFrom(selecting.si, "lower"))
-        );
+        const canJoin =
+          !!(selecting && selecting.part === "lower" && canOriginateFrom(selecting.si, "lower"));
+        extend.classList.toggle("active", canJoin);
+        const label = extend.querySelector(".extend-zone-pop .label");
+        if (label) label.textContent = canJoin ? "Add slice & join" : "Add slice";
       }
       board.querySelectorAll(".upper, .lower").forEach((el) => {
         el.classList.remove("selected", "disabled");
@@ -824,17 +1103,28 @@
     });
 
     document.getElementById("clear-joins").addEventListener("click", () => {
-      joins = [];
-      selecting = null;
       setHint("Joins cleared.");
-      updateSelectionStyles();
-      renderJoins();
+      commit([{ type: "JoinsCleared" }]);
     });
 
     document.getElementById("clear-select").addEventListener("click", () => {
       selecting = null;
       setHint("Selection cleared.");
       updateSelectionStyles();
+    });
+
+    historySlider.addEventListener("input", () => {
+      cursor = Number(historySlider.value);
+      selecting = null;
+      syncFromStore();
+    });
+
+    branchSelect.addEventListener("change", () => {
+      activeBranchId = branchSelect.value;
+      cursor = activeBranch().events.length; // jump to chosen branch head
+      selecting = null;
+      setHint(`Switched to ${activeBranch().name} head.`);
+      syncFromStore();
     });
 
     const help = document.getElementById("help");
@@ -859,7 +1149,7 @@
 
     window.addEventListener("resize", () => renderJoins());
 
-    buildSlices();
+    syncFromStore();
   </script>
 </body>
 </html>
