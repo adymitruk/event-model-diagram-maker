@@ -10,6 +10,19 @@
       --ink: #1c1c1c;
       --line: #c8c8c8;
       --sel: #2a6df4;
+      /* Event / read-model / command highlight ramps (base → slice hover → card hover) */
+      --event-0: #ffe6d5;
+      --event-1: #ffccaa;
+      --event-2: #ffb380;
+      --read-0: #d5ffd5;
+      --read-1: #aaffaa;
+      --read-2: #80ff80;
+      --cmd-0: #d7eef4;
+      --cmd-1: #afdde9;
+      --cmd-2: #87cdde;
+      --idle-0: #fff;
+      --idle-1: #e8e8e8;
+      --idle-2: #d4d4d4;
     }
 
     * { box-sizing: border-box; }
@@ -207,10 +220,10 @@
       width: var(--col);
       height: fit-content;
       background: #fff;
-      border: 1px solid var(--line);
+      margin: 0;
+      padding: 0;
+      border: 0;
     }
-
-    .slice + .slice { border-left: 0; }
 
     /* Hover strip on the shared border; + appears at top */
     .slice-insert {
@@ -261,8 +274,9 @@
       flex: 0 0 5.5rem;
       align-self: stretch;
       cursor: pointer;
-      border-radius: 0 8px 8px 0;
-      margin-left: -1px;
+      margin: 0;
+      padding: 0;
+      border: 0;
     }
 
     .extend-zone-pop {
@@ -318,35 +332,55 @@
       flex: 0 0 auto;
       height: 7rem;
       min-height: 7rem;
-      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      position: relative;
+      padding: 0;
+      border: 0;
+      border-radius: 6px;
+      background: var(--idle-0);
+      transition: background-color 0.12s ease;
     }
 
-    .lower { border-bottom: 0; }
+    .upper {
+      margin: 0.75rem 0.75rem 0;
+    }
+
+    .lower {
+      margin: 0 0.75rem 0.75rem;
+    }
 
     .middle {
       position: relative;
       flex: 0 0 auto;
       height: calc(var(--tile) * 3);
       min-height: calc(var(--tile) * 3);
-      border-bottom: 1px solid var(--line);
       overflow: visible;
+      margin: 0;
       padding: 0;
+      border: 0;
       z-index: 0;
     }
 
-    .upper,
-    .lower {
-      cursor: pointer;
-      position: relative;
+    /* Connection state colors — base / slice hover / card hover */
+    .lower.conn-to { background: var(--event-0); }
+    .upper.conn-from { background: var(--cmd-0); }
+    .upper.conn-to { background: var(--read-0); }
+
+    .slice:hover > .upper:not(.conn-from):not(.conn-to),
+    .slice:hover > .lower:not(.conn-to):not(.unused) {
+      background: var(--idle-1);
     }
+    .slice:hover > .lower.conn-to { background: var(--event-1); }
+    .slice:hover > .upper.conn-from { background: var(--cmd-1); }
+    .slice:hover > .upper.conn-to { background: var(--read-1); }
 
-    .upper:hover,
-    .lower:hover { background: #f0f6ff; }
-
-    /* Connection state colors */
-    .lower.conn-to { background: #ffe0c2; }      /* light orange — incoming */
-    .upper.conn-from { background: #c5e8f8; }    /* pale blue — outgoing */
-    .upper.conn-to { background: #d8f3df; }      /* pale green — incoming */
+    .slice:hover > .upper:hover:not(.conn-from):not(.conn-to),
+    .slice:hover > .lower:hover:not(.conn-to):not(.unused) {
+      background: var(--idle-2);
+    }
+    .slice:hover > .lower.conn-to:hover { background: var(--event-2); }
+    .slice:hover > .upper.conn-from:hover { background: var(--cmd-2); }
+    .slice:hover > .upper.conn-to:hover { background: var(--read-2); }
 
     .upper.selected,
     .lower.selected {
@@ -354,23 +388,14 @@
       outline-offset: -2px;
     }
 
-    .upper.selected:not(.conn-from):not(.conn-to),
-    .lower.selected:not(.conn-to) {
-      background: #e8f0ff;
-    }
-
     .upper.disabled,
     .lower.disabled {
       cursor: not-allowed;
-      opacity: 0.55;
     }
 
-    .part-label {
-      position: absolute;
-      top: 0.35rem;
-      left: 0.5rem;
-      font-size: 11px;
-      color: #888;
+    /* Under a read model the lower stays laid out but white — no faded card. */
+    .lower.unused {
+      background: #fff;
       pointer-events: none;
     }
 
@@ -427,9 +452,7 @@
       <div class="history-meta" id="history-meta">0 / 0 · initial board</div>
     </div>
     <div class="toolbar">
-      <button type="button" id="add-slice">Add blank slice at end</button>
       <button type="button" id="clear-joins">Clear joins</button>
-      <button type="button" id="clear-select">Clear selection</button>
       <button type="button" class="primary" id="help-btn">Help</button>
       <span class="hint" id="hint">Event model wiring: command → event in the same slice; event → later read model. See Help for the full rules.</span>
     </div>
@@ -452,7 +475,7 @@
       <h3>How to wire</h3>
       <ul>
         <li>Click a valid source, then a valid target.</li>
-        <li>Click the same cell again (or Clear selection) to cancel.</li>
+        <li>Click the same cell again to cancel selection.</li>
         <li>With an <strong>event</strong> (lower) selected, click to the <strong>right of the last slice</strong> to add a later slice and project that event into the new upper (read model).</li>
       </ul>
 
@@ -471,14 +494,13 @@
 
       <h3>Colors (event-model palette)</h3>
       <ul>
-        <li><span class="swatch" style="background:#ffe0c2"></span> <strong>Event</strong> — lower with an incoming command arrow</li>
-        <li><span class="swatch" style="background:#c5e8f8"></span> <strong>Command</strong> — upper that wrote an event</li>
-        <li><span class="swatch" style="background:#d8f3df"></span> <strong>Read model</strong> — upper fed by one or more events</li>
+        <li><span class="swatch" style="background:#ffe6d5"></span> <strong>Event</strong> — lower with an incoming command arrow</li>
+        <li><span class="swatch" style="background:#d7eef4"></span> <strong>Command</strong> — upper that wrote an event</li>
+        <li><span class="swatch" style="background:#d5ffd5"></span> <strong>Read model</strong> — upper fed by one or more events</li>
       </ul>
 
       <h3>Slices on the timeline</h3>
       <ul>
-        <li><strong>Add blank slice at end</strong> appends the next step in time.</li>
         <li>Hover a <strong>slice boundary</strong> to reveal <strong>+</strong> and insert a blank slice; later indexes shift so existing wiring stays consistent.</li>
         <li>Hover the area <strong>to the right of the last slice</strong> for an Add slice pop-out. With an <strong>event</strong> selected, that also projects into the new upper.</li>
       </ul>
@@ -805,10 +827,6 @@
           const el = document.createElement("div");
           el.className = part;
           if (part !== "middle") {
-            const label = document.createElement("span");
-            label.className = "part-label";
-            label.textContent = `S${si} ${part}`;
-            el.appendChild(label);
             el.addEventListener("click", () => onPartClick(si, part));
           }
           slice.appendChild(el);
@@ -926,9 +944,13 @@
         if (label) label.textContent = canJoin ? "Add slice & join" : "Add slice";
       }
       board.querySelectorAll(".upper, .lower").forEach((el) => {
-        el.classList.remove("selected", "disabled");
+        el.classList.remove("selected", "disabled", "unused");
         const si = Number(el.parentElement.dataset.si);
         const part = el.classList.contains("upper") ? "upper" : "lower";
+        if (part === "lower" && upperHasIncoming(si)) {
+          el.classList.add("unused");
+          return; // keep full size; white, not disabled/faded
+        }
         if (!selecting) {
           if (!canOriginateFrom(si, part)) el.classList.add("disabled");
           return;
@@ -1176,19 +1198,9 @@
       });
     }
 
-    document.getElementById("add-slice").addEventListener("click", () => {
-      insertSliceAt(sliceCount);
-    });
-
     document.getElementById("clear-joins").addEventListener("click", () => {
       setHint("Joins cleared.");
       commit([{ type: "JoinsCleared" }]);
-    });
-
-    document.getElementById("clear-select").addEventListener("click", () => {
-      selecting = null;
-      setHint("Selection cleared.");
-      updateSelectionStyles();
     });
 
     historySlider.addEventListener("input", () => {
