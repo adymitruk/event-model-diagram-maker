@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tiling join playground</title>
+  <style>
+    :root {
+      --tile: 16px;
+      --col: 14rem;
+      --ink: #1c1c1c;
+      --line: #c8c8c8;
+      --sel: #2a6df4;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font: 14px/1.35 system-ui, sans-serif;
+      background: #f4f4f4;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .toolbar button {
+      font: inherit;
+      padding: 0.35rem 0.75rem;
+      border: 1px solid var(--line);
+      background: #fafafa;
+      cursor: pointer;
+    }
+
+    .toolbar button:hover { background: #eee; }
+    .toolbar button.primary {
+      background: #e8f0ff;
+      border-color: #a8c0ef;
+    }
+    .hint { color: #555; flex: 1 1 12rem; }
+
+    .help-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 24, 32, 0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .help-backdrop.open { display: flex; }
+
+    .help-dialog {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      max-width: 34rem;
+      width: 100%;
+      max-height: min(36rem, 90vh);
+      overflow: auto;
+      padding: 1.25rem 1.5rem 1.5rem;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    }
+
+    .help-dialog h2 {
+      margin: 0 1.5rem 0.75rem 0;
+      font-size: 1.15rem;
+    }
+
+    .help-dialog h3 {
+      margin: 1.1rem 0 0.4rem;
+      font-size: 0.95rem;
+    }
+
+    .help-dialog p,
+    .help-dialog li {
+      margin: 0 0 0.4rem;
+      line-height: 1.45;
+      color: #333;
+    }
+
+    .help-dialog ul {
+      margin: 0 0 0.25rem;
+      padding-left: 1.25rem;
+    }
+
+    .help-dialog .swatch {
+      display: inline-block;
+      width: 0.85rem;
+      height: 0.85rem;
+      border-radius: 2px;
+      vertical-align: -0.1rem;
+      margin-right: 0.25rem;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .help-close {
+      float: right;
+      margin: -0.25rem -0.35rem 0 0;
+      border: none;
+      background: transparent;
+      font: inherit;
+      font-size: 1.35rem;
+      line-height: 1;
+      color: #666;
+      cursor: pointer;
+      padding: 0.25rem 0.45rem;
+    }
+
+    .help-close:hover { color: var(--ink); }
+
+    .board {
+      display: flex;
+      align-items: stretch;
+      padding: 1.5rem;
+      width: max-content;
+      min-width: 100%;
+    }
+
+    .slice {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      width: var(--col);
+      min-height: 22rem;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .slice + .slice { border-left: 0; }
+
+    /* Hover strip on the shared border; + appears at top */
+    .slice-insert {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      z-index: 6;
+    }
+
+    .slice-insert.before { left: -7px; }
+    .slice-insert.after {
+      right: -7px;
+      left: auto;
+    }
+
+    .slice-insert button {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      font: inherit;
+      font-size: 14px;
+      line-height: 1;
+      width: 1.35rem;
+      height: 1.35rem;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      color: #666;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+
+    .slice-insert:hover button,
+    .slice-insert:focus-within button {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .slice-insert button:hover {
+      background: #e8f0ff;
+      border-color: var(--sel);
+      color: var(--sel);
+    }
+
+    .extend-zone {
+      flex: 0 0 6rem;
+      align-self: stretch;
+      min-height: 22rem;
+      cursor: cell;
+      border-radius: 4px;
+    }
+
+    .extend-zone.active {
+      background: rgba(42, 109, 244, 0.06);
+      outline: 1px dashed rgba(42, 109, 244, 0.35);
+      outline-offset: -4px;
+    }
+
+    .upper,
+    .middle,
+    .lower {
+      min-height: 7rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .lower { border-bottom: 0; flex: 1; }
+
+    .upper,
+    .lower {
+      cursor: pointer;
+      position: relative;
+    }
+
+    .upper:hover,
+    .lower:hover { background: #f0f6ff; }
+
+    /* Connection state colors */
+    .lower.conn-to { background: #ffe0c2; }      /* light orange — incoming */
+    .upper.conn-from { background: #c5e8f8; }    /* pale blue — outgoing */
+    .upper.conn-to { background: #d8f3df; }      /* pale green — incoming */
+
+    .upper.selected,
+    .lower.selected {
+      outline: 2px solid var(--sel);
+      outline-offset: -2px;
+    }
+
+    .upper.selected:not(.conn-from):not(.conn-to),
+    .lower.selected:not(.conn-to) {
+      background: #e8f0ff;
+    }
+
+    .upper.disabled,
+    .lower.disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .part-label {
+      position: absolute;
+      top: 0.35rem;
+      left: 0.5rem;
+      font-size: 11px;
+      color: #888;
+      pointer-events: none;
+    }
+
+    .middle {
+      position: relative;
+      overflow: visible;
+      padding: 0;
+      z-index: 0;
+    }
+
+    .tile,
+    .shaft-v,
+    .shaft-h {
+      position: absolute;
+      z-index: 2;
+      pointer-events: auto;
+    }
+
+    .tile {
+      width: var(--tile);
+      height: var(--tile);
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: var(--tile) var(--tile);
+    }
+
+    .shaft-v {
+      width: var(--tile);
+      background: url("arrows/vline.svg") center top / var(--tile) var(--tile) repeat-y;
+    }
+
+    .shaft-h {
+      height: var(--tile);
+      background: url("arrows/hline.svg") left center / var(--tile) var(--tile) repeat-x;
+    }
+
+    .elbow-br { background-image: url("arrows/turn-br.svg?v=curve"); }
+    .elbow-tl { background-image: url("arrows/turn-tl.svg?v=curve"); }
+    .elbow-tr { background-image: url("arrows/turn-tr.svg?v=curve"); }
+    .elbow-bl { background-image: url("arrows/turn-bl.svg?v=curve"); }
+    .vline { background-image: url("arrows/vline.svg"); }
+    .hop {
+      background-image: url("arrows/hop.svg?v=hop2");
+      transform: scaleY(-1); /* arc bridges above the mid-line */
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button type="button" id="add-slice">Add blank slice at end</button>
+    <button type="button" id="clear-joins">Clear joins</button>
+    <button type="button" id="clear-select">Clear selection</button>
+    <button type="button" class="primary" id="help-btn">Help</button>
+    <span class="hint" id="hint">Event model wiring: command → event in the same slice; event → later read model. See Help for the full rules.</span>
+  </div>
+  <div class="board" id="board"></div>
+
+  <div class="help-backdrop" id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+    <div class="help-dialog">
+      <button type="button" class="help-close" id="help-close" aria-label="Close help">×</button>
+      <h2 id="help-title">Event model connector playground</h2>
+      <p>
+        Each column is a <strong>slice</strong> on the timeline.
+        The <strong>upper</strong> cell is a <strong>command</strong> or <strong>read model</strong>;
+        the <strong>lower</strong> cell is where an <strong>event</strong> lands.
+        Arrows in the middle band are the tiled connectors between them.
+      </p>
+
+      <h3>How to wire</h3>
+      <ul>
+        <li>Click a valid source, then a valid target.</li>
+        <li>Click the same cell again (or Clear selection) to cancel.</li>
+        <li>With an <strong>event</strong> (lower) selected, click to the <strong>right of the last slice</strong> to add a later slice and project that event into the new upper (read model).</li>
+      </ul>
+
+      <h3>What you can connect</h3>
+      <ul>
+        <li><strong>Command → event:</strong> only <em>same-slice</em> upper → lower (centered down arrow). You never write an event from a different slice’s command.</li>
+        <li><strong>Event → read model:</strong> lower → upper on a <em>later</em> slice only (time moves right; no leftward or same-slice projections).</li>
+      </ul>
+
+      <h3>Causality locks</h3>
+      <ul>
+        <li>An <strong>event</strong> cannot project until it exists: always wire same-slice command → event first, then you may join from that lower.</li>
+        <li>A <strong>command</strong> that has already written its event (upper with an <em>outgoing</em> join) is locked — nothing more to or from it.</li>
+        <li>A <strong>read model</strong> upper that already has an <em>incoming</em> projection cannot issue a command (it can still take more event inputs).</li>
+      </ul>
+
+      <h3>Colors (event-model palette)</h3>
+      <ul>
+        <li><span class="swatch" style="background:#ffe0c2"></span> <strong>Event</strong> — lower with an incoming command arrow</li>
+        <li><span class="swatch" style="background:#c5e8f8"></span> <strong>Command</strong> — upper that wrote an event</li>
+        <li><span class="swatch" style="background:#d8f3df"></span> <strong>Read model</strong> — upper fed by one or more events</li>
+      </ul>
+
+      <h3>Slices on the timeline</h3>
+      <ul>
+        <li><strong>Add blank slice at end</strong> appends the next step in time.</li>
+        <li>Hover a <strong>slice boundary</strong> to reveal <strong>+</strong> and insert a blank slice; later indexes shift so existing wiring stays consistent.</li>
+        <li>With an <strong>event</strong> selected, inserting a slice <em>to its right</em> (via <strong>+</strong> or the right-side click zone) also projects that event into the new upper.</li>
+      </ul>
+
+      <h3>Connector routing</h3>
+      <ul>
+        <li><strong>Write path:</strong> same-slice command → event is a centered vertical shaft into the event.</li>
+        <li><strong>Projection path:</strong> from the event, joins leave to the right of that shaft, travel on a horizontal band, and rise into the target read model. The first input to a read model arrives on center; further inputs sit one tile further right without moving the first.</li>
+        <li><strong>Leftness:</strong> projection bands are ordered by <code>fromSlice + toSlice</code>. Smaller sum sits higher (e.g. event in slice 1 → read model in 3 sums to 4 above 2→3 summing to 5), which prefers left-origin runs on top and reduces hops.</li>
+        <li>Where a projection crosses another slice’s write-path shaft, a <strong>hop</strong> tile bridges the crossing.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const TILE = 16;
+
+    const ARROW_DOWN = `
+      <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+        <rect x="14.25" y="0" width="1.5" height="20" fill="#444"/>
+        <polygon points="8,18 22,18 15,30" fill="#444"/>
+      </svg>`;
+    const ARROW_UP = `
+      <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+        <rect x="14.25" y="10" width="1.5" height="20" fill="#444"/>
+        <polygon points="8,12 22,12 15,0" fill="#444"/>
+      </svg>`;
+
+    let sliceCount = 3;
+    let joins = [];
+    let selecting = null;
+    let nextId = 1;
+
+    const board = document.getElementById("board");
+    const hint = document.getElementById("hint");
+
+    function opposite(part) {
+      return part === "upper" ? "lower" : "upper";
+    }
+
+    function upperHasOutgoing(si) {
+      return joins.some((j) => j.from.si === si && j.from.part === "upper");
+    }
+
+    function upperHasIncoming(si) {
+      return joins.some((j) => j.to.si === si && j.to.part === "upper");
+    }
+
+    function lowerHasAnyConnection(si) {
+      return joins.some(
+        (j) =>
+          (j.from.si === si && j.from.part === "lower") ||
+          (j.to.si === si && j.to.part === "lower")
+      );
+    }
+
+    /**
+     * Uppers with an outgoing are fully locked; uppers with an incoming can't originate.
+     * Lowers with no connection yet can't originate (connect into the lower first).
+     */
+    function canOriginateFrom(si, part) {
+      if (part === "upper") {
+        if (upperHasOutgoing(si)) return false;
+        if (upperHasIncoming(si)) return false;
+        return true;
+      }
+      if (part === "lower") {
+        return lowerHasAnyConnection(si);
+      }
+      return true;
+    }
+
+    function canConnectTo(si, part) {
+      if (part !== "upper") return true;
+      // outgoing already → no more connections to it
+      if (upperHasOutgoing(si)) return false;
+      return true;
+    }
+
+    function isValidTarget(from, to) {
+      if (!from || !to) return false;
+      if (to.si < from.si) return false;
+      if (to.part === from.part) return false;
+      // downward only as same-slice upper → lower
+      if (to.part === "lower" && (from.part !== "upper" || from.si !== to.si)) return false;
+      // lower → upper only to a later slice
+      if (from.part === "lower" && to.part === "upper" && to.si === from.si) return false;
+      if (!canOriginateFrom(from.si, from.part)) return false;
+      if (!canConnectTo(to.si, to.part)) return false;
+      return !joins.some(
+        (j) =>
+          j.from.si === from.si &&
+          j.from.part === from.part &&
+          j.to.si === to.si &&
+          j.to.part === to.part
+      );
+    }
+
+    function setHint(text) {
+      hint.textContent = text;
+    }
+
+    function shiftJoinsForInsert(at) {
+      for (const j of joins) {
+        if (j.from.si >= at) j.from.si += 1;
+        if (j.to.si >= at) j.to.si += 1;
+      }
+    }
+
+    function insertSliceAt(at) {
+      const joinFrom =
+        selecting &&
+        selecting.part === "lower" &&
+        canOriginateFrom(selecting.si, "lower") &&
+        at > selecting.si
+          ? { ...selecting }
+          : null;
+
+      shiftJoinsForInsert(at);
+      // Source index is unchanged when inserting strictly to its right (at > from.si).
+      sliceCount += 1;
+      if (joinFrom) {
+        joins.push({
+          id: nextId++,
+          from: joinFrom,
+          to: { si: at, part: "upper" },
+        });
+        selecting = null;
+        setHint(`Inserted S${at} and joined S${joinFrom.si} lower → S${at} upper.`);
+      } else {
+        selecting = null;
+        setHint(`Inserted blank slice at S${at}.`);
+      }
+      buildSlices();
+    }
+
+    /** Append a slice and join selecting → new upper (lower→upper only). */
+    function extendAndJoinToNewUpper() {
+      if (!selecting || selecting.part !== "lower") {
+        setHint("Select a lower first, then click to the right to add a slice and join its upper.");
+        return;
+      }
+      if (!canOriginateFrom(selecting.si, selecting.part)) {
+        setHint("Can't originate from that lower.");
+        return;
+      }
+      const from = { ...selecting };
+      const newSi = sliceCount;
+      sliceCount += 1;
+      joins.push({
+        id: nextId++,
+        from,
+        to: { si: newSi, part: "upper" },
+      });
+      selecting = null;
+      setHint(`Added S${newSi} and joined S${from.si} lower → S${newSi} upper.`);
+      buildSlices();
+    }
+
+    function makeInsertHandle(at, side) {
+      const wrap = document.createElement("div");
+      wrap.className = "slice-insert " + side;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.title =
+        at === 0
+          ? "Insert slice at start"
+          : at >= sliceCount
+            ? "Insert slice at end"
+            : `Insert slice before S${at}`;
+      btn.setAttribute("aria-label", btn.title);
+      btn.textContent = "+";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        insertSliceAt(at);
+      });
+      wrap.appendChild(btn);
+      return wrap;
+    }
+
+    function buildSlices() {
+      board.innerHTML = "";
+      for (let si = 0; si < sliceCount; si++) {
+        const slice = document.createElement("div");
+        slice.className = "slice";
+        slice.dataset.si = String(si);
+
+        // Hover the border before this slice to insert here
+        slice.appendChild(makeInsertHandle(si, "before"));
+        if (si === sliceCount - 1) {
+          slice.appendChild(makeInsertHandle(sliceCount, "after"));
+        }
+
+        for (const part of ["upper", "middle", "lower"]) {
+          const el = document.createElement("div");
+          el.className = part;
+          if (part !== "middle") {
+            const label = document.createElement("span");
+            label.className = "part-label";
+            label.textContent = `S${si} ${part}`;
+            el.appendChild(label);
+            el.addEventListener("click", () => onPartClick(si, part));
+          }
+          slice.appendChild(el);
+        }
+        board.appendChild(slice);
+      }
+
+      const extend = document.createElement("div");
+      extend.className = "extend-zone";
+      extend.title = "Click to add a slice and join its upper";
+      extend.addEventListener("click", () => extendAndJoinToNewUpper());
+      board.appendChild(extend);
+
+      updateSelectionStyles();
+      renderJoins();
+    }
+
+    function onPartClick(si, part) {
+      const target = { si, part };
+      if (!selecting) {
+        if (!canOriginateFrom(si, part)) {
+          if (part === "lower")
+            setHint(`S${si} lower has no connection yet — connect to it before joining from it.`);
+          else if (upperHasOutgoing(si))
+            setHint(`S${si} upper already has an outgoing join — locked.`);
+          else
+            setHint(`S${si} upper already has an incoming join — can't originate from it.`);
+          return;
+        }
+        selecting = target;
+        setHint(
+          part === "lower"
+            ? `Selected S${si} lower. Click an upper on a later slice, or click right of the board to add one.`
+            : `Selected S${si} upper. Click this slice's lower (same-slice down only).`
+        );
+        updateSelectionStyles();
+        return;
+      }
+
+      if (selecting.si === si && selecting.part === part) {
+        selecting = null;
+        setHint("Selection cleared. Click an upper or lower to start a join.");
+        updateSelectionStyles();
+        return;
+      }
+
+      if (!isValidTarget(selecting, target)) {
+        if (target.si < selecting.si) setHint("Can't join to a previous slice.");
+        else if (target.part === selecting.part) setHint("Only upper↔lower joins are allowed.");
+        else if (target.part === "lower" && selecting.si !== target.si)
+          setHint("Downward joins are same-slice only (upper → lower).");
+        else if (target.si === selecting.si && selecting.part === "lower")
+          setHint("Can't join lower→upper within the same slice.");
+        else if (target.part === "upper" && upperHasOutgoing(target.si))
+          setHint(`S${target.si} upper already has an outgoing join — can't connect to it.`);
+        else setHint("Invalid or duplicate join. Pick another target.");
+        return;
+      }
+
+      joins.push({
+        id: nextId++,
+        from: { ...selecting },
+        to: { ...target },
+      });
+      selecting = null;
+      setHint(`Joined. ${joins.length} join(s).`);
+      updateSelectionStyles();
+      renderJoins();
+    }
+
+    function updateConnectionColors() {
+      board.querySelectorAll(".upper, .lower").forEach((el) => {
+        el.classList.remove("conn-to", "conn-from");
+        const si = Number(el.parentElement.dataset.si);
+        const part = el.classList.contains("upper") ? "upper" : "lower";
+        if (part === "lower") {
+          if (joins.some((j) => j.to.si === si && j.to.part === "lower"))
+            el.classList.add("conn-to");
+        } else {
+          if (upperHasOutgoing(si)) el.classList.add("conn-from");
+          else if (upperHasIncoming(si)) el.classList.add("conn-to");
+        }
+      });
+    }
+
+    function updateSelectionStyles() {
+      updateConnectionColors();
+      const extend = board.querySelector(".extend-zone");
+      if (extend) {
+        extend.classList.toggle(
+          "active",
+          !!(selecting && selecting.part === "lower" && canOriginateFrom(selecting.si, "lower"))
+        );
+      }
+      board.querySelectorAll(".upper, .lower").forEach((el) => {
+        el.classList.remove("selected", "disabled");
+        const si = Number(el.parentElement.dataset.si);
+        const part = el.classList.contains("upper") ? "upper" : "lower";
+        if (!selecting) {
+          if (!canOriginateFrom(si, part)) el.classList.add("disabled");
+          return;
+        }
+        if (selecting.si === si && selecting.part === part) el.classList.add("selected");
+        else if (!isValidTarget(selecting, { si, part })) el.classList.add("disabled");
+      });
+    }
+
+    function centerX(middle) {
+      return (middle.clientWidth - TILE) / 2;
+    }
+
+    function bandYs(middleH, nBands) {
+      const stubY = middleH - TILE;
+      const bands = [];
+      for (let b = 0; b < nBands; b++) {
+        bands[b] = middleH - TILE * (nBands - b + 1);
+      }
+      return { stubY, bands };
+    }
+
+    function placeTile(middle, className, x, y) {
+      const el = document.createElement("div");
+      el.className = "tile " + className;
+      el.dataset.tile = className;
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      middle.appendChild(el);
+      return el;
+    }
+
+    function placeArrow(middle, x, y, svg, kind) {
+      const el = document.createElement("div");
+      el.className = "tile arrow " + kind;
+      el.dataset.tile = kind;
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      el.innerHTML = svg;
+      const node = el.firstElementChild;
+      node.style.width = "100%";
+      node.style.height = "100%";
+      node.style.display = "block";
+      node.style.pointerEvents = "none";
+      middle.appendChild(el);
+    }
+
+    function placeShaftV(middle, x, y, h) {
+      if (h <= 0) return;
+      const el = document.createElement("div");
+      el.className = "shaft-v";
+      el.dataset.tile = "shaft-v";
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      el.style.height = h + "px";
+      middle.appendChild(el);
+    }
+
+    function placeShaftH(middle, x, y, w) {
+      if (w <= 0) return;
+      const el = document.createElement("div");
+      el.className = "shaft-h";
+      el.dataset.tile = "shaft-h";
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      el.style.width = w + "px";
+      middle.appendChild(el);
+    }
+
+    function renderJoins() {
+      const middles = [...board.querySelectorAll(".middle")];
+      middles.forEach((m) => { m.innerHTML = ""; });
+
+      const local = joins.filter((j) => j.from.si === j.to.si);
+      const cross = joins.filter((j) => j.from.si !== j.to.si);
+
+      const vertical = Array(sliceCount).fill(null);
+      for (const j of local) {
+        if (j.from.part === "upper" && j.to.part === "lower") vertical[j.from.si] = "down";
+      }
+
+      // Leftness: lower (from+to) index sum → higher band (fewer hops).
+      const bandOf = new Map();
+      [...cross]
+        .sort((a, b) => {
+          const sa = a.from.si + a.to.si;
+          const sb = b.from.si + b.to.si;
+          return sa - sb || a.from.si - b.from.si || a.to.si - b.to.si || a.id - b.id;
+        })
+        .forEach((j, i) => bandOf.set(j.id, i));
+      const nBands = cross.length;
+
+      const outFrom = Array.from({ length: sliceCount }, () => []);
+      const inTo = Array.from({ length: sliceCount }, () => []);
+      for (const j of cross) {
+        outFrom[j.from.si].push(j);
+        inTo[j.to.si].push(j);
+      }
+      const byBand = (a, b) => bandOf.get(a.id) - bandOf.get(b.id) || a.id - b.id;
+      outFrom.forEach((list) => list.sort(byBand));
+      inTo.forEach((list) => list.sort(byBand));
+
+      requestAnimationFrame(() => {
+        for (let si = 0; si < sliceCount; si++) {
+          const middle = middles[si];
+          const w = middle.clientWidth;
+          const h = middle.clientHeight;
+          const cx = centerX(middle);
+          const { stubY, bands } = bandYs(h, nBands);
+          const hasVert = vertical[si] !== null;
+          // Same-slice down stays centered; outgoing joins sit to its right.
+          // Incoming to upper: first arrives at center, later ones at +1, +2, …
+          const outBase = hasVert ? 1 : 0;
+          const inBase = 0;
+
+          // Same-slice vertical at center
+          if (vertical[si] === "down") {
+            placeShaftV(middle, cx, 0, stubY);
+            placeArrow(middle, cx, stubY, ARROW_DOWN, "arrow-down");
+          }
+
+          // Outgoing joins (to the right of center when a vertical occupies center)
+          outFrom[si].forEach((j, oi) => {
+            const band = bandOf.get(j.id);
+            const y = bands[band];
+            const ox = cx + TILE * (oi + outBase);
+
+            if (j.from.part === "lower") {
+              placeTile(middle, "vline", ox, stubY);
+              for (let b = nBands - 1; b > band; b--) placeTile(middle, "vline", ox, bands[b]);
+              placeTile(middle, "elbow-br", ox, y);
+            } else {
+              placeShaftV(middle, ox, 0, y);
+              placeTile(middle, "elbow-tr", ox, y);
+            }
+            placeShaftH(middle, ox + TILE, y, w - (ox + TILE));
+          });
+
+          // Through-runs across this slice
+          for (const j of cross) {
+            if (j.from.si >= si || j.to.si <= si) continue;
+            const y = bands[bandOf.get(j.id)];
+            if (hasVert) {
+              placeShaftH(middle, 0, y, cx);
+              placeTile(middle, "hop", cx, y);
+              placeShaftH(middle, cx + TILE, y, w - cx - TILE);
+            } else {
+              placeShaftH(middle, 0, y, w);
+            }
+          }
+
+          // Incoming arrivals
+          inTo[si].forEach((j, ii) => {
+            const band = bandOf.get(j.id);
+            const y = bands[band];
+            const ax = cx + TILE * (ii + inBase);
+
+            placeShaftH(middle, 0, y, ax);
+
+            if (j.to.part === "upper") {
+              placeTile(middle, "elbow-tl", ax, y);
+              if (y > TILE) placeShaftV(middle, ax, TILE, y - TILE);
+              placeArrow(middle, ax, 0, ARROW_UP, "arrow-up");
+            } else {
+              placeTile(middle, "elbow-bl", ax, y);
+              if (stubY > y + TILE) placeShaftV(middle, ax, y + TILE, stubY - y - TILE);
+              placeArrow(middle, ax, stubY, ARROW_DOWN, "arrow-down");
+            }
+          });
+        }
+      });
+    }
+
+    document.getElementById("add-slice").addEventListener("click", () => {
+      insertSliceAt(sliceCount);
+    });
+
+    document.getElementById("clear-joins").addEventListener("click", () => {
+      joins = [];
+      selecting = null;
+      setHint("Joins cleared.");
+      updateSelectionStyles();
+      renderJoins();
+    });
+
+    document.getElementById("clear-select").addEventListener("click", () => {
+      selecting = null;
+      setHint("Selection cleared.");
+      updateSelectionStyles();
+    });
+
+    const help = document.getElementById("help");
+    function openHelp() {
+      help.hidden = false;
+      help.classList.add("open");
+      document.getElementById("help-close").focus();
+    }
+    function closeHelp() {
+      help.classList.remove("open");
+      help.hidden = true;
+      document.getElementById("help-btn").focus();
+    }
+    document.getElementById("help-btn").addEventListener("click", openHelp);
+    document.getElementById("help-close").addEventListener("click", closeHelp);
+    help.addEventListener("click", (e) => {
+      if (e.target === help) closeHelp();
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && help.classList.contains("open")) closeHelp();
+    });
+
+    window.addEventListener("resize", () => renderJoins());
+
+    buildSlices();
+  </script>
+</body>
+</html>
