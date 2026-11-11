@@ -205,7 +205,7 @@
       display: flex;
       flex-direction: column;
       width: var(--col);
-      min-height: 22rem;
+      height: fit-content;
       background: #fff;
       border: 1px solid var(--line);
     }
@@ -260,7 +260,6 @@
       position: relative;
       flex: 0 0 5.5rem;
       align-self: stretch;
-      min-height: 22rem;
       cursor: pointer;
       border-radius: 0 8px 8px 0;
       margin-left: -1px;
@@ -315,13 +314,25 @@
     }
 
     .upper,
-    .middle,
     .lower {
+      flex: 0 0 auto;
+      height: 7rem;
       min-height: 7rem;
       border-bottom: 1px solid var(--line);
     }
 
-    .lower { border-bottom: 0; flex: 1; }
+    .lower { border-bottom: 0; }
+
+    .middle {
+      position: relative;
+      flex: 0 0 auto;
+      height: calc(var(--tile) * 3);
+      min-height: calc(var(--tile) * 3);
+      border-bottom: 1px solid var(--line);
+      overflow: visible;
+      padding: 0;
+      z-index: 0;
+    }
 
     .upper,
     .lower {
@@ -361,13 +372,6 @@
       font-size: 11px;
       color: #888;
       pointer-events: none;
-    }
-
-    .middle {
-      position: relative;
-      overflow: visible;
-      padding: 0;
-      z-index: 0;
     }
 
     .tile,
@@ -482,9 +486,9 @@
       <h3>Connector routing</h3>
       <ul>
         <li><strong>Write path:</strong> same-slice command → event is a centered vertical shaft into the event.</li>
-        <li><strong>Projection path:</strong> from the event, joins leave to the right of that shaft, travel on a horizontal band, and rise into the target read model. The first input to a read model arrives on center; further inputs sit one tile further right without moving the first.</li>
-        <li><strong>Leftness:</strong> projection bands are ordered by <code>fromSlice + toSlice</code>. Smaller sum sits higher (e.g. event in slice 1 → read model in 3 sums to 4 above 2→3 summing to 5), which prefers left-origin runs on top and reduces hops.</li>
-        <li>Where a projection crosses another slice’s write-path shaft, a <strong>hop</strong> tile bridges the crossing.</li>
+        <li><strong>Projection path:</strong> from the event, joins leave to the right of the write shaft, travel on a horizontal band, and rise into the target read model. Multiple inputs into a read model are centered as a group; the write shaft alone stays locked to center and pushes other columns aside.</li>
+        <li><strong>Leftness:</strong> projections claim bands in <code>fromSlice + toSlice</code> order (smaller sum higher). A worse claim cannot sit above a better one; a line moves up only when there is room (no elbow clash at another join’s source/dest).</li>
+        <li>Where a horizontal run crosses a vertical (write shaft, stub, or rise), a <strong>hop</strong> tile is required — never overlapping plain tiles.</li>
       </ul>
 
       <h3>Event-sourced history</h3>
@@ -1006,16 +1010,53 @@
         if (j.from.part === "upper" && j.to.part === "lower") vertical[j.from.si] = "down";
       }
 
-      // Leftness: lower (from+to) index sum → higher band (fewer hops).
+      // Leftness: smaller from+to must sit on a higher (or equal) band than a worse
+      // claim. Place in leftness order with floor = max band already used so a later
+      // join cannot climb above an earlier one. Share a band only when there is room
+      // (no elbow clash at another join’s source/dest); hops handle vertical crossings.
+      const leftnessOf = (j) => j.from.si + j.to.si;
+      const throughSlice = (j, si) => j.from.si < si && si < j.to.si;
+      function bandConflicts(a, b) {
+        if (throughSlice(a, b.to.si) || throughSlice(b, a.to.si)) return true;
+        if (throughSlice(a, b.from.si) || throughSlice(b, a.from.si)) return true;
+        return false;
+      }
+
       const bandOf = new Map();
+      const bandMembers = [];
+      let leftnessFloor = 0;
       [...cross]
-        .sort((a, b) => {
-          const sa = a.from.si + a.to.si;
-          const sb = b.from.si + b.to.si;
-          return sa - sb || a.from.si - b.from.si || a.to.si - b.to.si || a.id - b.id;
-        })
-        .forEach((j, i) => bandOf.set(j.id, i));
-      const nBands = cross.length;
+        .sort(
+          (a, b) =>
+            leftnessOf(a) - leftnessOf(b) ||
+            a.from.si - b.from.si ||
+            a.to.si - b.to.si ||
+            a.id - b.id
+        )
+        .forEach((j) => {
+          let placed = false;
+          for (let b = leftnessFloor; b < bandMembers.length; b++) {
+            if (bandMembers[b].every((o) => !bandConflicts(j, o))) {
+              bandMembers[b].push(j);
+              bandOf.set(j.id, b);
+              leftnessFloor = b;
+              placed = true;
+              break;
+            }
+          }
+          if (!placed) {
+            leftnessFloor = bandMembers.length;
+            bandOf.set(j.id, leftnessFloor);
+            bandMembers.push([j]);
+          }
+        });
+      const nBands = bandMembers.length;
+      // Stub row + one row per band + top arrow row; never shorter than 3 tiles.
+      const middleTiles = Math.max(3, nBands + 2);
+      const middleH = middleTiles * TILE;
+      middles.forEach((m) => {
+        m.style.height = middleH + "px";
+      });
 
       const outFrom = Array.from({ length: sliceCount }, () => []);
       const inTo = Array.from({ length: sliceCount }, () => []);
@@ -1023,66 +1064,103 @@
         outFrom[j.from.si].push(j);
         inTo[j.to.si].push(j);
       }
-      const byBand = (a, b) => bandOf.get(a.id) - bandOf.get(b.id) || a.id - b.id;
-      outFrom.forEach((list) => list.sort(byBand));
-      inTo.forEach((list) => list.sort(byBand));
+      const byLeftness = (a, b) =>
+        leftnessOf(a) - leftnessOf(b) || a.from.si - b.from.si || a.id - b.id;
+      outFrom.forEach((list) => list.sort(byLeftness));
+      inTo.forEach((list) => list.sort(byLeftness));
+
+      /** Horizontal run that hops every vertical obstacle in [x0, x1). */
+      function placeShaftHHopped(middle, y, x0, x1, obstacles) {
+        const hits = obstacles
+          .filter((x) => x + TILE > x0 && x < x1)
+          .sort((a, b) => a - b);
+        let x = x0;
+        for (const ox of hits) {
+          if (ox > x) placeShaftH(middle, x, y, ox - x);
+          if (ox >= x0 && ox + TILE <= x1) placeTile(middle, "hop", ox, y);
+          else if (ox < x1 && ox + TILE > x0) {
+            // obstacle partially in range — still hop at tile origin if visible
+            placeTile(middle, "hop", ox, y);
+          }
+          x = Math.max(x, ox + TILE);
+        }
+        if (x1 > x) placeShaftH(middle, x, y, x1 - x);
+      }
 
       requestAnimationFrame(() => {
         for (let si = 0; si < sliceCount; si++) {
           const middle = middles[si];
           const w = middle.clientWidth;
-          const h = middle.clientHeight;
           const cx = centerX(middle);
-          const { stubY, bands } = bandYs(h, nBands);
+          const { stubY, bands } = bandYs(middleH, nBands);
           const hasVert = vertical[si] !== null;
-          // Same-slice down stays centered; outgoing joins sit to its right.
-          // Incoming to upper: first arrives at center, later ones at +1, +2, …
+          // Write shaft owns center and pushes outbound stubs one tile right.
           const outBase = hasVert ? 1 : 0;
-          const inBase = 0;
+          const outXs = outFrom[si].map((_, oi) => cx + TILE * (oi + outBase));
+          // Arrival rises are centered as a group (unlike the write shaft).
+          const nIn = inTo[si].length;
+          const inStart = cx - ((nIn - 1) * TILE) / 2;
+          const inXs = inTo[si].map((_, ii) => inStart + TILE * ii);
 
-          // Same-slice vertical at center
           if (vertical[si] === "down") {
             placeShaftV(middle, cx, 0, stubY);
             placeArrow(middle, cx, stubY, ARROW_DOWN, "arrow-down");
           }
 
-          // Outgoing joins (to the right of center when a vertical occupies center)
+          // Through-runs: one hopped shaft per band that crosses this slice
+          const throughBands = new Set();
+          for (const j of cross) {
+            if (j.from.si >= si || j.to.si <= si) continue;
+            throughBands.add(bandOf.get(j.id));
+          }
+
+          /** Verticals that actually occupy band `b` in this slice (hop only these). */
+          function obstaclesOnBand(b, { skipOutOi = -1, skipInIi = -1 } = {}) {
+            const obstacles = [];
+            if (hasVert) obstacles.push(cx);
+            outFrom[si].forEach((j, oi) => {
+              if (oi === skipOutOi) return;
+              // Mid stub above a lower elbow occupies lower bands only.
+              if (bandOf.get(j.id) < b) obstacles.push(outXs[oi]);
+            });
+            inTo[si].forEach((j, ii) => {
+              if (ii === skipInIi) return;
+              // Rise from a lower elbow crosses higher bands on the way up.
+              if (bandOf.get(j.id) > b) obstacles.push(inXs[ii]);
+            });
+            return obstacles;
+          }
+
           outFrom[si].forEach((j, oi) => {
             const band = bandOf.get(j.id);
             const y = bands[band];
-            const ox = cx + TILE * (oi + outBase);
+            const ox = outXs[oi];
 
             if (j.from.part === "lower") {
               placeTile(middle, "vline", ox, stubY);
-              for (let b = nBands - 1; b > band; b--) placeTile(middle, "vline", ox, bands[b]);
+              // Bands below the elbow: hop owns the cell when a through-run crosses here.
+              for (let b = nBands - 1; b > band; b--) {
+                if (throughBands.has(b)) continue;
+                placeTile(middle, "vline", ox, bands[b]);
+              }
               placeTile(middle, "elbow-br", ox, y);
             } else {
               placeShaftV(middle, ox, 0, y);
               placeTile(middle, "elbow-tr", ox, y);
             }
-            placeShaftH(middle, ox + TILE, y, w - (ox + TILE));
+            placeShaftHHopped(middle, y, ox + TILE, w, obstaclesOnBand(band, { skipOutOi: oi }));
           });
 
-          // Through-runs across this slice
-          for (const j of cross) {
-            if (j.from.si >= si || j.to.si <= si) continue;
-            const y = bands[bandOf.get(j.id)];
-            if (hasVert) {
-              placeShaftH(middle, 0, y, cx);
-              placeTile(middle, "hop", cx, y);
-              placeShaftH(middle, cx + TILE, y, w - cx - TILE);
-            } else {
-              placeShaftH(middle, 0, y, w);
-            }
+          for (const b of throughBands) {
+            placeShaftHHopped(middle, bands[b], 0, w, obstaclesOnBand(b));
           }
 
-          // Incoming arrivals
           inTo[si].forEach((j, ii) => {
             const band = bandOf.get(j.id);
             const y = bands[band];
-            const ax = cx + TILE * (ii + inBase);
+            const ax = inXs[ii];
 
-            placeShaftH(middle, 0, y, ax);
+            placeShaftHHopped(middle, y, 0, ax, obstaclesOnBand(band, { skipInIi: ii }));
 
             if (j.to.part === "upper") {
               placeTile(middle, "elbow-tl", ax, y);
