@@ -2,6 +2,7 @@
 app/node_modules/
 
 # Client / local artefacts (not part of the generic framework)
+projects/
 compare-slices.html
 instruction-rebuild/
 lucid-chart/
