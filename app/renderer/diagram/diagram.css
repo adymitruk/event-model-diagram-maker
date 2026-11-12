@@ -1,84 +1,200 @@
 :root {
+  /* Slice-item scale only (cards / wires / --col). Lane chrome and settings stay put. */
+  --scale: 1;
   --lane: 11rem;
-  --col: 16rem;
-  --tile: 30px;
+  /* Slice column floor — grows with --scale; tracks may still widen for SCR content. */
+  --col: calc(16rem * var(--scale));
+  --tile: 16px;
   /* Footprint of an .evt/.com/.rmo card with one prop row — keeps lba-head gap = arrow corridor. */
-  --evt-card-one-prop: 5.125rem;
+  --evt-card-one-prop: calc(5.125rem * var(--scale));
   --line: 1px solid #c8c8c8;
   --com: #c5e8f8;
   --rmo: #d8f3df;
   --evt: #ffe0c2;
   --err: #f8d0d0;
   --pro: #ececec;
-  --map: #fff3cd;
+  --map: #fff6b8;
   --ink: #1c1c1c;
   --wfl: #0055ff;
+  /* Unrelated cards/connectors while a path is focused. */
+  --focus-fade: 0.2;
 }
 
-body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui, sans-serif; }
-.emd { position: relative; overflow: auto; }
+html, body { height: 100%; margin: 0; }
+body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 system-ui, sans-serif; }
+/* Type size for slice cards; WFL labels, lane chrome, and settings stay fixed. */
+.uba, .mba, .lba, .slc-no {
+  font-size: calc(14px * var(--scale));
+}
+/* .emd is the only scrollport — required for sticky WFL/lane to work. */
+.emd { position: relative; overflow: auto; height: 100%; }
 .sheet { position: relative; width: max-content; }
-/* Leftness tile joins (EVT→RMO) — absolute 30×30 tiles over the sheet.
-   Layer and run boxes do not capture clicks; only the tile cells do, so
-   empty flex filler cannot sit above an arrow and block inspection. */
-#connector-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 4;
-  color: #444;
+/* EVT→RMO connectors: tiling-example middles inside each connector cell. */
+.cell.connector {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+  padding-left: 0;
+  padding-right: 0;
 }
-#connector-layer .join-tile {
-  position: absolute;
-  width: var(--tile);
-  height: var(--tile);
-  pointer-events: auto;
-}
-#connector-layer .join-tile.join-run {
-  width: auto;
-  height: auto;
-  overflow: hidden;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-#connector-layer .join-tile.join-run > .join-cell {
-  width: var(--tile);
-  height: var(--tile);
-  flex-shrink: 0;
-  pointer-events: auto;
-}
-#connector-layer .join-tile svg {
-  display: block;
+.cell.connector > .middle {
+  position: relative;
+  flex: 0 0 auto;
   width: 100%;
-  height: 100%;
-  pointer-events: none;
+  min-height: calc(var(--tile) * 3);
+  overflow: visible;
+  z-index: 2;
 }
-
+.cell.connector .tile,
+.cell.connector .shaft-v,
+.cell.connector .shaft-h {
+  position: absolute;
+  z-index: 2;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 0.12s ease, filter 0.12s ease;
+}
+.cell.connector .tile {
+  width: var(--tile);
+  height: var(--tile);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: var(--tile) var(--tile);
+}
+.cell.connector .shaft-v {
+  width: var(--tile);
+  background: url("arrows/vline.svg") center top / var(--tile) var(--tile) repeat-y;
+}
+.cell.connector .shaft-h {
+  height: var(--tile);
+  background: url("arrows/hline.svg") left center / var(--tile) var(--tile) repeat-x;
+}
+.cell.connector .elbow-br { background-image: url("arrows/turn-br.svg?v=curve"); }
+.cell.connector .elbow-tl { background-image: url("arrows/turn-tl.svg?v=curve"); }
+.cell.connector .elbow-tr { background-image: url("arrows/turn-tr.svg?v=curve"); }
+.cell.connector .elbow-bl { background-image: url("arrows/turn-bl.svg?v=curve"); }
+.cell.connector .vline { background-image: url("arrows/vline.svg"); }
+.cell.connector .arrow-up { background-image: url("arrows/arrow-up.svg"); }
+/* Default: all connectors fully lit (no idle mute, no 3-level ramp). */
+.cell.connector .tile:not(.hop),
+.cell.connector .shaft-v,
+.cell.connector .shaft-h,
+.uba .arr .shaft,
+.mba .arr .shaft,
+.lba .arr .shaft,
+.uba .arr .tile,
+.mba .arr .tile,
+.lba .arr .tile {
+  opacity: 1;
+  filter: brightness(0);
+  transition: opacity 0.12s ease, filter 0.12s ease;
+}
+.cell.connector .hop {
+  opacity: 1;
+  filter: none;
+  transform: scaleY(-1);
+  background-image: url("arrows/hop-vh.svg?v=hop5");
+  transition: opacity 0.12s ease;
+}
+.scr, .com, .rmo, .evt, .err, .pro, .map {
+  transition: opacity 0.12s ease;
+}
+/* Hover focus: keep the related path + endpoints; fade everything else. */
+.emd.path-focus .scr:not(.endpoint-hot),
+.emd.path-focus .com:not(.endpoint-hot),
+.emd.path-focus .rmo:not(.endpoint-hot),
+.emd.path-focus .evt:not(.endpoint-hot),
+.emd.path-focus .err:not(.endpoint-hot),
+.emd.path-focus .pro:not(.endpoint-hot),
+.emd.path-focus .map:not(.endpoint-hot) {
+  opacity: var(--focus-fade);
+}
+.emd.path-focus .cell.connector .tile:not(.hop):not(.path-hot),
+.emd.path-focus .cell.connector .shaft-v:not(.path-hot),
+.emd.path-focus .cell.connector .shaft-h:not(.path-hot),
+.emd.path-focus .uba .arr .shaft:not(.path-hot),
+.emd.path-focus .mba .arr .shaft:not(.path-hot),
+.emd.path-focus .lba .arr .shaft:not(.path-hot),
+.emd.path-focus .uba .arr .tile:not(.path-hot),
+.emd.path-focus .mba .arr .tile:not(.path-hot),
+.emd.path-focus .lba .arr .tile:not(.path-hot) {
+  opacity: var(--focus-fade);
+  filter: none;
+}
+.emd.path-focus .cell.connector .hop:not(.hot-v):not(.hot-h) {
+  opacity: var(--focus-fade);
+  background-image: url("arrows/hop-gg.svg?v=hop5");
+}
+.cell.connector .tile.path-hot:not(.hop),
+.cell.connector .shaft-v.path-hot,
+.cell.connector .shaft-h.path-hot,
+.uba .arr .shaft.path-hot,
+.mba .arr .shaft.path-hot,
+.lba .arr .shaft.path-hot,
+.uba .arr .tile.path-hot,
+.mba .arr .tile.path-hot,
+.lba .arr .tile.path-hot {
+  opacity: 1;
+  filter: brightness(0);
+  z-index: 3;
+}
+.cell.connector .hop.hot-v:not(.hot-h),
+.cell.connector .hop.hot-h:not(.hot-v),
+.cell.connector .hop.hot-v.hot-h {
+  opacity: 1;
+  z-index: 3;
+}
+.cell.connector .hop.hot-v:not(.hot-h) { background-image: url("arrows/hop-vg.svg?v=hop5"); }
+.cell.connector .hop.hot-h:not(.hot-v) { background-image: url("arrows/hop-gh.svg?v=hop5"); }
+.cell.connector .hop.hot-v.hot-h { background-image: url("arrows/hop-vh.svg?v=hop5"); }
+.emd.path-focus .endpoint-hot {
+  opacity: 1;
+}
 .board {
   display: grid;
-  grid-template-columns: var(--lane) repeat(var(--slices), var(--col));
+  grid-template-columns: var(--lane) repeat(var(--slices), minmax(var(--col), max-content));
   grid-auto-rows: auto;
   align-items: stretch;
 }
-.cell { border-right: var(--line); border-bottom: var(--line); padding: 0.4rem; min-height: 2.5rem; }
+/* No grid rules on cells by default — slice columns must not show vertical or
+   bottom borders. Only the sticky actor/service lane keeps a right edge. */
+.cell { border: 0; padding: 0.4rem; min-height: 2.5rem; }
 .uba, .mba, .lba, .connector {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  min-width: 0; /* let long prop values wrap inside --col instead of overflowing */
   /* Vertical padding would break continuous shafts across cells. */
   padding-top: 0;
   padding-bottom: 0;
+}
+/* MBA/LBA wrap long props; UBA may grow the slice column for wide SCRs. */
+.mba, .lba, .connector { min-width: 0; }
+.uba { min-width: var(--col); }
+/* MBA / LBA cards share one top edge across slices. Equal flex above/below
+   centers cards of different heights; keep the upper corridor compact and
+   put spare height below the card (MBA lower gap, or empty space in LBA). */
+.mba > .gap:first-child,
+.lba > .gap:first-child {
+  flex: 0 0 auto;
+  min-height: calc(var(--tile) * 2);
+}
+.mba > article,
+.mba > .map,
+.lba > article {
+  flex: 0 0 auto;
+}
+.mba > .gap:last-child {
+  flex: 1 1 auto;
+  min-height: var(--tile);
+}
+/* Empty LBA fill cells (shaft only) still stretch through the row. */
+.lba > .gap:only-child {
+  flex: 1 1 auto;
 }
 /* Cards stay flush with vertical shafts; only outer ends keep a little air. */
 .uba > article:first-child { margin-top: 0.4rem; }
 .lba > article:last-child { margin-bottom: 0.4rem; }
 .connector { min-height: calc(var(--tile) * 3); }
-.uba, .mba, .connector, .lba, .lane.open { border-bottom: 0; }
-.foot { border-bottom: var(--line); }
-.slc-no, .wfl, .lane:not(.open):not(.foot) { border-bottom: 0; }
 /* Sticky lane column sits above scrolling slice content (cards, lba, etc.). */
 .lane {
   position: sticky;
@@ -86,6 +202,111 @@ body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui
   z-index: 5;
   background: #fafafa;
   font-weight: 600;
+  border-right: var(--line);
+}
+/* Workflow lane corner: gear + help, pin top-left with the arrow band. */
+.board > .lane:first-child,
+.board > .lane.emd-corner {
+  top: 0;
+  z-index: 6;
+  border-right: 0;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+.emd-corner-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.emd-corner-btn {
+  box-sizing: border-box;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  font: 700 0.95rem/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.emd-corner-btn:hover,
+.emd-corner-btn[aria-expanded="true"] {
+  background: #f3f3f3;
+  border-color: #999;
+}
+.emd-corner-btn .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.emd-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0.4rem;
+  z-index: 30;
+  box-sizing: border-box;
+  width: 17rem;
+  padding: 0.9rem 1rem 1rem;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(28, 28, 28, 0.12);
+}
+.emd-popover.is-open { display: block; }
+.emd-popover h2 {
+  margin: 0 0 0.7rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.emd-help-pop { width: 22rem; max-width: min(22rem, 70vw); }
+.emd-help-pop ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #333;
+}
+.emd-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+}
+.emd-settings-field:last-child { margin-bottom: 0; }
+.emd-settings-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #444;
+}
+.emd-settings-label output {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-weight: 600;
+}
+.emd-settings-field input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #333;
 }
 /* First LBA swim lane: mirror the LBA cell — flex gap above, label beside the EVTs.
    The label box is sized like a one-prop .evt card so the flex gap matches the arrow corridor. */
@@ -96,8 +317,8 @@ body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui
   padding-bottom: 0.4rem; /* match .lba > article:last-child margin */
 }
 .lane.lba-head > .lba-head-gap {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: calc(var(--tile) * 2); /* match compact LBA arrow corridor above EVTs */
 }
 .lane.lba-head > .lba-head-label {
   flex: 0 0 auto;
@@ -106,25 +327,26 @@ body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui
   display: flex;
   align-items: flex-start;
 }
-/* Slice body cells stay under the sticky labels while scrolling horizontally. */
-.uba, .mba, .lba, .connector, .slc-no {
+/* Slice body cells stay under the sticky labels while scrolling horizontally.
+   MBA keeps z-index:auto so `.map` (z-index 4) can paint above connector
+   overflow (z-index 1) without covering the join arrow-up under the RMO. */
+.uba, .lba, .connector, .slc-no {
   position: relative;
   z-index: 0;
   background: #fff;
 }
+.mba {
+  position: relative;
+  z-index: auto;
+  background: #fff;
+}
 .wfl {
   --arrow-bottom: 0.85rem;
-  position: relative;
-  z-index: 2;
+  position: sticky;
+  top: 0;
+  z-index: 4;
   background-color: #fff;
-  /* Spanning WFL cell: redraw slice borders inside the run. */
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent calc(var(--col) - 1px),
-    #c8c8c8 calc(var(--col) - 1px),
-    #c8c8c8 var(--col)
-  );
+  font-size: 14px;
   font-weight: 600;
 }
 .wfl[data-span="2"] { grid-column: span 2; }
@@ -164,16 +386,41 @@ body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.35 system-ui
 .wfl:not(.continues)::after { content: none; }
 .slc-no { text-align: center; font-weight: 600; }
 
-article { border: 0; border-radius: 16px; padding: 0.85rem 1rem 0.95rem; background: #fff; box-shadow: 0 1px 2px rgba(28, 28, 28, 0.05), 0 8px 18px rgba(28, 28, 28, 0.08); box-sizing: border-box; max-width: 100%; min-width: 0; }
-article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
-.props { margin: 0; display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
-.props div { display: flex; justify-content: space-between; gap: 1rem; min-width: 0; }
+/* Card metrics use em so they follow the slice --scale font-size. */
+article { border: 0; border-radius: 1.14em; padding: 0.85em 1em 0.95em; background: #fff; box-shadow: 0 1px 2px rgba(28, 28, 28, 0.05), 0 8px 18px rgba(28, 28, 28, 0.08); box-sizing: border-box; max-width: 100%; min-width: 0; }
+/* Screens may widen the slice past --col. COM / RMO / EVT stay content-sized
+   (centered on the shaft) so a wide SCR does not stretch them. */
+.uba > .scr {
+  width: max-content;
+  max-width: none;
+  min-width: 100%;
+}
+.mba > .com,
+.mba > .rmo,
+.lba > .evt,
+.lba > .err {
+  width: fit-content;
+  max-width: 100%;
+  align-self: center;
+}
+article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
+.props { margin: 0; display: flex; flex-direction: column; gap: 0.15em; min-width: 0; }
+.props div { display: flex; justify-content: space-between; gap: 1em; min-width: 0; padding: 0.1em 0.25em; border-radius: 4px; transition: opacity 0.12s ease, background-color 0.12s ease; }
 .props dt { font-weight: 400; flex: 0 1 auto; }
 .props dd { margin: 0; font-weight: 700; text-align: right; min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
+/* MAP hover: emphasize the mapped property rows; dim other props on those cards. */
+.emd.path-focus:has(.prop-hot) .endpoint-hot .props > div:not(.prop-hot) {
+  opacity: 0.35;
+}
+.emd.path-focus .props > div.prop-hot {
+  opacity: 1;
+  background: var(--map);
+  box-shadow: inset 0 0 0 1px #e8d56a;
+}
 .com { background: var(--com); border-radius: 2px; }
 .rmo { background: var(--rmo); border-radius: 2px; }
 .evt { background: var(--evt); border-radius: 2px; }
-.com h2, .rmo h2, .evt h2 { margin: -0.85rem -1rem 0.65rem; padding: 0.5rem 1rem; border-radius: 2px 2px 0 0; color: #000; }
+.com h2, .rmo h2, .evt h2 { margin: -0.85em -1em 0.65em; padding: 0.5em 1em; border-radius: 2px 2px 0 0; color: #000; }
 .com h2 { background: #7ebfe0; }
 .rmo h2 { background: #8dcea4; }
 .evt h2 { background: #f0b07a; }
@@ -182,7 +429,7 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.35em;
   width: fit-content;
   margin: 0 auto;
   padding: 0;
@@ -191,11 +438,27 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
   box-shadow: none;
   color: #444;
 }
-.pro h2 { margin: 0; padding: 0; background: none; color: #000; font-size: 0.95rem; }
-.pro .gear { width: 2.25rem; height: 2.25rem; }
-.map { background: var(--map); border: 1px solid #e6d48a; border-radius: 4px; padding: 0.2rem 0.4rem; font-size: 0.85rem; }
-/* Map sits on the join shaft: keep the lower-gap arrow tight under it. */
-.mba > .map { margin: 0; }
+.pro h2 { margin: 0; padding: 0; background: none; color: #000; font-size: 1.09em; }
+.pro .gear { width: 2.25em; height: 2.25em; }
+.map {
+  background-color: var(--map);
+  border: 1px solid #e8d56a;
+  border-radius: 4px;
+  padding: 0.2em 0.4em;
+  font-size: 0.97em;
+  opacity: 1;
+}
+/* MAP sits on the join shaft below the arrow-up into the RMO.
+   Opaque yellow; z-index above `.cell.connector` (1) so shafts stay behind
+   the note while the arrow-up in the tile gap above still shows. */
+.mba > .map {
+  margin: calc(var(--tile) + 0.15rem) 0 0;
+  position: relative;
+  z-index: 4;
+  align-self: center;
+  background-color: var(--map);
+  opacity: 1;
+}
 .mba > .map + .gap {
   flex: 1 1 auto;
   justify-content: flex-start;
@@ -203,7 +466,6 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
 .mba > .map + .gap > .arr.v {
   flex: 1 1 auto;
 }
-
 
 @font-face {
   font-family: "Patrick Hand";
@@ -213,26 +475,27 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.5em;
   box-sizing: border-box;
-  width: 100%;
-  padding: 0.55rem;
+  width: max-content;
+  min-width: 100%;
+  padding: 0.55em;
   background: #fff;
   color: #222;
   border: 2px solid #222;
   border-radius: 2px;
-  box-shadow: 3px 3px 0 #222;
+  box-shadow: none;
   font-family: "Patrick Hand", "Comic Sans MS", cursive;
-  font-size: 1.05rem;
+  font-size: 1.2em;
 }
-.wire .heading { margin: 0; font-size: 1.25rem; }
+.wire .heading { margin: 0; font-size: 1.19em; }
 .wire .label { margin: 0; overflow-wrap: anywhere; }
-.wire .col, .wire .row { display: flex; gap: 0.4rem; }
+.wire .col, .wire .row { display: flex; gap: 0.4em; }
 .wire .col { flex-direction: column; align-items: stretch; align-self: stretch; }
 .wire .row { flex-direction: row; align-items: center; }
 .wire .row.end { align-self: stretch; justify-content: flex-end; }
-.wire .group { margin: 0; border: 2px solid #222; border-radius: 2px; padding: 0.35rem 0.45rem 0.45rem; }
-.wire .group legend { padding: 0 0.25rem; }
+.wire .group { margin: 0; border: 2px solid #222; border-radius: 2px; padding: 0.35em 0.45em 0.45em; }
+.wire .group legend { padding: 0 0.25em; }
 .wire button,
 .wire input:not([type="checkbox"]),
 .wire select {
@@ -241,10 +504,10 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
   color: inherit;
   background: #fff;
   border: 2px solid #222;
-  box-shadow: 2px 2px 0 #222;
+  box-shadow: none;
 }
-.wire button { border-radius: 10px; padding: 0.15rem 0.7rem; width: fit-content; white-space: nowrap; }
-.wire input, .wire select { border-radius: 2px; padding: 0.1rem 0.35rem; width: 100%; box-sizing: border-box; }
+.wire button { border-radius: 10px; padding: 0.15em 0.7em; width: fit-content; white-space: nowrap; }
+.wire input, .wire select { border-radius: 2px; padding: 0.1em 0.35em; width: 100%; box-sizing: border-box; }
 .wire select {
   background-image: linear-gradient(45deg, transparent 50%, #222 50%), linear-gradient(135deg, #222 50%, transparent 50%);
   background-position: calc(100% - 12px) 55%, calc(100% - 7px) 55%;
@@ -253,7 +516,7 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
   padding-right: 1.2rem;
 }
 .wire table { width: 100%; border-collapse: collapse; }
-.wire th, .wire td { border: 2px solid #222; padding: 0.15rem 0.3rem; text-align: left; }
+.wire th, .wire td { border: 2px solid #222; padding: 0.15em 0.3em; text-align: left; }
 
 /* Arrow corridors: 30x30 SVG tiles. Long shafts tile via background-repeat. No JS. */
 .gap {
@@ -345,7 +608,6 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
   height: var(--tile);
   background: url("arrows/hline.svg") left center / var(--tile) var(--tile) repeat-x;
 }
-
 .arr .tile,
 .gear-dock .tile,
 .rail-band .tile {
@@ -645,3 +907,4 @@ article h2 { margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; }
   height: var(--tile);
   background: url("arrows/hline.svg") left center / var(--tile) var(--tile) repeat-x;
 }
+

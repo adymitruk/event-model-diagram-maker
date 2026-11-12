@@ -26,18 +26,20 @@ The diagram is one HTML file. Each new slice adds one column. Earlier columns st
 
 `--slices` is the number of slice columns drawn so far. Bump it by one when a slice is added.
 
+`diagram.css` sets `html, body { height: 100% }`, `body { overflow: hidden }`, and `.emd { height: 100%; overflow: auto }` so **`main.emd` is the only scrollport**. Sticky workflow and lane chrome depend on that — do not scroll the page via `body`/`window`, and do not wrap `.emd` in another `overflow` container.
+
 ## Board
 
-A CSS grid. Column 1 is the swim-lane labels. Each later column is one slice, left to right, `SLC1` then `SLC2`. `SLC` is the only abbreviation written on the diagram. Rows from top to bottom:
+A CSS grid. Column 1 is the swim-lane labels. Each later column is one slice, left to right, `SLC1` then `SLC2`. `SLC` is the only abbreviation written on the diagram. Slice tracks are `minmax(var(--col), max-content)` — `--col` (default `16rem`) is the **minimum** width. A slice may grow when a screen (or other intrinsic content) needs more room; do not treat `--col` as a fixed cap. Rows from top to bottom:
 
-1. Workflow — one merged cell per workflow run, not one cell per slice. Set `data-span="N"` to the number of slices of that workflow drawn so far (`grid-column: span N`). Put the goal (`Stock a bike`) in a `span` inside that cell. A blue arrow runs along the bottom of the span. The shaft and the arrowhead are one shape — omit `continues` on the merged cell so the head sits at the right end of the run (when you later extend the same workflow, bump `data-span`). The goal `span` is horizontally sticky so it slides along the arrow while the board scrolls, staying clear of the sticky lane column, until that workflow cell scrolls away or the next workflow’s span takes over.
+1. Workflow — one merged cell per workflow run, not one cell per slice. Set `data-span="N"` to the number of slices of that workflow drawn so far (`grid-column: span N`). Put the goal (`Stock a bike`) in a `span` inside that cell. A blue arrow runs along the bottom of the span. The shaft and the arrowhead are one shape — omit `continues` on the merged cell so the head sits at the right end of the run (when you later extend the same workflow, bump `data-span`). Leave the first-column lane cell empty of workflow text; `settings.js` places a gear (settings) and `?` (board help) there. Do **not** draw vertical rules between slice columns anywhere on the board (`.cell` has `border: 0`); only the sticky lane column keeps a right edge. Slice cells also have no bottom border (including `.foot`). The whole workflow row (`.wfl` cells and the empty corner lane) is sticky to the **top** of `.emd` while scrolling vertically. The goal `span` is also horizontally sticky so it slides along the arrow while the board scrolls sideways, staying clear of the sticky lane column, until that workflow cell scrolls away horizontally or the next workflow’s span takes over.
 2. One row per user, labeled `<name> (<role>)`.
-3. One middle row, with no lane label. Each cell holds a command or a read model. **Every MBA card lines up on one horizontal band across slices** — same top edge for every `com` and `rmo` in that row. Do that by always putting a flexing `.gap` *above* and *below* the card (command and read-model cells alike). The gaps share the spare height so the cards stay aligned; never park an MBA card at the top of the cell with only a gap underneath.
+3. One middle row, with no lane label. Each cell holds a command or a read model. **Every MBA card lines up on one horizontal band across slices** — same **top** edge for every `com` and `rmo` in that row (not centered). Always put a `.gap` *above* and *below* the card (command and read-model cells alike). The upper gap stays compact (`flex: 0`; min height two tiles for the into-card corridor). The lower gap is the one that flexes (`flex: 1`) and absorbs spare height so taller and shorter cards still share one top line. Never park an MBA card at the top of the cell with only a gap underneath, and never give both gaps equal `flex: 1` — that vertically centers cards and breaks the band.
 4. One connector row, with no lane label. Vertical shafts continue through it; arrows that leave one slice for another run horizontally through its mid band.
-5. One row per service, labeled with the service name. On the **first** LBA service row (the top swim lane under the connector), use `lba-head` with an empty `.lba-head-gap` above a `.lba-head-label`. The gap flexes like the arrow corridor above the EVTs; the label box is sized to `--evt-card-one-prop` so that corridor height matches and the name starts where the event cards start.
+5. One row per service, labeled with the service name. **Every EVT/ERR card lines up on one top edge across slices**, same rule as MBA: compact `.gap` above the card (min two tiles for shaft + `arrow-down`), spare height below — not equal flex that centers cards. On the **first** LBA service row (the top swim lane under the connector), use `lba-head` with an empty `.lba-head-gap` above a `.lba-head-label`. The head gap is the same compact two-tile height as the EVT corridor so the service name starts where the event cards start.
 
 ```html
-<div class="cell lane">Workflow</div>
+<div class="cell lane" aria-hidden="true"></div>
 <div class="cell wfl" data-slc="1" data-span="4"><span>Stock a bike</span></div>
 <div class="cell lane open">Jim (Customer)</div>
 <div class="cell uba" data-slc="1" data-lane="jim"></div>
@@ -51,11 +53,15 @@ A CSS grid. Column 1 is the swim-lane labels. Each later column is one slice, le
 
 An empty cell stays an empty `div`. Do not put a placeholder in it.
 
-Below the workflow row, cells have no bottom border, including the line above the connector row. The last row keeps its bottom border. Mark the lane labels in those open rows with `open`, and the last row with `foot`. The workflow row also has no horizontal line above it or below it.
+Slice cells have no bottom border (including the LBA `foot` row) and no vertical borders between columns. Mark the lane labels in open rows with `open`, and the last service row with `foot` (for layout, not a bottom rule). The workflow row has no horizontal line above or below it. Only `.lane` keeps `border-right` so the label column stays edged.
 
-### Scroll stacking (horizontal)
+### Scroll stacking
 
-The board scrolls inside `.emd`. Column 1 (`.lane`) is `position: sticky; left: 0` with a solid background and **`z-index: 5`** so slice content never paints over the labels. Give `.uba` / `.mba` / `.lba` / `.connector` / `.slc-no` `position: relative; z-index: 0` and an opaque white background. The workflow cell uses `z-index: 2`; its goal `span` is sticky at `left: calc(var(--lane) + 0.4rem)` with `z-index: 3` so the name rides the blue arrow while scrolling without sliding under the lane column.
+The board scrolls **only** inside `.emd` (both axes). `body` stays `overflow: hidden` with `html, body { height: 100% }` so sticky positioning is relative to `.emd`, not the window.
+
+**Horizontal.** Column 1 (`.lane`) is `position: sticky; left: 0` with a solid background and **`z-index: 5`** so slice content never paints over the labels. Give `.uba` / `.mba` / `.lba` / `.connector` / `.slc-no` `position: relative; z-index: 0` and an opaque white background. Each `.wfl > span` is sticky at `left: calc(var(--lane) + 0.4rem)` with `z-index: 3` so the goal name rides the blue arrow while scrolling sideways without sliding under the lane column.
+
+**Vertical.** The workflow row pins to the top of `.emd`: every `.wfl` is `position: sticky; top: 0` with an opaque white background and **`z-index: 4`**, and the empty corner lane (`.board > .lane:first-child`) is sticky at `top: 0` as well with **`z-index: 6`**. Neither shows slice borders. Swim-lane content (UBA/MBA/connectors/LBA) scrolls under that bar.
 
 ## Slice header
 
@@ -206,9 +212,13 @@ Place the note in the middle band, **below** the COM or RMO card, on the shaft o
 
 ## Arrows
 
-Draw the arrows from step 8 of the event-modeling instructions. Same-slice verticals (`SCR → COM → EVT`, `RMO → SCR`) stay HTML corridors of 30×30 tiles in `diagram/arrows/`. **EVT → RMO projections** use the leftness tile layer in `diagram/connectors.js` (see below) — do not hand-merge several events onto one shared CSS corridor. After editing CSS, bump the `?v=` on the stylesheet link so the preview is not stuck on a cached sheet.
+Draw the arrows from step 8 of the event-modeling instructions.
 
-Give each card an `id` of its kind, then its name in kebab case (`evt-bike-received`). The id is for reference only; the arrow markup sits in the cells between the cards.
+**Same-slice verticals** (`SCR → COM → EVT`, `RMO → SCR`) stay HTML corridors of 30×30 tiles in `diagram/arrows/` inside `uba` / `mba` / `lba` gaps. Do **not** put cross-slice join markup in those gaps.
+
+**EVT → RMO projections** (and the COM→EVT segment that crosses the connector row) are drawn only by `diagram/connectors.js` — a port of `diagram/tiling-example.html`. Do not hand-build CSS `.rail` / `.joins-2` corridors for joins. After editing CSS or the script, bump the `?v=` on the stylesheet and script links.
+
+Give every EVT and RMO card an `id` of its kind, then its name in kebab case (`evt-bike-received`).
 
 ### Continuity rules
 
@@ -252,15 +262,13 @@ A long shaft is a `div.shaft` whose background is the matching line tile with `b
 
 `uba`, `mba`, and `lba` cells are flex columns. Put a `.gap` above and/or below the card. The gap grows to fill the space between cards, so the shaft stretches. Center a single track with `.gap > .arr.v`. An empty `uba` or `lba` cell that a vertical crosses is not left blank — it holds only that same `.gap > .arr.v > .shaft` so the line continues (see continuity rule 4).
 
-In every `mba` cell, use **both** an upper and a lower `.gap` around the card — including read-model slices, where the upper gap is the shaft continuing down from the uba (gear dock / fill) and the lower gap holds the `arrow-up` from the join. Skipping the upper gap on an RMO pulls that card above the command cards in neighboring slices.
+In every `mba` cell, use **both** an upper and a lower `.gap` around the card — including read-model slices, where the upper gap is the shaft continuing down from the uba (gear dock / fill) and the lower gap is empty so JS can draw the join `arrow-up`. Skipping the upper gap on an RMO pulls that card above the command cards in neighboring slices. CSS keeps upper gaps compact and lower gaps flexing so every MBA card shares one top edge.
 
-**One join** from an event: `.gap.pair` above the event (center into the card, offset one full `--tile` to the right) and `.rail.pair` in the event’s connector cell. Destination connector: `.rail.single` with inbound `.h-run` + `turn-tl`, upper shaft up into the mba, `arrow-up` under the read model.
+**Connector row.** Leave every `.cell.connector` empty in markup. `connectors.js` inserts a `.middle` band (tiling playground) and paints write shafts + EVT→RMO projections there. Do not put `.rail`, `.h-run`, or join tiles in connector cells.
 
-**Connector anatomy.** `.rail` has `upper` | `mid` | `lower`. Vertical shafts continue through `upper`/`lower`. Corners and horizontals sit in `mid`. `.rail.single` = centered track only. `.rail.pair` = center + one offset join.
+Inside a command slice, put a down arrow into the command (mba `.gap` above the card) and a shaft in the mba lower gap toward the connector. In the LBA, shaft + `arrow-down` into the event. The connector segment of that vertical is JS. When the command failed, the LBA arrow goes to the error.
 
-Inside a command slice, put a down arrow into the command (mba `.gap` above the card) and a down arrow into the event (mba out + connector + lba in). When the command failed, the second arrow goes to the error.
-
-Inside a read-model slice, put an up arrow from the read model to the screen when that screen is drawn in the same slice: in the UBA `.gap` under the SCR, `arrow-up` then shaft (`tile` on top, shaft below), so the head points into the screen. That head is separate from the join’s `arrow-up` under the RMO. Empty `uba` cells the shaft crosses stay shaft-only (no second head). When the reader is a processor in the next slice, use the gear-dock path instead — no UBA `arrow-up` into a screen.
+Inside a read-model slice, leave the mba **lower** `.gap` empty — JS draws the join `arrow-up` under the RMO. Put an up arrow from the read model to the screen when that screen is drawn in the same slice: in the UBA `.gap` under the SCR, `arrow-up` then shaft (`tile` on top, shaft below). That head is separate from the join’s `arrow-up`. Empty `uba` cells the shaft crosses stay shaft-only (no second head). When the reader is a processor in the next slice, use the gear-dock path instead — no UBA `arrow-up` into a screen.
 
 **Processor in the next slice.** Leave the RMO column’s uba as a `.gear-dock.split`: `turn-br` on the card midline + `.arr.h` stretching to the right cell border (`margin-right` bridges the border). In the command column, `.gear-dock` (not `.split`) with an absolute inbound `.arr.h` that ends at the gear, then `arrow-right`, then the `pro`. CSS scopes the absolute run to `.gear-dock:not(.split) > .arr.h` so it does not collapse the split dock’s outbound shaft. Add `.arr.v.fill` under the split dock down to the RMO.
 
@@ -268,53 +276,22 @@ Between slices, the joins section of the EMD says which event connects to which 
 
 An error connects to the screen in the next slice with the same tile pieces.
 
-When you add a later slice that joins an earlier event that had no join yet, retrofit that earlier connector from `.rail.single` to `.rail.pair` (or to `.rail.joins-2` if a second join appears — see below). Bump `--slices` and add one cell per row for the new column.
+When you add a later slice, bump `--slices` and add one empty `.cell.connector` (and the other row cells) for the new column. List every new EVT→RMO edge in `data-joins`.
 
-### EVT → RMO projections (leftness tiles)
+### EVT → RMO projections (tiling connectors)
 
-When more than one event feeds a read model (or one event feeds several), draw projections with `diagram/connectors.js`, not CSS `.rail.joins-2` merges.
+All cross-slice projections use `diagram/connectors.js` (same router as `diagram/tiling-example.html`). Never CSS `.rail` / `.joins-2`.
 
 1. Give every EVT and RMO card an `id`.
-2. On `<main class="emd">` set `data-joins="evt-a:rmo-x,evt-b:rmo-x,…"`.
-3. Include `<script src="…/diagram/connectors.js"></script>`.
-4. Keep connector cells as `.rail.single` (COM→EVT vertical only) on write slices. JS-only RMO destination connectors stay empty (no orphan upper shaft). Leave those RMO lower MBA gaps empty — the script draws the `arrow-up` into the RMO.
-5. **Exception — mapping on the join:** if the RMO has a `.map` note, keep that join as a CSS `.rail.pair` corridor (source + arrival) so the map sits on the shaft between the RMO and the lower-gap `arrow-up`. Do not list that join in `data-joins`.
+2. On `<main class="emd">` set `data-joins="evt-a:rmo-x,evt-b:rmo-x,…"`. Include **every** EVT→RMO edge, including joins that also have a `.map` note on the RMO.
+3. Include `<script src="…/diagram/connectors.js"></script>` and `<script src="…/diagram/settings.js"></script>`.
+4. The sticky corner lane (`.board > .lane:first-child`) hosts gear + `?` from `diagram/settings.js`. Gear opens settings: **Scale items** (`--scale` → slice `--col` + UBA/MBA/LBA type only; WFL labels and lane chrome unchanged), **Fade opacity** (`--focus-fade`), and **Connector tiles** (`--tile`). Scale/tile fire `emd:retile`. `?` explains the board. Values persist in `localStorage`.
+5. Leave every `.cell.connector` empty. Leave RMO mba lower gaps empty (no CSS `arrow-up` on the join).
+6. Same-slice COM→EVT corridors stop at the mba/lba gaps; the connector segment is JS.
 
-**Leftness.** Each join gets `leftness = fromSlc + toSlc` and a horizontal `span`. Joins are sorted by leftness; each is assigned the first free track whose spans do not overlap (tracks only search at/above the last assigned track). The result is one independent step-path per join — `turn-br` + `hline` (+ `hop` over write-slice verticals) + `turn-tl` + `arrow-up` — on its own Y, never teed onto a neighbour’s horizontal.
+**Routing (tiling-example).** Bands by leftness (`fromSlc + toSlc`) with elbow-clash sharing. Write shaft locked to the CSS card center; outbound stubs push right; arrivals centered as a group. Horizontals hop over verticals (`hop-*.svg`). One tile occupancy — shafts break around hops. **Hover:** by default every connector and card is fully lit (no idle mute, no 3-level color ramp). Hovering a SCR / COM / EVT / RMO / ERR or a connector piece adds `.path-focus` on `.emd`: related path tiles get `.path-hot` / hop hot flags and endpoints get `.endpoint-hot`; everything else fades via `--focus-fade`. Hovering a `.map` note lights that join and marks the mapped property rows (`.prop-hot`) on each side (`inputs → outputs` from the note text).
 
-**Anchors.** Multiple joins on the same EVT top or RMO bottom are spaced `0.5 × --tile` apart around center (with a phantom center slot so the CSS COM→EVT shaft stays clear).
-
-### Parallel joins (legacy CSS — one event → several read models)
-
-Prefer leftness tiles above. If you must stay CSS-only for a single event to two RMOs: do **not** merge joins onto one rail. Each join gets its own parallel track.
-
-**Spacing.** Half a tile (`0.5 * --tile` = 15px) between line centers:
-
-- Horizontal: offset-1 at `+0.5 tile` from center, offset-2 at `+1 tile` from center (centers of the three verticals are 15px apart).
-- Vertical: wrap both mid bands in `.mids`. The stack is `1.5 * --tile` tall; `mid.a` pins to the top, `mid.b` to the bottom, so the two horizontals are 15px apart. Do not put `mid.a` and `mid.b` as sibling grid rows of the `.rail` — they shrink and lose centering. Always use the `.mids` wrapper.
-
-**Roles.**
-
-| Band | Role |
-|---|---|
-| `mid.a` | Nearer join (first RMO to the right) |
-| `mid.b` | Farther join |
-
-**Every connector cell** from the event column through the farthest arrival uses `.rail.joins-2` so the mid bands line up across slices.
-
-**Event column (source):** `.gap.joins-2` above the event (three `.arr.v`: center, offset-1, offset-2) and `.rail.joins-2.source`. Center track carries the COM→EVT vertical. Each mid band has its own `turn-br` on its offset. Because the near turn sits in `mid.a`, put a `tile.vline` on `offset-1` in `mid.b` so the lower offset shaft still reaches that turn. Lower band has center + offset-1 + offset-2 shafts.
-
-**Near arrival:** `turn-tl` on `mid.a`; `mid.b.through` is a full-width `.h-run` (far join continues).
-
-**Pass-through (far join only — near already arrived):** `mid.a` keeps the centered `vline`; `mid.b` uses inbound `.h-run` + `tile.hop` + outbound `.h-run`. The hop is an arc bridge over the vertical — not a `+` cross — so the joins read as separate lines.
-
-**Pass-through (both joins — near not yet arrived):** use `.rail.joins-2.continue-both`. Both `mid.a` and `mid.b` are inbound `.h-run` + `tile.hop` + outbound `.h-run`. Do not drop `mid.a` until the near arrival column — otherwise the near join’s shaft goes nowhere.
-
-**Merge (later EVT joins the same two RMOs):** use `.rail.joins-2.continue-both.merge` on a continue-both column that also records a new EVT feeding those RMOs. Keep both hops, and add `turn-br` on `offset-1` (near / `mid.a`) and `offset-2` (far / `mid.b`) so this EVT’s LBA offsets join the continuing horizontals. Every EVT that an RMO projects must either be the corridor source or a merge column on that corridor (information completeness).
-
-**Merge far-only (near already arrived):** use `.rail.joins-2.merge-far` when a later EVT feeds only the continuing far RMO. Keep `mid.a` centered `vline`; on `mid.b` keep the hop and add `turn-br` on `offset-2`. LBA uses `.gap.joins-2` with center (arrow) + empty offset-1 placeholder + offset-2 shaft — do not draw an offset-1 shaft when nothing turns onto near.
-
-**Far arrival:** `mid.a` has centered `tile.vline` bridging `upper` down to `mid.b`; `mid.b` has inbound `.h-run` + `turn-tl`.
+**Mapping notes** still sit under the RMO (`.map`) on the join shaft; the shaft itself is JS.
 
 ### Command slice (no join yet)
 
@@ -610,11 +587,13 @@ Prefer leftness tiles above. If you must stay CSS-only for a single event to two
 
 The live stylesheet is [`diagram/diagram.css`](diagram/diagram.css). Keep this file in sync when you change arrow or layout rules. Key pieces:
 
-- `--tile: 30px` on `:root`
+- `--tile: 16px` on `:root` (connector elbows, arrowheads, and mid-band packing)
+- `--col: 16rem` is the slice **minimum**; board columns are `minmax(var(--col), max-content)`. `.uba > .scr` / `.wire` use `width: max-content` so wide screens widen their slice. COM / RMO / EVT stay `width: fit-content; align-self: center` so a wide SCR does not stretch them
 - `uba`, `mba`, `lba`, `connector` are flex columns with **zero** vertical padding so shafts stay continuous
-- Sticky stack: `.lane` z-index 5; `.wfl` 2; `.wfl > span` sticky + z-index 3; slice body cells z-index 0 with white backgrounds
-- `.lane.lba-head` + `.lba-head-gap` — first LBA service label; the gap flexes to match the shaft corridor so the name aligns with the EVTs
-- `.wfl[data-span="N"]` merges the workflow run; repeating gradient redraws column rules inside the span
+- MBA/LBA top-band: `.mba/.lba > .gap:first-child` is `flex: 0` (min two tiles); `.mba > .gap:last-child` is `flex: 1`; empty `.lba > .gap:only-child` still flexes for fill shafts
+- Sticky stack: `.board > .lane:first-child` top+left z-index 6; `.lane` left z-index 5; `.wfl` top sticky z-index 4; `.wfl > span` left sticky z-index 3; slice body cells z-index 0 with white backgrounds
+- `.lane.lba-head` + `.lba-head-gap` — first LBA service label; head gap is two tiles so the name aligns with top-banded EVTs
+- `.cell { border: 0 }` — no vertical or bottom grid rules between slices; only `.lane` keeps `border-right` (corner `.lane:first-child` has gear/`?`, no right edge); `.wfl[data-span="N"]` merges the workflow run; blue arrow (`::before`) sticks with the row
 - `.gap` / `.gap.pair` / `.gap.joins-2` / `.arr` / `.shaft` / `.tile.*`
 - `.rail` / `.rail.single` / `.rail.pair` / `.rail.joins-2` (+ `.source`) / `.mids` / `.rail-band` / `.track` / `.h-run`
 - Parallel join offsets: `0.5` and `1.0` × `--tile` from center; `.mids` height `1.5` × `--tile`

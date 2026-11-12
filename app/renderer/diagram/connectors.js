@@ -1,43 +1,19 @@
 /**
- * Leftness tile connectors for EVT → RMO projections.
+ * EVT → RMO connectors — port of diagram/tiling-example.html.
  *
- * One 30×30 SVG tile per grid cell — never two divs on the same cell.
- * Tiles come from diagram/arrows/. A hop cell is hop.svg (vertical shaft +
- * horizontal bridge); hline/vline never share that cell.
+ * Each `.cell.connector` gets a `.middle` band. Tiles are local to that middle
+ * (one cell occupancy, hopped shafts, leftness bands). Leave stubs reach down
+ * to EVT tops and arrival rises reach up to RMO bottoms (overflow visible).
  *
  *   <main class="emd" data-joins="evt-a:rmo-x,…">
+ *   <div class="cell connector" data-slc="N"></div>  <!-- empty; JS fills -->
  */
 (function () {
-  const TILE = 30;
-  const HALF = TILE / 2;
-
-  const TILE_FILE = {
-    hline: 'hline',
-    vline: 'vline',
-    turn_tr: 'turn-tr',
-    turn_tl: 'turn-tl',
-    turn_br: 'turn-br',
-    turn_bl: 'turn-bl',
-    arrow_up: 'arrow-up',
-    hop: 'hop',
-  };
-
-  // When two paints hit the same cell, keep the richer tile.
-  const RANK = {
-    hline: 1,
-    vline: 1,
-    turn_tr: 2,
-    turn_tl: 2,
-    turn_br: 2,
-    turn_bl: 2,
-    arrow_up: 2,
-    hop: 3,
-  };
-
-  const scriptEl = document.querySelector('script[src*="connectors.js"]');
-  const arrowsBase = scriptEl
-    ? scriptEl.src.replace(/[^/]+$/, 'arrows/')
-    : new URL('../../diagram/arrows/', window.location.href).href;
+  function tileSize() {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--tile').trim();
+    const n = parseFloat(raw);
+    return Number.isFinite(n) && n > 0 ? n : 16;
+  }
 
   function sliceOf(el) {
     if (!el) return 0;
@@ -47,260 +23,635 @@
   }
 
   function drawJoins(emd) {
+    const TILE = tileSize();
+    // Remove legacy absolute layer if present.
     const sheet = emd.querySelector('.sheet') || emd;
-    let layer = sheet.querySelector('#connector-layer');
-    if (!layer) {
-      layer = document.createElement('div');
-      layer.id = 'connector-layer';
-      sheet.prepend(layer);
-    }
-    layer.innerHTML = '';
+    const legacy = sheet.querySelector('#connector-layer');
+    if (legacy) legacy.remove();
 
     const joinsAttr = emd.getAttribute('data-joins') || '';
     const pairs = joinsAttr.split(',').map((s) => s.trim()).filter(Boolean);
-    if (!pairs.length) return;
 
-    const sheetRect = sheet.getBoundingClientRect();
-    const scrollLeft = sheet.scrollLeft || 0;
-    const scrollTop = sheet.scrollTop || 0;
+    const connectorCells = [...emd.querySelectorAll('.cell.connector')].sort(
+      (a, b) => sliceOf(a) - sliceOf(b)
+    );
+    if (!connectorCells.length) return;
 
-    function coords(id) {
-      const el = document.getElementById(id);
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return {
-        id,
-        el,
-        slc: sliceOf(el),
-        top: r.top - sheetRect.top + scrollTop,
-        bottom: r.bottom - sheetRect.top + scrollTop,
-        centerX: r.left - sheetRect.left + scrollLeft + r.width / 2,
-      };
-    }
+    // Build per-slice middle hosts; clear prior tiles.
+    const middles = [];
+    const sliceIndex = {}; // si → array index
+    connectorCells.forEach((cell, idx) => {
+      const si = sliceOf(cell);
+      sliceIndex[si] = idx;
+      cell.innerHTML = '';
+      const middle = document.createElement('div');
+      middle.className = 'middle';
+      cell.appendChild(middle);
+      middles.push(middle);
+    });
+    const sliceCount = middles.length;
+    if (!sliceCount) return;
 
-    const pending = [];
+    // Cross-slice projection joins from data-joins.
+    let nextId = 1;
+    const cross = [];
     pairs.forEach((pair) => {
       const [fromId, toId] = pair.split(':').map((s) => s.trim());
-      const from = coords(fromId);
-      const to = coords(toId);
-      if (!from || !to) return;
-      pending.push({
+      const fromEl = document.getElementById(fromId);
+      const toEl = document.getElementById(toId);
+      if (!fromEl || !toEl) return;
+      const fromSi = sliceOf(fromEl);
+      const toSi = sliceOf(toEl);
+      if (sliceIndex[fromSi] == null || sliceIndex[toSi] == null) return;
+      cross.push({
+        id: nextId++,
         fromId,
         toId,
-        from,
-        to,
-        fromIdx: from.slc,
-        toIdx: to.slc,
-        leftness: from.slc + to.slc,
-        span: [Math.min(from.slc, to.slc), Math.max(from.slc, to.slc)],
-      });
-    });
-    if (!pending.length) return;
-
-    const byFrom = {};
-    pending.forEach((c) => {
-      (byFrom[c.fromId] || (byFrom[c.fromId] = [])).push(c);
-    });
-    Object.keys(byFrom).forEach((id) => {
-      byFrom[id].sort((a, b) => a.leftness - b.leftness || a.toIdx - b.toIdx);
-      byFrom[id].forEach((c, i) => {
-        c.leaveCol = i + 1;
+        fromEl,
+        toEl,
+        from: { si: sliceIndex[fromSi], part: 'lower' },
+        to: { si: sliceIndex[toSi], part: 'upper' },
+        fromSi,
+        toSi,
       });
     });
 
-    const byTo = {};
-    pending.forEach((c) => {
-      (byTo[c.toId] || (byTo[c.toId] = [])).push(c);
-    });
-    Object.keys(byTo).forEach((id) => {
-      byTo[id].sort((a, b) => a.leftness - b.leftness || a.fromIdx - b.fromIdx);
-      const n = byTo[id].length;
-      const mid = Math.floor((n - 1) / 2);
-      byTo[id].forEach((c, i) => {
-        c.arriveCol = i - mid; // integer tile offsets around the RMO center
+    // Same-slice writes: MBA has a .com → treat as upper→lower local join.
+    const local = [];
+    const vertical = Array(sliceCount).fill(null);
+    emd.querySelectorAll('.cell.mba[data-slc] .com').forEach((com) => {
+      const si = sliceOf(com);
+      const idx = sliceIndex[si];
+      if (idx == null) return;
+      const id = nextId++;
+      const evt =
+        emd.querySelector(`.cell.lba[data-slc="${si}"] .evt`) ||
+        emd.querySelector(`.cell.lba[data-slc="${si}"] .err`);
+      local.push({
+        id,
+        fromId: com.id || null,
+        toId: evt ? evt.id : null,
+        fromEl: com,
+        toEl: evt || null,
+        from: { si: idx, part: 'upper' },
+        to: { si: idx, part: 'lower' },
+        cellSi: si,
       });
+      vertical[idx] = 'down';
     });
 
-    const ordered = pending.slice().sort((a, b) => a.leftness - b.leftness);
-    const assigned = [];
-    let lastUsed = 0;
-    ordered.forEach((p) => {
-      let trackId = -1;
-      for (let i = lastUsed; i < assigned.length; i++) {
-        const overlaps = assigned[i].some(
-          (span) => !(p.span[1] < span[0] || p.span[0] > span[1])
-        );
-        if (!overlaps) {
-          trackId = i;
-          assigned[i].push(p.span);
-          break;
+    const joins = local.concat(cross);
+
+    // --- Leftness band assignment (tiling-example) ---
+    const leftnessOf = (j) => j.from.si + j.to.si;
+    const throughSlice = (j, si) => j.from.si < si && si < j.to.si;
+    function bandConflicts(a, b) {
+      if (throughSlice(a, b.to.si) || throughSlice(b, a.to.si)) return true;
+      if (throughSlice(a, b.from.si) || throughSlice(b, a.from.si)) return true;
+      return false;
+    }
+
+    const bandOf = new Map();
+    const bandMembers = [];
+    let leftnessFloor = 0;
+    [...cross]
+      .sort(
+        (a, b) =>
+          leftnessOf(a) - leftnessOf(b) ||
+          a.from.si - b.from.si ||
+          a.to.si - b.to.si ||
+          a.id - b.id
+      )
+      .forEach((j) => {
+        let placed = false;
+        for (let b = leftnessFloor; b < bandMembers.length; b++) {
+          if (bandMembers[b].every((o) => !bandConflicts(j, o))) {
+            bandMembers[b].push(j);
+            bandOf.set(j.id, b);
+            leftnessFloor = b;
+            placed = true;
+            break;
+          }
         }
-      }
-      if (trackId === -1) {
-        trackId = assigned.length;
-        assigned.push([p.span]);
-      }
-      p.trackId = trackId;
-      lastUsed = trackId;
+        if (!placed) {
+          leftnessFloor = bandMembers.length;
+          bandOf.set(j.id, leftnessFloor);
+          bandMembers.push([j]);
+        }
+      });
+    const nBands = bandMembers.length;
+    const middleTiles = Math.max(3, nBands + 2);
+    const middleH = middleTiles * TILE;
+
+    middles.forEach((m) => {
+      m.style.height = middleH + 'px';
+      m.innerHTML = '';
+    });
+    connectorCells.forEach((cell) => {
+      cell.style.minHeight = middleH + 'px';
     });
 
-    const connectorCells = [...emd.querySelectorAll('.cell.connector')];
-    let bandTop = 0;
-    let originX = 0;
-    if (connectorCells.length) {
-      const need = (assigned.length + 1) * TILE;
-      const cur = parseFloat(connectorCells[0].style.minHeight) || 0;
-      if (Math.abs(cur - need) > 1) {
-        connectorCells.forEach((cell) => {
-          cell.style.minHeight = need + 'px';
+    const outFrom = Array.from({ length: sliceCount }, () => []);
+    const inTo = Array.from({ length: sliceCount }, () => []);
+    for (const j of cross) {
+      outFrom[j.from.si].push(j);
+      inTo[j.to.si].push(j);
+    }
+    const byLeftness = (a, b) =>
+      leftnessOf(a) - leftnessOf(b) || a.from.si - b.from.si || a.id - b.id;
+    outFrom.forEach((list) => list.sort(byLeftness));
+    inTo.forEach((list) => list.sort(byLeftness));
+
+    function bandYs() {
+      const stubY = middleH - TILE;
+      const bands = [];
+      for (let b = 0; b < nBands; b++) {
+        bands[b] = middleH - TILE * (nBands - b + 1);
+      }
+      return { stubY, bands };
+    }
+
+    function tagJoins(el, joinIds) {
+      if (!joinIds || !joinIds.length) return;
+      el.dataset.joinIds = joinIds.join(',');
+    }
+
+    function clearConnectionHighlight() {
+      emd.classList.remove('path-focus');
+      emd.querySelectorAll('.path-hot').forEach((el) => el.classList.remove('path-hot'));
+      emd.querySelectorAll('.hop.hot-v, .hop.hot-h').forEach((el) => {
+        el.classList.remove('hot-v', 'hot-h');
+      });
+      emd.querySelectorAll('.endpoint-hot').forEach((el) => el.classList.remove('endpoint-hot'));
+      emd.querySelectorAll('.prop-hot').forEach((el) => el.classList.remove('prop-hot'));
+    }
+
+    /** "Signup Url: signupToken → signupUrl" → { inputs, outputs }. */
+    function parseMapNote(text) {
+      const raw = String(text || '').replace(/\s+/g, ' ').trim();
+      const arrow = raw.indexOf('→');
+      if (arrow < 0) return { inputs: [], outputs: [] };
+      let left = raw.slice(0, arrow).trim();
+      const right = raw.slice(arrow + 1).trim();
+      const colon = left.indexOf(':');
+      if (colon >= 0) left = left.slice(colon + 1).trim();
+      const splitProps = (s) =>
+        s
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean);
+      return { inputs: splitProps(left), outputs: splitProps(right) };
+    }
+
+    function markProps(card, names) {
+      if (!card || !names.length) return;
+      const want = new Set(names);
+      card.querySelectorAll('.props > div').forEach((row) => {
+        const dt = row.querySelector('dt');
+        if (dt && want.has(dt.textContent.trim())) row.classList.add('prop-hot');
+      });
+    }
+
+    function joinsForMap(mapEl) {
+      const mba = mapEl.closest('.mba');
+      if (!mba) return [];
+      const host = mba.querySelector(':scope > .com, :scope > .rmo');
+      if (!host) return [];
+      if (host.classList.contains('rmo')) {
+        return joins.filter((j) => j.toId === host.id);
+      }
+      if (host.classList.contains('com')) {
+        return local.filter((j) => j.fromId === host.id);
+      }
+      return [];
+    }
+
+    function highlightMap(mapEl) {
+      clearConnectionHighlight();
+      const related = joinsForMap(mapEl);
+      if (related.length) {
+        applyJoinHighlight(new Set(related.map((j) => String(j.id))));
+      } else {
+        emd.classList.add('path-focus');
+      }
+      markEndpoint(mapEl);
+      const { inputs, outputs } = parseMapNote(mapEl.textContent);
+      related.forEach((j) => {
+        markProps(j.fromEl, inputs);
+        markProps(j.toEl, outputs);
+      });
+    }
+
+    function markEndpoint(el) {
+      if (el) el.classList.add('endpoint-hot');
+    }
+
+    function applyJoinHighlight(idSet) {
+      if (!idSet.size) return;
+      emd.classList.add('path-focus');
+      emd.querySelectorAll('[data-join-ids]').forEach((el) => {
+        if (el.classList.contains('hop')) {
+          const hIds = (el.dataset.hJoinIds || '').split(',').filter(Boolean);
+          const vIds = (el.dataset.vJoinIds || '').split(',').filter(Boolean);
+          if (hIds.some((id) => idSet.has(id))) el.classList.add('hot-h');
+          if (vIds.some((id) => idSet.has(id))) el.classList.add('hot-v');
+          return;
+        }
+        const ids = el.dataset.joinIds.split(',');
+        if (ids.some((id) => idSet.has(id))) el.classList.add('path-hot');
+      });
+      joins
+        .filter((j) => idSet.has(String(j.id)))
+        .forEach((j) => {
+          markEndpoint(j.fromEl);
+          markEndpoint(j.toEl);
+          // Same-slice write: keep SCR(s) above the COM lit.
+          if (j.cellSi != null) {
+            emd
+              .querySelectorAll(`.cell.uba[data-slc="${j.cellSi}"] .scr`)
+              .forEach(markEndpoint);
+          }
+          // Projection into RMO: keep reader SCR(s) + MAP lit.
+          if (j.toEl && j.toEl.classList.contains('rmo')) {
+            const si = sliceOf(j.toEl);
+            emd
+              .querySelectorAll(`.cell.uba[data-slc="${si}"] .scr`)
+              .forEach(markEndpoint);
+            const map = j.toEl.parentElement
+              ? j.toEl.parentElement.querySelector(':scope > .map')
+              : null;
+            markEndpoint(map);
+          }
+        });
+    }
+
+    function highlightByJoinIds(joinIdsCsv) {
+      clearConnectionHighlight();
+      applyJoinHighlight(
+        new Set(
+          String(joinIdsCsv || '')
+            .split(',')
+            .filter(Boolean)
+        )
+      );
+    }
+
+    function bindConnectorHover(el) {
+      if (!el.dataset.joinIds) return;
+      if (el._joinHover) {
+        el.removeEventListener('mouseenter', el._joinHover.enter);
+        el.removeEventListener('mouseleave', el._joinHover.leave);
+      }
+      const enter = () => {
+        if (el.classList.contains('hop')) {
+          highlightByJoinIds(el.dataset.hJoinIds || el.dataset.joinIds);
+          return;
+        }
+        highlightByJoinIds(el.dataset.joinIds);
+      };
+      const leave = () => clearConnectionHighlight();
+      el._joinHover = { enter, leave };
+      el.addEventListener('mouseenter', enter);
+      el.addEventListener('mouseleave', leave);
+    }
+
+    function tagCorridorPieces(pieces, joinIds) {
+      const ids = joinIds.map(String);
+      pieces.forEach((el) => {
+        const existing = (el.dataset.joinIds || '').split(',').filter(Boolean);
+        tagJoins(el, [...new Set(existing.concat(ids))]);
+        el.style.cursor = 'pointer';
+        bindConnectorHover(el);
+      });
+    }
+
+    // Tag CSS corridors so hover lights the whole SCR↔COM↔EVT / RMO↔SCR path.
+    function bindCssCorridors() {
+      local.forEach((j) => {
+        const si = j.cellSi;
+        const pieces = [
+          ...emd.querySelectorAll(
+            `.cell.uba[data-slc="${si}"] .gap .shaft, .cell.uba[data-slc="${si}"] .gap .tile`
+          ),
+        ];
+        const mba = emd.querySelector(`.cell.mba[data-slc="${si}"]`);
+        if (mba) {
+          pieces.push(
+            ...mba.querySelectorAll(':scope > .gap .shaft, :scope > .gap .tile')
+          );
+        }
+        const lbaCells = emd.querySelectorAll(`.cell.lba[data-slc="${si}"]`);
+        lbaCells.forEach((lba) => {
+          pieces.push(...lba.querySelectorAll('.gap .shaft, .gap .tile'));
+        });
+        tagCorridorPieces(pieces, [j.id]);
+      });
+      cross.forEach((j) => {
+        const si = j.toSi;
+        const pieces = [
+          ...emd.querySelectorAll(
+            `.cell.uba[data-slc="${si}"] .gap .shaft, .cell.uba[data-slc="${si}"] .gap .tile`
+          ),
+        ];
+        const mba = emd.querySelector(`.cell.mba[data-slc="${si}"]`);
+        if (mba) {
+          const gaps = [...mba.querySelectorAll(':scope > .gap')];
+          if (gaps[0]) pieces.push(...gaps[0].querySelectorAll('.shaft, .tile'));
+        }
+        tagCorridorPieces(pieces, [j.id]);
+      });
+    }
+    bindCssCorridors();
+
+    function placeTile(middle, className, x, y, joinIds) {
+      const el = document.createElement('div');
+      el.className = 'tile ' + className;
+      el.dataset.tile = className;
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      tagJoins(el, joinIds);
+      bindConnectorHover(el);
+      middle.appendChild(el);
+      return el;
+    }
+
+    function placeHop(middle, x, y, hJoinIds, vJoinIds) {
+      const el = document.createElement('div');
+      el.className = 'tile hop';
+      el.dataset.tile = 'hop';
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      const hIds = hJoinIds || [];
+      const vIds = vJoinIds || [];
+      if (hIds.length) el.dataset.hJoinIds = hIds.join(',');
+      if (vIds.length) el.dataset.vJoinIds = vIds.join(',');
+      tagJoins(el, [...new Set([...hIds, ...vIds])]);
+      bindConnectorHover(el);
+      middle.appendChild(el);
+      return el;
+    }
+
+    function placeShaftV(middle, x, y, h, joinIds) {
+      if (h <= 0) return;
+      const el = document.createElement('div');
+      el.className = 'shaft-v';
+      el.dataset.tile = 'shaft-v';
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.height = h + 'px';
+      tagJoins(el, joinIds);
+      bindConnectorHover(el);
+      middle.appendChild(el);
+    }
+
+    function placeShaftH(middle, x, y, w, joinIds) {
+      if (w <= 0) return;
+      const el = document.createElement('div');
+      el.className = 'shaft-h';
+      el.dataset.tile = 'shaft-h';
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.width = w + 'px';
+      tagJoins(el, joinIds);
+      bindConnectorHover(el);
+      middle.appendChild(el);
+    }
+
+    function placeShaftHHopped(middle, y, x0, x1, obstacles, joinIds, vIdsAt) {
+      const hits = obstacles
+        .filter((x) => x + TILE > x0 && x < x1)
+        .sort((a, b) => a - b);
+      let x = x0;
+      for (const ox of hits) {
+        if (ox > x) placeShaftH(middle, x, y, ox - x, joinIds);
+        if (ox + TILE > x0 && ox < x1) {
+          placeHop(middle, ox, y, joinIds, vIdsAt ? vIdsAt(ox) : []);
+        }
+        x = Math.max(x, ox + TILE);
+      }
+      if (x1 > x) placeShaftH(middle, x, y, x1 - x, joinIds);
+    }
+
+    function placeShaftVHopped(middle, x, y0, y1, hopYs, joinIds) {
+      const hops = [...new Set(hopYs)]
+        .filter((y) => y + TILE > y0 && y < y1)
+        .sort((a, b) => a - b);
+      let y = y0;
+      for (const hy of hops) {
+        if (hy > y) placeShaftV(middle, x, y, hy - y, joinIds);
+        y = Math.max(y, hy + TILE);
+      }
+      if (y1 > y) placeShaftV(middle, x, y, y1 - y, joinIds);
+    }
+
+    function relatedJoinsFor(el) {
+      if (el.classList.contains('scr')) {
+        const si = sliceOf(el);
+        const localsAt = local.filter((j) => j.cellSi === si);
+        if (localsAt.length) return localsAt;
+        const rmo = emd.querySelector(`.cell.mba[data-slc="${si}"] .rmo`);
+        if (rmo) return joins.filter((j) => j.toId === rmo.id);
+        return [];
+      }
+      return joins.filter((j) => j.fromId === el.id || j.toId === el.id);
+    }
+
+    // Card hover — SCR/COM/EVT/RMO: related path stays lit; everything else fades.
+    emd
+      .querySelectorAll('article.scr, article.com, article.rmo, article.evt, article.err')
+      .forEach((el) => {
+        if (el._joinHover) {
+          el.removeEventListener('mouseenter', el._joinHover.enter);
+          el.removeEventListener('mouseleave', el._joinHover.leave);
+        }
+        const enter = () => {
+          clearConnectionHighlight();
+          const related = relatedJoinsFor(el);
+          if (related.length) {
+            applyJoinHighlight(new Set(related.map((j) => String(j.id))));
+            return;
+          }
+          emd.classList.add('path-focus');
+          markEndpoint(el);
+        };
+        const leave = () => clearConnectionHighlight();
+        el._joinHover = { enter, leave };
+        el.addEventListener('mouseenter', enter);
+        el.addEventListener('mouseleave', leave);
+      });
+
+    // MAP hover — light the join and the mapped property rows on each side.
+    emd.querySelectorAll('.mba > .map').forEach((el) => {
+      if (el._joinHover) {
+        el.removeEventListener('mouseenter', el._joinHover.enter);
+        el.removeEventListener('mouseleave', el._joinHover.leave);
+      }
+      const enter = () => highlightMap(el);
+      const leave = () => clearConnectionHighlight();
+      el._joinHover = { enter, leave };
+      el.style.cursor = 'pointer';
+      el.addEventListener('mouseenter', enter);
+      el.addEventListener('mouseleave', leave);
+    });
+
+    requestAnimationFrame(() => {
+      const { stubY, bands } = bandYs();
+
+      for (let si = 0; si < sliceCount; si++) {
+        const middle = middles[si];
+        const w = middle.clientWidth;
+        // Prefer CSS COM corridor x when present.
+        const cellSi = sliceOf(connectorCells[si]);
+        const arr = emd.querySelector(`.cell.mba[data-slc="${cellSi}"] .gap .arr.v`);
+        let cx;
+        if (arr) {
+          const mr = middle.getBoundingClientRect();
+          const ar = arr.getBoundingClientRect();
+          cx = ar.left - mr.left;
+        } else {
+          cx = (w - TILE) / 2;
+        }
+
+        const hasVert = vertical[si] !== null;
+        const outBase = hasVert ? 1 : 0;
+        const outXs = outFrom[si].map((_, oi) => cx + TILE * (oi + outBase));
+        const nIn = inTo[si].length;
+        const inStart = cx - ((nIn - 1) * TILE) / 2;
+        const inXs = inTo[si].map((_, ii) => inStart + TILE * ii);
+
+        const throughByBand = new Map();
+        for (const j of cross) {
+          if (j.from.si >= si || j.to.si <= si) continue;
+          const b = bandOf.get(j.id);
+          if (!throughByBand.has(b)) throughByBand.set(b, []);
+          throughByBand.get(b).push(j.id);
+        }
+        const throughBands = new Set(throughByBand.keys());
+
+        function obstaclesOnBand(b, { skipOutOi = -1, skipInIi = -1 } = {}) {
+          const obstacles = [];
+          if (hasVert) obstacles.push(cx);
+          outFrom[si].forEach((j, oi) => {
+            if (oi === skipOutOi) return;
+            if (bandOf.get(j.id) < b) obstacles.push(outXs[oi]);
+          });
+          inTo[si].forEach((j, ii) => {
+            if (ii === skipInIi) return;
+            if (bandOf.get(j.id) > b) obstacles.push(inXs[ii]);
+          });
+          return obstacles;
+        }
+
+        function hopYsAt(x) {
+          const ys = [];
+          for (let b = 0; b < nBands; b++) {
+            if (!obstaclesOnBand(b).some((ox) => Math.abs(ox - x) < 0.5)) continue;
+            let covers = throughBands.has(b);
+            outFrom[si].forEach((j, oi) => {
+              if (bandOf.get(j.id) !== b) return;
+              if (outXs[oi] + TILE <= x + 0.5 && x < w) covers = true;
+            });
+            inTo[si].forEach((j, ii) => {
+              if (bandOf.get(j.id) !== b) return;
+              if (x < inXs[ii]) covers = true;
+            });
+            if (covers) ys.push(bands[b]);
+          }
+          return ys;
+        }
+
+        const localJoinIds = local
+          .filter((j) => j.from.si === si)
+          .map((j) => j.id);
+
+        function vJoinIdsAt(x) {
+          const ids = [];
+          if (hasVert && Math.abs(x - cx) < 0.5) ids.push(...localJoinIds);
+          outFrom[si].forEach((j, oi) => {
+            if (Math.abs(outXs[oi] - x) < 0.5) ids.push(j.id);
+          });
+          inTo[si].forEach((j, ii) => {
+            if (Math.abs(inXs[ii] - x) < 0.5) ids.push(j.id);
+          });
+          return ids;
+        }
+
+        // Write shaft through the middle (arrow-down stays in CSS LBA).
+        if (hasVert) {
+          placeShaftVHopped(middle, cx, 0, stubY + TILE, hopYsAt(cx), localJoinIds);
+        }
+
+        // Outbound projections from events
+        outFrom[si].forEach((j, oi) => {
+          const band = bandOf.get(j.id);
+          const y = bands[band];
+          const ox = outXs[oi];
+          const ids = [j.id];
+          const hops = new Set(hopYsAt(ox));
+          const mr = middle.getBoundingClientRect();
+          const evtTop = j.fromEl.getBoundingClientRect().top - mr.top;
+
+          // LBA: event top up to stub row
+          if (evtTop > stubY + TILE) {
+            placeShaftV(middle, ox, stubY + TILE, evtTop - (stubY + TILE), ids);
+          }
+          placeTile(middle, 'vline', ox, stubY, ids);
+          for (let b = nBands - 1; b > band; b--) {
+            if (hops.has(bands[b])) continue;
+            placeTile(middle, 'vline', ox, bands[b], ids);
+          }
+          placeTile(middle, 'elbow-br', ox, y, ids);
+          placeShaftHHopped(
+            middle,
+            y,
+            ox + TILE,
+            w,
+            obstaclesOnBand(band, { skipOutOi: oi }),
+            ids,
+            vJoinIdsAt
+          );
+        });
+
+        for (const b of throughBands) {
+          placeShaftHHopped(
+            middle,
+            bands[b],
+            0,
+            w,
+            obstaclesOnBand(b),
+            throughByBand.get(b),
+            vJoinIdsAt
+          );
+        }
+
+        // Inbound rises into RMOs
+        inTo[si].forEach((j, ii) => {
+          const band = bandOf.get(j.id);
+          const y = bands[band];
+          const ax = inXs[ii];
+          const ids = [j.id];
+          const hops = hopYsAt(ax);
+          const mr = middle.getBoundingClientRect();
+          const rmoBottom = j.toEl.getBoundingClientRect().bottom - mr.top;
+
+          placeShaftHHopped(
+            middle,
+            y,
+            0,
+            ax,
+            obstaclesOnBand(band, { skipInIi: ii }),
+            ids,
+            vJoinIdsAt
+          );
+          placeTile(middle, 'elbow-tl', ax, y, ids);
+
+          // Rise from elbow to arrow under RMO (may be above middle, y < 0).
+          if (y > rmoBottom + TILE) {
+            placeShaftVHopped(middle, ax, rmoBottom + TILE, y, hops, ids);
+          }
+          placeTile(middle, 'arrow-up', ax, rmoBottom, ids);
         });
       }
-      const cr = connectorCells[0].getBoundingClientRect();
-      bandTop = cr.top - sheetRect.top + scrollTop;
-      const sample = emd.querySelector('.cell.mba[data-slc] .com, .cell.mba[data-slc] .rmo');
-      if (sample) {
-        const cell = sample.closest('.cell');
-        const r = cell.getBoundingClientRect();
-        originX = r.left - sheetRect.left + scrollLeft + r.width / 2 - HALF;
-      }
-      // Mid band is owned by the tile grid (vline / hop) — clear CSS mid tiles
-      // so they cannot sit under/over join tiles.
-      connectorCells.forEach((cell) => {
-        cell.querySelectorAll('.rail-band.mid .tile').forEach((t) => t.remove());
-      });
-    }
-
-    const originY = bandTop;
-
-    function colOf(x) {
-      return Math.round((x - HALF - originX) / TILE);
-    }
-    function rowOf(y) {
-      return Math.round((y - HALF - originY) / TILE);
-    }
-    function xOf(col) {
-      return originX + col * TILE + HALF;
-    }
-    function yOf(row) {
-      return originY + row * TILE + HALF;
-    }
-
-    // Write-slice COM→EVT column index on the tile grid.
-    const writeCol = {};
-    emd.querySelectorAll('.cell.mba[data-slc] .com').forEach((com) => {
-      const cell = com.closest('.cell.mba');
-      if (!cell) return;
-      const r = cell.getBoundingClientRect();
-      const cx = r.left - sheetRect.left + scrollLeft + r.width / 2;
-      writeCol[sliceOf(com)] = colOf(cx);
-    });
-
-    // One occupant per grid cell.
-    const grid = new Map();
-
-    function paint(col, row, type, c) {
-      const key = col + ',' + row;
-      const prev = grid.get(key);
-      if (!prev) {
-        grid.set(key, { type, c });
-        return;
-      }
-      // Crossing hline + vline becomes hop (hop.svg draws both segments).
-      if (
-        (prev.type === 'hline' && type === 'vline') ||
-        (prev.type === 'vline' && type === 'hline') ||
-        type === 'hop' ||
-        prev.type === 'hop'
-      ) {
-        grid.set(key, { type: 'hop', c: type === 'hop' ? c : prev.c });
-        return;
-      }
-      if ((RANK[type] || 0) > (RANK[prev.type] || 0)) {
-        grid.set(key, { type, c });
-      }
-    }
-
-    function paintV(col, rowA, rowB, c) {
-      const lo = Math.min(rowA, rowB);
-      const hi = Math.max(rowA, rowB);
-      for (let r = lo + 1; r < hi; r++) paint(col, r, 'vline', c);
-    }
-
-    function paintH(colA, colB, row, c, hopCols) {
-      const lo = Math.min(colA, colB);
-      const hi = Math.max(colA, colB);
-      const hops = hopCols || new Set();
-      for (let col = lo + 1; col < hi; col++) {
-        paint(col, row, hops.has(col) ? 'hop' : 'hline', c);
-      }
-    }
-
-    // COM→EVT vertical through the connector band (tiles replace cleared CSS mid).
-    const bandRows = assigned.length;
-    Object.keys(writeCol).forEach((slc) => {
-      const col = writeCol[slc];
-      const stub = {
-        fromId: 'com-slc-' + slc,
-        toId: 'evt-slc-' + slc,
-        trackId: -1,
-      };
-      for (let r = 0; r < bandRows; r++) paint(col, r, 'vline', stub);
-    });
-
-    pending.forEach((c) => {
-      const leaveCol = colOf(c.from.centerX) + c.leaveCol;
-      const arriveCol = colOf(c.to.centerX) + c.arriveCol;
-      const trackRow = c.trackId;
-      const fromRow = rowOf(c.from.top);
-      const toRow = rowOf(c.to.bottom);
-
-      paintV(leaveCol, fromRow, trackRow, c);
-      paintV(arriveCol, trackRow, toRow, c);
-
-      const hopCols = new Set();
-      Object.keys(writeCol).forEach((slc) => {
-        const n = parseInt(slc, 10);
-        if (n > c.span[0] && n < c.span[1]) hopCols.add(writeCol[slc]);
-      });
-      paintH(leaveCol, arriveCol, trackRow, c, hopCols);
-
-      // Corners at the elbows (overwrite hline/vline stubs at those cells).
-      const left = Math.min(leaveCol, arriveCol);
-      const right = Math.max(leaveCol, arriveCol);
-      if (leaveCol <= arriveCol) {
-        paint(left, trackRow, fromRow > trackRow ? 'turn_br' : 'turn_tr', c);
-        paint(right, trackRow, toRow < trackRow ? 'turn_tl' : 'turn_bl', c);
-      } else {
-        paint(left, trackRow, toRow < trackRow ? 'turn_tr' : 'turn_br', c);
-        paint(right, trackRow, fromRow > trackRow ? 'turn_tl' : 'turn_bl', c);
-      }
-
-      // Arrow into RMO: tile just below the card bottom.
-      paint(arriveCol, toRow, 'arrow_up', c);
-    });
-
-    // Materialize — one div per occupied cell.
-    grid.forEach((cell, key) => {
-      const [col, row] = key.split(',').map(Number);
-      const file = TILE_FILE[cell.type];
-      if (!file) return;
-      const div = document.createElement('div');
-      div.className = 'join-tile';
-      div.dataset.tile = cell.type;
-      div.dataset.col = String(col);
-      div.dataset.row = String(row);
-      if (cell.c) {
-        div.dataset.fromId = cell.c.fromId;
-        div.dataset.toId = cell.c.toId;
-        div.dataset.track = String(cell.c.trackId);
-      }
-      div.style.left = originX + col * TILE + 'px';
-      div.style.top = originY + row * TILE + 'px';
-      div.style.backgroundImage = `url("${arrowsBase}${file}.svg?v=hop2")`;
-      div.style.backgroundSize = 'contain';
-      div.style.backgroundRepeat = 'no-repeat';
-      div.style.backgroundPosition = 'center';
-      layer.appendChild(div);
     });
   }
 
@@ -313,6 +664,7 @@
       };
       drawJoins(emd);
       window.addEventListener('resize', run);
+      window.addEventListener('emd:retile', run);
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(run);
       const ro = new ResizeObserver(run);
       ro.observe(emd.querySelector('.board') || emd);
