@@ -6,8 +6,8 @@ An EMD is an AST. An EMD board renders that AST using HTML/CSS.
 
 | Path | Role |
 |---|---|
-| [`event-modeling-instructions.md`](event-modeling-instructions.md) | How to construct an EMD |
-| [`html-css.md`](html-css.md) | How to draw an EMD board as a `.emd.html` page (tiles, corridors, cards) |
+| [`event-modeling-instructions.md`](event-modeling-instructions.md) | How to construct an EMD, and how to draw it as `.emd.html` (with key samples) |
+| [`html-css.md`](html-css.md) | Full HTML/CSS markup lookup (tiles, corridors, cards) |
 | [`diagram/`](diagram/) | Shared diagram CSS, arrow tiles, and fonts |
 | [`app/`](app/) | Electron viewer — load and save `.emd` boards |
 

@@ -2,7 +2,7 @@
 
 This document uses three-letter abbreviations to identify each component and concept. Each term is defined using only the terms listed above it, so the list can be read from top to bottom.
 
-Event Modeling Diagrams (EMDs) describe information systems and processes using a clear, timeline-based approach built from vertical slices (SLCs). It is like a wire frame diagram but with more elements to track information flow and state behind the scenes. It is also specification by example. The implementation for a system described by an EMD will show the same behaviour as shown in the EMD. Learn the terms below, then follow the steps after them to construct an EMD:
+Event Modeling Diagrams (EMDs) describe information systems and processes using a clear, timeline-based approach built from vertical slices (SLCs). It is like a wire frame diagram but with more elements to track information flow and state behind the scenes. It is also specification by example. The implementation for a system described by an EMD will show the same behaviour as shown in the EMD. Learn the terms below, then follow the steps after them to construct an EMD. When the model is ready, draw it as a browser board named `<name>.emd.html` (see **HTML board** below). The full markup lookup lives in [`html-css.md`](html-css.md).
 
 ## Terms:
 Basic terms, which need no other terms:
@@ -334,5 +334,129 @@ Bike rental shop.
 - PRO Receipt Sender (Jim): rentalId = R-1
 - COM Send Receipt: rentalId = R-1
 - EVT Receipt Sent (Rental): rentalId = R-1
+
+## HTML board
+
+After the EMD is constructed (terms, slices, properties, arrows), draw it as one file: `<name>.emd.html`. Open that file in a browser (or serve the repo). CSS, arrow tiles, fonts, connectors, and board settings stay in `diagram/`; the file is the page plus the board markup. A board under `projects/<name>/` links `../../diagram/`.
+
+Each new SLC adds one column. Earlier columns stay as they are. Bump `--slices` when a column is added. Leave every `.cell.connector` empty — `connectors.js` draws write shafts and EVT→RMO joins there. Give every EVT and RMO an `id`, and list every EVT→RMO edge on `<main>` as `data-joins="evt-a:rmo-x,…"`.
+
+### Page
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>EMD</title>
+  <link rel="stylesheet" href="../../diagram/diagram.css">
+</head>
+<body>
+  <main class="emd" style="--slices: 1" data-joins="">
+    <div class="sheet">
+      <div class="board">
+        <!-- lane + slice columns -->
+      </div>
+    </div>
+  </main>
+  <script src="../../diagram/connectors.js"></script>
+  <script src="../../diagram/settings.js"></script>
+</body>
+</html>
+```
+
+`main.emd` is the only scrollport. Do not scroll `body`/`window`.
+
+### Board chrome (one workflow, one USR, one SVC)
+
+```html
+<div class="cell lane emd-corner"></div>
+<div class="cell wfl" data-slc="1" data-span="1"><span>Stock a bike</span></div>
+
+<div class="cell lane open">Jim (Customer)</div>
+<div class="cell uba" data-slc="1" data-lane="jim"><!-- SCR or empty shaft --></div>
+
+<div class="cell lane open"></div>
+<div class="cell mba" data-slc="1"><!-- COM or RMO + gaps --></div>
+
+<div class="cell lane open"></div>
+<div class="cell connector" data-slc="1"></div><!-- leave empty -->
+
+<div class="cell lane open lba-head">
+  <div class="lba-head-gap" aria-hidden="true"></div>
+  <div class="lba-head-label">Fleet</div>
+</div>
+<div class="cell lba" data-slc="1" data-lane="fleet"><!-- EVT/ERR or empty shaft --></div>
+```
+
+Add `div.cell.slc-no` cells when you want slice numbers. Title cards with the name only (no `COM`/`EVT` prefix). Classes: `scr`, `pro`, `com`, `rmo`, `evt`, `err`; mappings are `p.map` under the COM or RMO.
+
+### Cards
+
+```html
+<article class="com" id="com-receive-bike">
+  <h2>Receive Bike</h2>
+  <dl class="props">
+    <div><dt>bikeId</dt><dd>B-101</dd></div>
+    <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
+  </dl>
+</article>
+
+<article class="evt" id="evt-bike-received">
+  <h2>Bike Received</h2>
+  <dl class="props">
+    <div><dt>bikeId</dt><dd>B-101</dd></div>
+    <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
+  </dl>
+</article>
+
+<p class="map">Rental End: startDate, days → endDate</p>
+```
+
+Screens use a `.wire` sketch inside `article.scr`. Processors are `article.pro` with a gear SVG. Every MBA cell needs a `.gap` above and below the card so COM/RMO tops line up across slices.
+
+### Same-slice verticals (COM slice)
+
+```html
+<!-- UBA: screen, then shaft down -->
+<article class="scr" id="scr-receive-bike-form">…</article>
+<div class="gap">
+  <div class="arr v"><div class="shaft"></div></div>
+</div>
+
+<!-- MBA: arrow into COM, shaft toward connector -->
+<div class="gap">
+  <div class="arr v">
+    <div class="shaft"></div>
+    <div class="tile arrow-down"></div>
+  </div>
+</div>
+<article class="com" id="com-receive-bike">…</article>
+<div class="gap">
+  <div class="arr v"><div class="shaft"></div></div>
+</div>
+
+<!-- LBA: shaft + arrow into EVT (connector segment is JS) -->
+<div class="gap">
+  <div class="arr v">
+    <div class="shaft"></div>
+    <div class="tile arrow-down"></div>
+  </div>
+</div>
+<article class="evt" id="evt-bike-received">…</article>
+```
+
+Empty `uba`/`lba` cells a vertical crosses keep only `.gap > .arr.v > .shaft`. In an RMO slice, leave the MBA lower `.gap` empty so JS can draw the join `arrow-up`; put `arrow-up` then shaft under the SCR when the screen sits in the same slice.
+
+### Cross-slice joins
+
+1. `id` on every EVT and RMO.
+2. `data-joins="evt-bike-received:rmo-bike-catalog,…"` on `main.emd` — every EVT→RMO edge.
+3. Empty `.cell.connector` columns; do not hand-build join rails.
+4. Load `connectors.js` and `settings.js`.
+
+Hover lights a path; click a connector scrolls any clipped end (including SCR on a tall vertical) into view, clear of the sticky lane and scrollbars.
+
+For wireframe controls, gear docks, continuity rules, and tile tables, use [`html-css.md`](html-css.md).
 
 For more, see: [eventmodeling.org](https://eventmodeling.org) or review example EMDs in this folder.

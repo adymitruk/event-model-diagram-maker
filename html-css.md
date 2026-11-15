@@ -1,6 +1,6 @@
 # HTML and CSS
 
-Lookup for drawing one slice of an EMD. Terms and what belongs in a slice are in [`event-modeling-instructions.md`](../event-modeling-instructions.md). This file is only how that slice is marked up.
+Lookup for drawing one slice of an EMD. Terms, construction, and a short HTML-board primer with samples are in [`event-modeling-instructions.md`](event-modeling-instructions.md). This file is the full markup reference for that board.
 
 The diagram is one file named `<name>.emd.html`. Each new slice adds one column. Earlier columns stay as they are.
 
