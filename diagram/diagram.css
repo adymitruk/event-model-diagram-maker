@@ -441,10 +441,10 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   align-items: stretch;
   font-size: calc(0.9em * var(--scale));
   /* Air between the last LBA service row and the GWT band. */
-  padding-top: 1.75rem;
+  padding-top: 3rem;
 }
 .board > .lane.open:has(+ .gwt) {
-  padding-top: 1.75rem;
+  padding-top: 3rem;
 }
 .gwt > .timeline {
   display: flex;
