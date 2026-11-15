@@ -296,23 +296,141 @@
       );
     }
 
+    /**
+     * Visible content box inside `.emd`, excluding sticky chrome that covers
+     * the board (lane labels on the left, workflow row on top) and the
+     * scrollbar gutters (`clientWidth` / `clientHeight` omit those).
+     */
+    function effectiveViewport() {
+      const cr = emd.getBoundingClientRect();
+      const lane = emd.querySelector('.board > .lane');
+      const wfl = emd.querySelector('.board > .wfl');
+      const left = lane ? lane.getBoundingClientRect().right : cr.left;
+      const top = wfl ? wfl.getBoundingClientRect().bottom : cr.top;
+      // client* excludes classic scrollbar tracks that sit over the board edge.
+      return {
+        left,
+        top,
+        right: cr.left + emd.clientWidth,
+        bottom: cr.top + emd.clientHeight,
+      };
+    }
+
+    /** True when the whole element lies inside the effective board viewport. */
+    function isFullyInScroller(el) {
+      const er = el.getBoundingClientRect();
+      const v = effectiveViewport();
+      return (
+        er.left >= v.left &&
+        er.right <= v.right &&
+        er.top >= v.top &&
+        er.bottom <= v.bottom
+      );
+    }
+
+    /** Scroll so `card` sits fully inside the effective viewport (nearest edges). */
+    function scrollCardIntoEffectiveView(card) {
+      const er = card.getBoundingClientRect();
+      const v = effectiveViewport();
+      let dx = 0;
+      let dy = 0;
+      if (er.left < v.left) dx = er.left - v.left;
+      else if (er.right > v.right) dx = er.right - v.right;
+      if (er.top < v.top) dy = er.top - v.top;
+      else if (er.bottom > v.bottom) dy = er.bottom - v.bottom;
+      if (dx || dy) {
+        emd.scrollBy({ left: dx, top: dy, behavior: 'smooth' });
+      }
+    }
+
+    // Last end brought into view per join-id set — enables click back-and-forth.
+    if (!emd._emdLastReveal) emd._emdLastReveal = new Map();
+
+    /**
+     * Cards at both ends of a lit path: join from/to plus UBA readers (SCR/PRO)
+     * on the vertical corridor, so click-reveal can scroll up/down as well as sideways.
+     */
+    function endpointCardsForJoins(related) {
+      const ends = [];
+      const seen = new Set();
+      const add = (card) => {
+        if (!card || seen.has(card)) return;
+        seen.add(card);
+        ends.push(card);
+      };
+      const ubaActors = (si) =>
+        emd.querySelectorAll(
+          `.cell.uba[data-slc="${si}"] .scr, .cell.uba[data-slc="${si}"] .pro`
+        );
+      for (const j of related) {
+        add(j.fromEl);
+        add(j.toEl);
+        if (j.cellSi != null) ubaActors(j.cellSi).forEach(add);
+        if (j.toEl && j.toEl.classList.contains('rmo')) {
+          ubaActors(sliceOf(j.toEl)).forEach(add);
+        }
+      }
+      return ends;
+    }
+
+    /**
+     * Bring a clipped path end into view. One end per click so repeated clicks
+     * ping-pong when ends cannot fit in the viewport at once (including
+     * vertical SCR ↔ COM/RMO ↔ EVT corridors).
+     */
+    function revealJoinEndpointSlices(joinIdsCsv) {
+      const idSet = new Set(
+        String(joinIdsCsv || '')
+          .split(',')
+          .filter(Boolean)
+      );
+      const related = joins.filter((j) => idSet.has(String(j.id)));
+      const ends = endpointCardsForJoins(related);
+      if (!ends.length) return;
+
+      const clipped = ends.filter((card) => !isFullyInScroller(card));
+      if (!clipped.length) return;
+
+      const key = [...idSet].sort().join(',');
+      const last = emd._emdLastReveal.get(key);
+      let target;
+      if (clipped.length === 1) {
+        target = clipped[0];
+      } else {
+        // Several off-screen: show a different end than last time (from → to → …).
+        target = clipped.find((card) => card !== last) || clipped[0];
+      }
+      emd._emdLastReveal.set(key, target);
+      scrollCardIntoEffectiveView(target);
+    }
+
+    function joinIdsForConnector(el) {
+      if (el.classList.contains('hop')) {
+        return el.dataset.hJoinIds || el.dataset.joinIds;
+      }
+      return el.dataset.joinIds;
+    }
+
     function bindConnectorHover(el) {
       if (!el.dataset.joinIds) return;
       if (el._joinHover) {
         el.removeEventListener('mouseenter', el._joinHover.enter);
         el.removeEventListener('mouseleave', el._joinHover.leave);
+        el.removeEventListener('click', el._joinHover.click);
       }
-      const enter = () => {
-        if (el.classList.contains('hop')) {
-          highlightByJoinIds(el.dataset.hJoinIds || el.dataset.joinIds);
-          return;
-        }
-        highlightByJoinIds(el.dataset.joinIds);
-      };
+      const enter = () => highlightByJoinIds(joinIdsForConnector(el));
       const leave = () => clearConnectionHighlight();
-      el._joinHover = { enter, leave };
+      const click = (e) => {
+        e.stopPropagation();
+        const ids = joinIdsForConnector(el);
+        highlightByJoinIds(ids);
+        revealJoinEndpointSlices(ids);
+      };
+      el._joinHover = { enter, leave, click };
+      el.style.cursor = 'pointer';
       el.addEventListener('mouseenter', enter);
       el.addEventListener('mouseleave', leave);
+      el.addEventListener('click', click);
     }
 
     function tagCorridorPieces(pieces, joinIds) {

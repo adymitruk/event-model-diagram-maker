@@ -2,9 +2,11 @@
 
 Lookup for drawing one slice of an EMD. Terms and what belongs in a slice are in [`event-modeling-instructions.md`](../event-modeling-instructions.md). This file is only how that slice is marked up.
 
-The diagram is one HTML file. Each new slice adds one column. Earlier columns stay as they are.
+The diagram is one file named `<name>.emd.html`. Each new slice adds one column. Earlier columns stay as they are.
 
 ## Page
+
+Write the board to `<name>.emd.html`. Link `diagram/diagram.css`, `diagram/connectors.js`, and `diagram/settings.js` with paths relative to that file. A board under `projects/<name>/` uses `../../diagram/`.
 
 ```html
 <!DOCTYPE html>
@@ -12,7 +14,7 @@ The diagram is one HTML file. Each new slice adds one column. Earlier columns st
 <head>
   <meta charset="utf-8">
   <title>EMD</title>
-  <link rel="stylesheet" href="diagram.css">
+  <link rel="stylesheet" href="../../diagram/diagram.css">
 </head>
 <body>
   <main class="emd" style="--slices: 1">
@@ -20,6 +22,8 @@ The diagram is one HTML file. Each new slice adds one column. Earlier columns st
       <div class="board"></div>
     </div>
   </main>
+  <script src="../../diagram/connectors.js"></script>
+  <script src="../../diagram/settings.js"></script>
 </body>
 </html>
 ```
@@ -289,7 +293,7 @@ All cross-slice projections use `diagram/connectors.js` (same router as `diagram
 5. Leave every `.cell.connector` empty. Leave RMO mba lower gaps empty (no CSS `arrow-up` on the join).
 6. Same-slice COM→EVT corridors stop at the mba/lba gaps; the connector segment is JS.
 
-**Routing (tiling-example).** Bands by leftness (`fromSlc + toSlc`) with elbow-clash sharing. Write shaft locked to the CSS card center; outbound stubs push right; arrivals centered as a group. Horizontals hop over verticals (`hop-*.svg`). One tile occupancy — shafts break around hops. **Hover:** by default every connector and card is fully lit (no idle mute, no 3-level color ramp). Hovering a SCR / COM / EVT / RMO / ERR or a connector piece adds `.path-focus` on `.emd`: related path tiles get `.path-hot` / hop hot flags and endpoints get `.endpoint-hot`; everything else fades via `--focus-fade`. Hovering a `.map` note lights that join and marks the mapped property rows (`.prop-hot`) on each side (`inputs → outputs` from the note text).
+**Routing (tiling-example).** Bands by leftness (`fromSlc + toSlc`) with elbow-clash sharing. Write shaft locked to the CSS card center; outbound stubs push right; arrivals centered as a group. Horizontals hop over verticals (`hop-*.svg`). One tile occupancy — shafts break around hops. **Hover / click:** by default every connector and card is fully lit (no idle mute, no 3-level color ramp). Hovering a SCR / COM / EVT / RMO / ERR or a connector piece adds `.path-focus` on `.emd`: related path tiles get `.path-hot` / hop hot flags and endpoints get `.endpoint-hot`; everything else fades via `--focus-fade`. Hovering a `.map` note lights that join and marks the mapped property rows (`.prop-hot`) on each side (`inputs → outputs` from the note text). Clicking a connector scrolls any related end card that is partly (or fully) out of view into the board viewport.
 
 **Mapping notes** still sit under the RMO (`.map`) on the join shaft; the shaft itself is JS.
 

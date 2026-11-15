@@ -140,7 +140,7 @@
       '<li><strong>MBA</strong> — commands (<strong>COM</strong>, blue) and read models (<strong>RMO</strong>, green).</li>' +
       '<li><strong>LBA</strong> — events (<strong>EVT</strong>, orange) the system recorded.</li>' +
       '<li>Arrows are the data flow: screen → command → event, then event → read model → screen.</li>' +
-      '<li>Hover any card or connector to keep that path lit and fade the rest. Use the gear to tune scale, fade, and connector tile size.</li>' +
+      '<li>Hover any card or connector to keep that path lit and fade the rest. Click a connector to scroll any end that is partly out of view fully into the viewport. Use the gear to tune scale, fade, and connector tile size.</li>' +
       '</ul>' +
       '</div>';
 
