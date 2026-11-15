@@ -80,6 +80,11 @@
   }
 
   function mount() {
+    // Drop abandoned scroll-lerp experiment (fought trackpad momentum).
+    try {
+      localStorage.removeItem('emd-scroll-lerp');
+    } catch (_) {}
+
     const corner = document.querySelector('.board > .lane:first-child');
     if (!corner || corner.querySelector('.emd-corner-tools')) return;
 

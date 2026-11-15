@@ -316,16 +316,32 @@
       };
     }
 
-    /** True when the whole element lies inside the effective board viewport. */
+    /** True when the card is inside the effective viewport (1px epsilon; oversized cards count if they cover the viewport). */
     function isFullyInScroller(el) {
       const er = el.getBoundingClientRect();
       const v = effectiveViewport();
-      return (
-        er.left >= v.left &&
-        er.right <= v.right &&
-        er.top >= v.top &&
-        er.bottom <= v.bottom
-      );
+      const eps = 1;
+      const viewW = v.right - v.left;
+      const viewH = v.bottom - v.top;
+      const inX =
+        (er.left >= v.left - eps && er.right <= v.right + eps) ||
+        (er.width > viewW && er.left <= v.left + eps && er.right >= v.right - eps);
+      const inY =
+        (er.top >= v.top - eps && er.bottom <= v.bottom + eps) ||
+        (er.height > viewH && er.top <= v.top + eps && er.bottom >= v.bottom - eps);
+      return inX && inY;
+    }
+
+    /** How far `card` sticks out of the effective viewport (px). */
+    function overflowDistance(card) {
+      const er = card.getBoundingClientRect();
+      const v = effectiveViewport();
+      let d = 0;
+      if (er.left < v.left) d += v.left - er.left;
+      if (er.right > v.right) d += er.right - v.right;
+      if (er.top < v.top) d += v.top - er.top;
+      if (er.bottom > v.bottom) d += er.bottom - v.bottom;
+      return d;
     }
 
     /** Scroll so `card` sits fully inside the effective viewport (nearest edges). */
@@ -338,6 +354,9 @@
       else if (er.right > v.right) dx = er.right - v.right;
       if (er.top < v.top) dy = er.top - v.top;
       else if (er.bottom > v.bottom) dy = er.bottom - v.bottom;
+      // Ignore subpixel jitter so repeat clicks don't nudge horizontally.
+      if (Math.abs(dx) < 1) dx = 0;
+      if (Math.abs(dy) < 1) dy = 0;
       if (dx || dy) {
         emd.scrollBy({ left: dx, top: dy, behavior: 'smooth' });
       }
@@ -347,10 +366,11 @@
     if (!emd._emdLastReveal) emd._emdLastReveal = new Map();
 
     /**
-     * Cards at both ends of a lit path: join from/to plus UBA readers (SCR/PRO)
-     * on the vertical corridor, so click-reveal can scroll up/down as well as sideways.
+     * Reveal targets depend on what was clicked:
+     * - UBA/MBA/LBA corridor → same-slice vertical ends (SCR↔RMO / SCR↔COM↔EVT)
+     * - connector tiles (shaft-h, etc.) → join wire ends only (EVT↔RMO), never SCR
      */
-    function endpointCardsForJoins(related) {
+    function endsForReveal(related, originEl) {
       const ends = [];
       const seen = new Set();
       const add = (card) => {
@@ -362,13 +382,31 @@
         emd.querySelectorAll(
           `.cell.uba[data-slc="${si}"] .scr, .cell.uba[data-slc="${si}"] .pro`
         );
+
+      const cell = originEl && originEl.closest('.cell[data-slc]');
+      const verticalCorridor =
+        cell &&
+        (cell.classList.contains('uba') ||
+          cell.classList.contains('mba') ||
+          cell.classList.contains('lba'));
+
+      if (verticalCorridor) {
+        const si = parseInt(cell.dataset.slc, 10);
+        for (const j of related) {
+          if (j.fromEl && sliceOf(j.fromEl) === si) add(j.fromEl);
+          if (j.toEl && sliceOf(j.toEl) === si) add(j.toEl);
+          if (j.cellSi === si) ubaActors(si).forEach(add);
+          if (j.toEl && j.toEl.classList.contains('rmo') && sliceOf(j.toEl) === si) {
+            ubaActors(si).forEach(add);
+          }
+        }
+        return ends;
+      }
+
+      // Horizontal (and other) connector tiles: EVT ↔ RMO / COM ↔ EVT only.
       for (const j of related) {
         add(j.fromEl);
         add(j.toEl);
-        if (j.cellSi != null) ubaActors(j.cellSi).forEach(add);
-        if (j.toEl && j.toEl.classList.contains('rmo')) {
-          ubaActors(sliceOf(j.toEl)).forEach(add);
-        }
       }
       return ends;
     }
@@ -378,14 +416,14 @@
      * ping-pong when ends cannot fit in the viewport at once (including
      * vertical SCR ↔ COM/RMO ↔ EVT corridors).
      */
-    function revealJoinEndpointSlices(joinIdsCsv) {
+    function revealJoinEndpointSlices(joinIdsCsv, originEl) {
       const idSet = new Set(
         String(joinIdsCsv || '')
           .split(',')
           .filter(Boolean)
       );
       const related = joins.filter((j) => idSet.has(String(j.id)));
-      const ends = endpointCardsForJoins(related);
+      const ends = endsForReveal(related, originEl);
       if (!ends.length) return;
 
       const clipped = ends.filter((card) => !isFullyInScroller(card));
@@ -397,8 +435,14 @@
       if (clipped.length === 1) {
         target = clipped[0];
       } else {
-        // Several off-screen: show a different end than last time (from → to → …).
-        target = clipped.find((card) => card !== last) || clipped[0];
+        // Prefer a different end than last time; otherwise the most out-of-view one.
+        const others = clipped.filter((card) => card !== last);
+        if (others.length) {
+          others.sort((a, b) => overflowDistance(b) - overflowDistance(a));
+          target = others[0];
+        } else {
+          target = clipped[0];
+        }
       }
       emd._emdLastReveal.set(key, target);
       scrollCardIntoEffectiveView(target);
@@ -424,7 +468,7 @@
         e.stopPropagation();
         const ids = joinIdsForConnector(el);
         highlightByJoinIds(ids);
-        revealJoinEndpointSlices(ids);
+        revealJoinEndpointSlices(ids, el);
       };
       el._joinHover = { enter, leave, click };
       el.style.cursor = 'pointer';
@@ -443,38 +487,42 @@
       });
     }
 
+    /** Gap hit-target plus shafts/tiles inside (wide UBA/MBA corridor clicks). */
+    function piecesFromGaps(gaps) {
+      const pieces = [];
+      gaps.forEach((gap) => {
+        pieces.push(gap);
+        pieces.push(...gap.querySelectorAll('.shaft, .tile'));
+      });
+      return pieces;
+    }
+
     // Tag CSS corridors so hover lights the whole SCR↔COM↔EVT / RMO↔SCR path.
     function bindCssCorridors() {
       local.forEach((j) => {
         const si = j.cellSi;
-        const pieces = [
-          ...emd.querySelectorAll(
-            `.cell.uba[data-slc="${si}"] .gap .shaft, .cell.uba[data-slc="${si}"] .gap .tile`
-          ),
-        ];
+        const pieces = piecesFromGaps([
+          ...emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .gap`),
+        ]);
         const mba = emd.querySelector(`.cell.mba[data-slc="${si}"]`);
         if (mba) {
-          pieces.push(
-            ...mba.querySelectorAll(':scope > .gap .shaft, :scope > .gap .tile')
-          );
+          pieces.push(...piecesFromGaps([...mba.querySelectorAll(':scope > .gap')]));
         }
         const lbaCells = emd.querySelectorAll(`.cell.lba[data-slc="${si}"]`);
         lbaCells.forEach((lba) => {
-          pieces.push(...lba.querySelectorAll('.gap .shaft, .gap .tile'));
+          pieces.push(...piecesFromGaps([...lba.querySelectorAll('.gap')]));
         });
         tagCorridorPieces(pieces, [j.id]);
       });
       cross.forEach((j) => {
         const si = j.toSi;
-        const pieces = [
-          ...emd.querySelectorAll(
-            `.cell.uba[data-slc="${si}"] .gap .shaft, .cell.uba[data-slc="${si}"] .gap .tile`
-          ),
-        ];
+        const pieces = piecesFromGaps([
+          ...emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .gap`),
+        ]);
         const mba = emd.querySelector(`.cell.mba[data-slc="${si}"]`);
         if (mba) {
           const gaps = [...mba.querySelectorAll(':scope > .gap')];
-          if (gaps[0]) pieces.push(...gaps[0].querySelectorAll('.shaft, .tile'));
+          if (gaps[0]) pieces.push(...piecesFromGaps([gaps[0]]));
         }
         tagCorridorPieces(pieces, [j.id]);
       });
