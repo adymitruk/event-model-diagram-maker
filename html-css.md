@@ -34,13 +34,14 @@ Write the board to `<name>.emd.html`. Link `diagram/diagram.css`, `diagram/conne
 
 ## Board
 
-A CSS grid. Column 1 is the swim-lane labels. Each later column is one slice, left to right, `SLC1` then `SLC2`. `SLC` is the only abbreviation written on the diagram. Slice tracks are `minmax(var(--col), max-content)` — `--col` (default `16rem`) is the **minimum** width. A slice may grow when a screen (or other intrinsic content) needs more room; do not treat `--col` as a fixed cap. Rows from top to bottom:
+A CSS grid. Column 1 is the swim-lane labels. Each later column is one slice, left to right, `SLC1` then `SLC2`. `SLC` and `GWT` are the abbreviations written on the diagram. Slice tracks are `minmax(var(--col), max-content)` — `--col` (default `16rem`) is the **minimum** width. A slice may grow when a screen (or other intrinsic content) needs more room; do not treat `--col` as a fixed cap. Rows from top to bottom:
 
 1. Workflow — one merged cell per workflow run, not one cell per slice. Set `data-span="N"` to the number of slices of that workflow drawn so far (`grid-column: span N`). Put the goal (`Stock a bike`) in a `span` inside that cell. A blue arrow runs along the bottom of the span. The shaft and the arrowhead are one shape — omit `continues` on the merged cell so the head sits at the right end of the run (when you later extend the same workflow, bump `data-span`). Leave the first-column lane cell empty of workflow text; `settings.js` places a gear (settings) and `?` (board help) there. Do **not** draw vertical rules between slice columns anywhere on the board (`.cell` has `border: 0`); only the sticky lane column keeps a right edge. Slice cells also have no bottom border (including `.foot`). The whole workflow row (`.wfl` cells and the empty corner lane) is sticky to the **top** of `.emd` while scrolling vertically. The goal `span` is also horizontally sticky so it slides along the arrow while the board scrolls sideways, staying clear of the sticky lane column, until that workflow cell scrolls away horizontally or the next workflow’s span takes over.
 2. One row per user, labeled `<name> (<role>)`.
 3. One middle row, with no lane label. Each cell holds a command or a read model. **Every MBA card lines up on one horizontal band across slices** — same **top** edge for every `com` and `rmo` in that row (not centered). Always put a `.gap` *above* and *below* the card (command and read-model cells alike). The upper gap stays compact (`flex: 0`; min height two tiles for the into-card corridor). The lower gap is the one that flexes (`flex: 1`) and absorbs spare height so taller and shorter cards still share one top line. Never park an MBA card at the top of the cell with only a gap underneath, and never give both gaps equal `flex: 1` — that vertically centers cards and breaks the band.
 4. One connector row, with no lane label. Vertical shafts continue through it; arrows that leave one slice for another run horizontally through its mid band.
 5. One row per service, labeled with the service name. **Every EVT/ERR card lines up on one top edge across slices**, same rule as MBA: compact `.gap` above the card (min two tiles for shaft + `arrow-down`), spare height below — not equal flex that centers cards. On the **first** LBA service row (the top swim lane under the connector), use `lba-head` with an empty `.lba-head-gap` above a `.lba-head-label`. The head gap is the same compact two-tile height as the EVT corridor so the service name starts where the event cards start.
+6. One GWT row below every service row, labeled `GWT`. Each cell holds that slice's GWT timelines (or is empty when the slice has none) and is part of the slice. A slice may carry no GWTs or many, on one or more vertical `.timeline` stacks. For a COM: EVT / COM / EVT (or ERR) cards. For an RMO: RMO, EVT, RMO, …, RMO (read model at the start, between each event, and at the end; include lookup entries when the RMO joins). When GWTs share the same timeline, the previous COM's or RMO's Given EVTs and Then EVTs are included as the next When's Given; separate timelines do not share that history. `foot` stays on the last service row; the GWT row follows it. Writing rules, board-help (`?`) copy, and filled samples are in [`event-modeling-instructions.md`](event-modeling-instructions.md).
 
 ```html
 <div class="cell lane" aria-hidden="true"></div>
@@ -53,7 +54,19 @@ A CSS grid. Column 1 is the swim-lane labels. Each later column is one slice, le
 <div class="cell connector" data-slc="1"></div>
 <div class="cell lane open lba-head"><div class="lba-head-gap" aria-hidden="true"></div><div class="lba-head-label">Fleet</div></div>
 <div class="cell lba" data-slc="1" data-lane="fleet"></div>
+<div class="cell lane open">GWT</div>
+<div class="cell gwt" data-slc="1">
+  <div class="timeline">
+    <article class="com"><h2>Receive Bike</h2>…</article>
+    <div class="arr v">
+      <div class="shaft"></div>
+      <div class="tile arrow-down"></div>
+    </div>
+    <article class="evt"><h2>Bike Received</h2>…</article>
+  </div>
+</div>
 ```
+Put a vertical corridor (`.arr.v` with shaft + `arrow-down`) between every consecutive card on a GWT timeline.
 
 An empty cell stays an empty `div`. Do not put a placeholder in it.
 

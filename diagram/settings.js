@@ -140,11 +140,12 @@
       '<div class="emd-popover emd-help-pop" id="emd-help-pop" role="dialog" aria-label="About this board">' +
       '<h2>About this board</h2>' +
       '<ul>' +
-      '<li><strong>Workflow</strong> (top blue arrow) is the story left to right. Each column is one slice (<strong>SLC</strong>).</li>' +
-      '<li><strong>UBA</strong> — actors and their screens (<strong>SCR</strong>).</li>' +
-      '<li><strong>MBA</strong> — commands (<strong>COM</strong>, blue) and read models (<strong>RMO</strong>, green).</li>' +
-      '<li><strong>LBA</strong> — events (<strong>EVT</strong>, orange) the system recorded.</li>' +
-      '<li>Arrows are the data flow: screen → command → event, then event → read model → screen.</li>' +
+      '<li><strong>Workflow</strong> (top blue arrow) is the story left to right. Each column is one slice (<strong>SLC</strong>): a command step, a read-model step, or navigation only (<strong>NAV</strong> — screen with no command or read model).</li>' +
+      '<li><strong>UBA</strong> — actors and their screens (<strong>SCR</strong>) or automations (<strong>PRO</strong>).</li>' +
+      '<li><strong>MBA</strong> — commands (<strong>COM</strong>, blue) and read models (<strong>RMO</strong>, green). Empty in a NAV slice.</li>' +
+      '<li><strong>LBA</strong> — events (<strong>EVT</strong>, orange) the system recorded, or an error (<strong>ERR</strong>, red) when a command failed instead. Empty in RMO and NAV slices.</li>' +
+      '<li><strong>GWT</strong> (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a <strong>COM</strong>: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an <strong>RMO</strong>: read model, then event, then read model, … ending with the read model — so you see how the projection changes as each event arrives (including lookup entries when the read model joins by id).</li>' +
+      '<li>Arrows are the data flow: screen → command → event (or error), and event → read model → screen. A <strong>MAP</strong> on an arrow names inputs → outputs when data changes shape.</li>' +
       '<li>Hover any card or connector to keep that path lit and fade the rest. Click a connector to scroll any end that is partly out of view fully into the viewport. Use the gear to tune scale, fade, and connector tile size.</li>' +
       '</ul>' +
       '</div>';

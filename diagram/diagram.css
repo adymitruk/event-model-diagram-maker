@@ -82,9 +82,11 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 .uba .arr .shaft,
 .mba .arr .shaft,
 .lba .arr .shaft,
+.gwt .arr .shaft,
 .uba .arr .tile,
 .mba .arr .tile,
-.lba .arr .tile {
+.lba .arr .tile,
+.gwt .arr .tile {
   opacity: 1;
   filter: brightness(0);
   transition: opacity 0.12s ease, filter 0.12s ease;
@@ -115,9 +117,11 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 .emd.path-focus .uba .arr .shaft:not(.path-hot),
 .emd.path-focus .mba .arr .shaft:not(.path-hot),
 .emd.path-focus .lba .arr .shaft:not(.path-hot),
+.emd.path-focus .gwt .arr .shaft:not(.path-hot),
 .emd.path-focus .uba .arr .tile:not(.path-hot),
 .emd.path-focus .mba .arr .tile:not(.path-hot),
-.emd.path-focus .lba .arr .tile:not(.path-hot) {
+.emd.path-focus .lba .arr .tile:not(.path-hot),
+.emd.path-focus .gwt .arr .tile:not(.path-hot) {
   opacity: var(--focus-fade);
   filter: none;
 }
@@ -131,9 +135,11 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 .uba .arr .shaft.path-hot,
 .mba .arr .shaft.path-hot,
 .lba .arr .shaft.path-hot,
+.gwt .arr .shaft.path-hot,
 .uba .arr .tile.path-hot,
 .mba .arr .tile.path-hot,
-.lba .arr .tile.path-hot {
+.lba .arr .tile.path-hot,
+.gwt .arr .tile.path-hot {
   opacity: 1;
   filter: brightness(0);
   z-index: 3;
@@ -273,7 +279,7 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
   font-size: 0.95rem;
   font-weight: 700;
 }
-.emd-help-pop { width: 22rem; max-width: min(22rem, 70vw); }
+.emd-help-pop { width: 28rem; max-width: min(28rem, 85vw); }
 .emd-help-pop ul {
   margin: 0;
   padding-left: 1.1rem;
@@ -330,7 +336,7 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 /* Slice body cells stay under the sticky labels while scrolling horizontally.
    MBA keeps z-index:auto so `.map` (z-index 4) can paint above connector
    overflow (z-index 1) without covering the join arrow-up under the RMO. */
-.uba, .lba, .connector, .slc-no {
+.uba, .lba, .connector, .slc-no, .gwt {
   position: relative;
   z-index: 0;
   background: #fff;
@@ -420,11 +426,43 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 .com { background: var(--com); border-radius: 2px; }
 .rmo { background: var(--rmo); border-radius: 2px; }
 .evt { background: var(--evt); border-radius: 2px; }
-.com h2, .rmo h2, .evt h2 { margin: -0.85em -1em 0.65em; padding: 0.5em 1em; border-radius: 2px 2px 0 0; color: #000; }
+.com h2, .rmo h2, .evt h2, .err h2 { margin: -0.85em -1em 0.65em; padding: 0.5em 1em; border-radius: 2px 2px 0 0; color: #000; }
 .com h2 { background: #7ebfe0; }
 .rmo h2 { background: #8dcea4; }
 .evt h2 { background: #f0b07a; }
-.err { background: var(--err); }
+.err { background: var(--err); border-radius: 2px; }
+.err h2 { background: #e8a0a0; }
+
+/* GWT row: one or more vertical timelines under the LBA. */
+.gwt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+  font-size: calc(0.9em * var(--scale));
+  /* Air between the last LBA service row and the GWT band. */
+  padding-top: 1.75rem;
+}
+.board > .lane.open:has(+ .gwt) {
+  padding-top: 1.75rem;
+}
+.gwt > .timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: center;
+}
+.gwt > .timeline > article {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  flex: 0 0 auto;
+}
+.gwt > .timeline > .arr.v {
+  flex: 0 0 auto;
+  min-height: calc(var(--tile) * 2);
+  width: var(--tile);
+}
 .pro {
   display: flex;
   flex-direction: column;
