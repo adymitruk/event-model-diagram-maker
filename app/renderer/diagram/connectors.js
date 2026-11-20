@@ -176,6 +176,14 @@
       el.dataset.joinIds = joinIds.join(',');
     }
 
+    /**
+     * When set on the board, hover leave/enter must not clear or replace the
+     * active highlight. Stored on `emd` so Escape / re-init share one lock.
+     */
+    function focusLock() {
+      return emd._focusLock || null;
+    }
+
     function clearConnectionHighlight() {
       emd.classList.remove('path-focus');
       emd.querySelectorAll('.path-hot').forEach((el) => el.classList.remove('path-hot'));
@@ -184,6 +192,54 @@
       });
       emd.querySelectorAll('.endpoint-hot').forEach((el) => el.classList.remove('endpoint-hot'));
       emd.querySelectorAll('.prop-hot').forEach((el) => el.classList.remove('prop-hot'));
+    }
+
+    function ensureUnlockButton() {
+      let btn = document.querySelector('.emd-unlock-focus');
+      if (btn) return btn;
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'emd-unlock-focus';
+      btn.textContent = 'Unlock highlight';
+      btn.hidden = true;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        unlockFocus();
+      });
+      document.body.appendChild(btn);
+      return btn;
+    }
+
+    function unlockFocus() {
+      emd._focusLock = null;
+      emd.classList.remove('focus-locked');
+      const btn = document.querySelector('.emd-unlock-focus');
+      if (btn) btn.hidden = true;
+      clearConnectionHighlight();
+    }
+
+    /** Pin the current highlight; Unlock button or Escape releases it. */
+    function lockFocus(apply) {
+      emd._focusLock = { apply };
+      emd.classList.add('focus-locked');
+      ensureUnlockButton().hidden = false;
+      apply();
+    }
+
+    function propTargetFromEvent(el, target) {
+      const propEl =
+        target.closest('.props > .obj > div') ||
+        target.closest('.props > div:not(.obj)') ||
+        target.closest('[data-prop]') ||
+        (target.closest('article.scr') === el
+          ? (() => {
+              const site = scrPropSites(el).find(
+                (s) => s.el === target || s.el.contains(target)
+              );
+              return site ? site.el : null;
+            })()
+          : null);
+      return propEl && el.contains(propEl) ? propEl : null;
     }
 
     /** Hover prefs from settings.js (`data-emd-hover-*`); default on when unset. */
@@ -421,13 +477,17 @@
         const host = mba.querySelector(':scope > .com, :scope > .rmo');
         if (!host) return;
         const hostNames = new Set(propNamesOn(host));
-        const sliceJoins = joins.filter(
-          (j) =>
-            (j.cellSi != null && j.cellSi === si) ||
-            j.toEl === host ||
-            j.fromEl === host
-        );
-        const joinId = sliceJoins.length ? sliceJoins[0].id : null;
+        // COM slice: the within-slice corridor is COM→EVT/ERR. RMO slice: SCR↔RMO
+        // is vertical only — do NOT attach an EVT→RMO join here (that would light
+        // an unrelated earlier EVT when several EVTs feed the same RMO).
+        const joinId = host.classList.contains('com')
+          ? (() => {
+              const localJoin = joins.find(
+                (j) => j.cellSi === si && j.fromEl === host
+              );
+              return localJoin ? localJoin.id : null;
+            })()
+          : null;
         const wantClass = host.classList.contains('com') ? 'com-data' : 'rmo-data';
         emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .scr`).forEach((scr) => {
           const sites = scrPropSites(scr);
@@ -784,15 +844,27 @@
         el.removeEventListener('click', el._joinHover.click);
       }
       const enter = () => {
-        if (!hoverOn('connectors')) return;
+        if (focusLock() || !hoverOn('connectors')) return;
         highlightByJoinIds(joinIdsForConnector(el));
       };
-      const leave = () => clearConnectionHighlight();
+      const leave = () => {
+        if (focusLock()) return;
+        clearConnectionHighlight();
+      };
       const click = (e) => {
         e.stopPropagation();
         const ids = joinIdsForConnector(el);
-        highlightByJoinIds(ids);
-        revealJoinEndpointSlices(ids, el);
+        // While a value/card highlight is locked, only pan into view — do not
+        // replace the lock. Unlock is Unlock highlight / Escape only.
+        if (focusLock()) {
+          revealJoinEndpointSlices(ids, el);
+          focusLock().apply();
+          return;
+        }
+        lockFocus(() => {
+          highlightByJoinIds(ids);
+          revealJoinEndpointSlices(ids, el);
+        });
       };
       el._joinHover = { enter, leave, click };
       el.style.cursor = 'pointer';
@@ -959,27 +1031,20 @@
 
     // Card / property hover — a property value isolates that example through
     // the system (name + value); otherwise the card's joins stay lit.
+    // Click the hovered target to lock the highlight for scrolling; use the
+    // Unlock highlight control or Escape to release.
     emd
       .querySelectorAll('article.scr, article.com, article.rmo, article.evt, article.err')
       .forEach((el) => {
         if (el._joinHover) {
           el.removeEventListener('mouseover', el._joinHover.over);
           el.removeEventListener('mouseout', el._joinHover.out);
+          el.removeEventListener('click', el._joinHover.click);
         }
         const over = (e) => {
-          const propEl =
-            e.target.closest('.props > .obj > div') ||
-            e.target.closest('.props > div:not(.obj)') ||
-            e.target.closest('[data-prop]') ||
-            (e.target.closest('article.scr') === el
-              ? (() => {
-                  const site = scrPropSites(el).find(
-                    (s) => s.el === e.target || s.el.contains(e.target)
-                  );
-                  return site ? site.el : null;
-                })()
-              : null);
-          if (propEl && el.contains(propEl) && hoverOn('values')) {
+          if (focusLock()) return;
+          const propEl = propTargetFromEvent(el, e.target);
+          if (propEl && hoverOn('values')) {
             highlightPropTrace(propEl);
             return;
           }
@@ -990,12 +1055,29 @@
           clearConnectionHighlight();
         };
         const out = (e) => {
+          if (focusLock()) return;
           if (el.contains(e.relatedTarget)) return;
           clearConnectionHighlight();
         };
-        el._joinHover = { over, out };
+        const click = (e) => {
+          if (focusLock()) {
+            e.stopPropagation();
+            return;
+          }
+          const propEl = propTargetFromEvent(el, e.target);
+          if (propEl && hoverOn('values')) {
+            e.stopPropagation();
+            lockFocus(() => highlightPropTrace(propEl));
+            return;
+          }
+          if (!hoverOn('cards')) return;
+          e.stopPropagation();
+          lockFocus(() => highlightCard(el));
+        };
+        el._joinHover = { over, out, click };
         el.addEventListener('mouseover', over);
         el.addEventListener('mouseout', out);
+        el.addEventListener('click', click);
       });
 
     emd
@@ -1011,21 +1093,38 @@
       if (el._joinHover) {
         el.removeEventListener('mouseenter', el._joinHover.enter);
         el.removeEventListener('mouseleave', el._joinHover.leave);
+        el.removeEventListener('click', el._joinHover.click);
       }
       const enter = () => {
-        if (!hoverOn('values')) return;
+        if (focusLock() || !hoverOn('values')) return;
         highlightMap(el);
       };
-      const leave = () => clearConnectionHighlight();
-      el._joinHover = { enter, leave };
+      const leave = () => {
+        if (focusLock()) return;
+        clearConnectionHighlight();
+      };
+      const click = (e) => {
+        e.stopPropagation();
+        if (focusLock() || !hoverOn('values')) return;
+        lockFocus(() => highlightMap(el));
+      };
+      el._joinHover = { enter, leave, click };
       el.style.cursor = 'pointer';
       el.addEventListener('mouseenter', enter);
       el.addEventListener('mouseleave', leave);
+      el.addEventListener('click', click);
     });
 
     if (!emd._hoverPrefsBound) {
       emd._hoverPrefsBound = true;
-      window.addEventListener('emd:hover-prefs', () => clearConnectionHighlight());
+      window.addEventListener('emd:hover-prefs', () => unlockFocus());
+    }
+    if (!emd._focusLockEscBound) {
+      emd._focusLockEscBound = true;
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || !emd._focusLock) return;
+        unlockFocus();
+      });
     }
 
     requestAnimationFrame(() => {

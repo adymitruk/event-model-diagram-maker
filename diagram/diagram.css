@@ -489,6 +489,36 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   background: var(--map);
   box-shadow: inset 0 0 0 1px #e8d56a;
 }
+/* Locked hover: keep the same paint while scrolling. */
+.emd.focus-locked {
+  cursor: default;
+}
+.emd.focus-locked .prop-hot,
+.emd.focus-locked .endpoint-hot {
+  cursor: pointer;
+}
+/* Temporary control — fixed top-right so it stays reachable while scrolling. */
+.emd-unlock-focus {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 40;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink, #1c1c1c);
+  font: 600 0.85rem/1.2 system-ui, sans-serif;
+  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.12);
+  cursor: pointer;
+}
+.emd-unlock-focus:hover {
+  background: #f6f6f6;
+}
+.emd-unlock-focus[hidden] {
+  display: none !important;
+}
 .emd.path-focus:has(.prop-hot) .endpoint-hot .wire input:not(.prop-hot),
 .emd.path-focus:has(.prop-hot) .endpoint-hot .wire select:not(.prop-hot),
 .emd.path-focus:has(.prop-hot) .endpoint-hot .wire td:not(.prop-hot),
