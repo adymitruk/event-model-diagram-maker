@@ -186,6 +186,17 @@
       emd.querySelectorAll('.prop-hot').forEach((el) => el.classList.remove('prop-hot'));
     }
 
+    /** Hover prefs from settings.js (`data-emd-hover-*`); default on when unset. */
+    function hoverOn(kind) {
+      const key =
+        kind === 'connectors'
+          ? 'emdHoverConnectors'
+          : kind === 'values'
+            ? 'emdHoverValues'
+            : 'emdHoverCards';
+      return document.documentElement.dataset[key] !== '0';
+    }
+
     /** "Signup Url: signupToken → signupUrl" → { inputs, outputs }. */
     function parseMapNote(text) {
       const raw = String(text || '').replace(/\s+/g, ' ').trim();
@@ -210,6 +221,200 @@
         const dt = row.querySelector('dt');
         if (dt && want.has(dt.textContent.trim())) row.classList.add('prop-hot');
       });
+      if (!card.classList.contains('scr')) return;
+      const matches = [...card.querySelectorAll('[data-prop]')].filter((el) =>
+        want.has(el.getAttribute('data-prop').trim())
+      );
+      // On an SPA, only the live COM/RMO fields for that name — not idle areas.
+      const live = matches.filter(
+        (el) => el.classList.contains('com-data') || el.classList.contains('rmo-data')
+      );
+      (live.length ? live : matches).forEach((el) => el.classList.add('prop-hot'));
+    }
+
+    function propNamesOn(card) {
+      if (!card) return [];
+      return [...card.querySelectorAll('.props > div dt')]
+        .map((dt) => dt.textContent.trim())
+        .filter(Boolean);
+    }
+
+    function mapElForJoin(j) {
+      if (j.fromEl && j.fromEl.classList.contains('com')) {
+        return j.fromEl.parentElement
+          ? j.fromEl.parentElement.querySelector(':scope > .map')
+          : null;
+      }
+      if (j.toEl && j.toEl.classList.contains('rmo')) {
+        return j.toEl.parentElement
+          ? j.toEl.parentElement.querySelector(':scope > .map')
+          : null;
+      }
+      return null;
+    }
+
+    /** Named value sites on a SCR: prefer data-prop; else infer from labels/table headers. */
+    function scrPropSites(scr) {
+      const sites = [];
+      scr.querySelectorAll('[data-prop]').forEach((el) => {
+        const name = el.getAttribute('data-prop').trim();
+        if (name) sites.push({ name, el });
+      });
+      if (sites.length) return sites;
+      scr.querySelectorAll('label.text, label.date, label.dropdown').forEach((lab) => {
+        const control = lab.querySelector('input, select');
+        if (!control) return;
+        const name = lab.childNodes[0] && lab.childNodes[0].textContent
+          ? lab.childNodes[0].textContent.trim()
+          : '';
+        if (name) sites.push({ name, el: control });
+      });
+      scr.querySelectorAll('table').forEach((table) => {
+        const headers = [...table.querySelectorAll('thead th')].map((th) =>
+          th.textContent.trim()
+        );
+        table.querySelectorAll('tbody tr').forEach((tr) => {
+          [...tr.children].forEach((td, i) => {
+            const name = headers[i];
+            if (name && td.tagName === 'TD') sites.push({ name, el: td });
+          });
+        });
+      });
+      return sites;
+    }
+
+    function siteKey(card, prop) {
+      return (card.id || '') + '\0' + prop;
+    }
+
+    /**
+     * Undirected graph of property names across SCR ↔ COM/RMO ↔ EVT/ERR joins.
+     * MAP notes rename across a join; same-name props pass through otherwise.
+     */
+    function buildPropGraph() {
+      const adj = new Map(); // key → [{ key, joinId, mapEl }]
+      function link(aCard, aProp, bCard, bProp, joinId, mapEl) {
+        if (!aCard || !bCard || !aProp || !bProp) return;
+        const a = siteKey(aCard, aProp);
+        const b = siteKey(bCard, bProp);
+        if (!adj.has(a)) adj.set(a, []);
+        if (!adj.has(b)) adj.set(b, []);
+        adj.get(a).push({ key: b, joinId, mapEl, card: bCard, prop: bProp });
+        adj.get(b).push({ key: a, joinId, mapEl, card: aCard, prop: aProp });
+      }
+
+      joins.forEach((j) => {
+        if (!j.fromEl || !j.toEl) return;
+        const mapEl = mapElForJoin(j);
+        const { inputs, outputs } = mapEl
+          ? parseMapNote(mapEl.textContent)
+          : { inputs: [], outputs: [] };
+        const fromNames = propNamesOn(j.fromEl);
+        const toNames = propNamesOn(j.toEl);
+        const mappedIn = new Set(inputs);
+        const mappedOut = new Set(outputs);
+        inputs.forEach((inp) => {
+          outputs.forEach((out) => {
+            link(j.fromEl, inp, j.toEl, out, j.id, mapEl);
+          });
+        });
+        fromNames.forEach((p) => {
+          if (!toNames.includes(p)) return;
+          if (mappedIn.has(p) && mappedOut.size && !mappedOut.has(p)) return;
+          link(j.fromEl, p, j.toEl, p, j.id, mapEl);
+        });
+      });
+
+      // Same-slice SCR ↔ COM / RMO by property name.
+      emd.querySelectorAll('.cell.mba[data-slc]').forEach((mba) => {
+        const si = sliceOf(mba);
+        const host = mba.querySelector(':scope > .com, :scope > .rmo');
+        if (!host) return;
+        const hostNames = new Set(propNamesOn(host));
+        const sliceJoins = joins.filter(
+          (j) =>
+            (j.cellSi != null && j.cellSi === si) ||
+            (j.toEl === host) ||
+            (j.fromEl === host)
+        );
+        const joinId = sliceJoins.length ? sliceJoins[0].id : null;
+        const wantClass = host.classList.contains('com') ? 'com-data' : 'rmo-data';
+        emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .scr`).forEach((scr) => {
+          const sites = scrPropSites(scr);
+          // Prefer the live COM/RMO highlight fields so idle SPA areas
+          // (e.g. an empty Add title) do not join the property graph.
+          const live = sites.filter(({ el }) => el.classList.contains(wantClass));
+          (live.length ? live : sites).forEach(({ name }) => {
+            if (hostNames.has(name)) link(scr, name, host, name, joinId, null);
+          });
+        });
+      });
+
+      return adj;
+    }
+
+    function resolvePropStart(el) {
+      if (!el) return null;
+      const row = el.closest('.props > div');
+      if (row) {
+        const card = row.closest('article.com, article.rmo, article.evt, article.err');
+        const dt = row.querySelector('dt');
+        if (card && dt) return { card, prop: dt.textContent.trim(), row };
+      }
+      const field = el.closest('[data-prop]');
+      if (field) {
+        const card = field.closest('article.scr');
+        const prop = field.getAttribute('data-prop').trim();
+        if (card && prop) return { card, prop, row: field };
+      }
+      // Inferred SCR control (no data-prop yet).
+      const scr = el.closest('article.scr');
+      if (scr) {
+        const site = scrPropSites(scr).find((s) => s.el === el || s.el.contains(el));
+        if (site) return { card: scr, prop: site.name, row: site.el };
+      }
+      return null;
+    }
+
+    function highlightPropTrace(startEl) {
+      clearConnectionHighlight();
+      const start = resolvePropStart(startEl);
+      if (!start || !start.prop) return;
+      const adj = buildPropGraph();
+      const startKey = siteKey(start.card, start.prop);
+      const seen = new Set([startKey]);
+      const queue = [startKey];
+      const cards = new Map(); // card → Set(prop)
+      const joinIds = new Set();
+      const maps = new Set();
+      cards.set(start.card, new Set([start.prop]));
+
+      while (queue.length) {
+        const key = queue.shift();
+        const edges = adj.get(key) || [];
+        edges.forEach((edge) => {
+          if (edge.joinId != null) joinIds.add(String(edge.joinId));
+          if (edge.mapEl) maps.add(edge.mapEl);
+          if (!cards.has(edge.card)) cards.set(edge.card, new Set());
+          cards.get(edge.card).add(edge.prop);
+          if (!seen.has(edge.key)) {
+            seen.add(edge.key);
+            queue.push(edge.key);
+          }
+        });
+      }
+
+      if (joinIds.size) {
+        applyJoinHighlight(joinIds);
+      } else {
+        emd.classList.add('path-focus');
+      }
+      cards.forEach((names, card) => {
+        markEndpoint(card);
+        markProps(card, [...names]);
+      });
+      maps.forEach(markEndpoint);
+      if (start.row) start.row.classList.add('prop-hot');
     }
 
     function joinsForMap(mapEl) {
@@ -462,7 +667,10 @@
         el.removeEventListener('mouseleave', el._joinHover.leave);
         el.removeEventListener('click', el._joinHover.click);
       }
-      const enter = () => highlightByJoinIds(joinIdsForConnector(el));
+      const enter = () => {
+        if (!hoverOn('connectors')) return;
+        highlightByJoinIds(joinIdsForConnector(el));
+      };
       const leave = () => clearConnectionHighlight();
       const click = (e) => {
         e.stopPropagation();
@@ -622,29 +830,60 @@
       return joins.filter((j) => j.fromId === el.id || j.toId === el.id);
     }
 
-    // Card hover — SCR/COM/EVT/RMO: related path stays lit; everything else fades.
+    function highlightCard(el) {
+      clearConnectionHighlight();
+      const related = relatedJoinsFor(el);
+      if (related.length) {
+        applyJoinHighlight(new Set(related.map((j) => String(j.id))));
+        return;
+      }
+      emd.classList.add('path-focus');
+      markEndpoint(el);
+    }
+
+    // Card / property hover — a property value isolates that name through the
+    // system; otherwise the whole card's joins stay lit and the rest fades.
     emd
       .querySelectorAll('article.scr, article.com, article.rmo, article.evt, article.err')
       .forEach((el) => {
         if (el._joinHover) {
-          el.removeEventListener('mouseenter', el._joinHover.enter);
-          el.removeEventListener('mouseleave', el._joinHover.leave);
+          el.removeEventListener('mouseover', el._joinHover.over);
+          el.removeEventListener('mouseout', el._joinHover.out);
         }
-        const enter = () => {
-          clearConnectionHighlight();
-          const related = relatedJoinsFor(el);
-          if (related.length) {
-            applyJoinHighlight(new Set(related.map((j) => String(j.id))));
+        const over = (e) => {
+          const propEl =
+            e.target.closest('.props > div') ||
+            e.target.closest('[data-prop]') ||
+            (e.target.closest('article.scr') === el
+              ? (() => {
+                  const site = scrPropSites(el).find(
+                    (s) => s.el === e.target || s.el.contains(e.target)
+                  );
+                  return site ? site.el : null;
+                })()
+              : null);
+          if (propEl && el.contains(propEl) && hoverOn('values')) {
+            highlightPropTrace(propEl);
             return;
           }
-          emd.classList.add('path-focus');
-          markEndpoint(el);
+          if (hoverOn('cards')) {
+            highlightCard(el);
+            return;
+          }
+          clearConnectionHighlight();
         };
-        const leave = () => clearConnectionHighlight();
-        el._joinHover = { enter, leave };
-        el.addEventListener('mouseenter', enter);
-        el.addEventListener('mouseleave', leave);
+        const out = (e) => {
+          if (el.contains(e.relatedTarget)) return;
+          clearConnectionHighlight();
+        };
+        el._joinHover = { over, out };
+        el.addEventListener('mouseover', over);
+        el.addEventListener('mouseout', out);
       });
+
+    emd.querySelectorAll('.props > div, [data-prop]').forEach((el) => {
+      el.style.cursor = 'pointer';
+    });
 
     // MAP hover — light the join and the mapped property rows on each side.
     emd.querySelectorAll('.mba > .map').forEach((el) => {
@@ -652,13 +891,21 @@
         el.removeEventListener('mouseenter', el._joinHover.enter);
         el.removeEventListener('mouseleave', el._joinHover.leave);
       }
-      const enter = () => highlightMap(el);
+      const enter = () => {
+        if (!hoverOn('values')) return;
+        highlightMap(el);
+      };
       const leave = () => clearConnectionHighlight();
       el._joinHover = { enter, leave };
       el.style.cursor = 'pointer';
       el.addEventListener('mouseenter', enter);
       el.addEventListener('mouseleave', leave);
     });
+
+    if (!emd._hoverPrefsBound) {
+      emd._hoverPrefsBound = true;
+      window.addEventListener('emd:hover-prefs', () => clearConnectionHighlight());
+    }
 
     requestAnimationFrame(() => {
       const { stubY, bands } = bandYs();

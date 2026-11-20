@@ -459,7 +459,7 @@ Read the `EMD.md` straight into the templates below:
 - **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id).
 - **Arrows** — data flow: screen → command → event (or error), and event → read model → screen. A **MAP** on an arrow names inputs → outputs when data changes shape.
 - **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name); on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). An SPA keeps one screen layout and paints those highlights on the live fields in that slice.
-- **Interaction** — hover a card or connector to keep that path lit and fade the rest; click a connector to scroll any end that is partly out of view fully into the viewport; use the gear to tune scale, fade, and connector tile size.
+- **Interaction** — hover a card or connector to keep that path lit and fade the rest; hover a **property value** (a `dl.props` row, or a SCR field with `data-prop`) to isolate that property through its sources and destinations — the same fade, with matching values and their connectors lit; click a connector to scroll any end that is partly out of view fully into the viewport; use the gear to tune scale, fade, connector tile size, and **Highlight on hover** for connectors, values, and cards (each on by default).
 
 When you change how an EMD is read (new slice type, GWT shape, card kinds), update both the terms/construction above and this help list (and the matching HTML in `settings.js`).
 
@@ -770,6 +770,8 @@ An SPA is still one SCR per slice: same screen name and the same areas in every 
 
 Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (unless you are only showing an ERR message).
 
+**`data-prop` (required for property hover).** Every SCR value that is a named property also gets `data-prop="<name>"` on that same value field — the same names as the COM / RMO / EVT `dt`s. `connectors.js` uses those names (plus MAP notes) so hovering a value lights that property on every card and screen it flows through and fades the rest, the same way hovering a connector isolates a path. Card `dl.props` rows need no extra attribute; the `dt` is the name. On an SPA, put `data-prop` on every area that can show that property, and keep `com-data` / `rmo-data` only on the live fields for that slice — the tracer prefers those live fields when linking the screen to the COM or RMO.
+
 | EMD line | Markup |
 |---|---|
 | heading Rent Bike | `<p class="heading">Rent Bike</p>` |
@@ -788,9 +790,9 @@ Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (
 | table | one `table`; header cells are the column names; one `tr` per example row |
 | button Rent → COM Rent Bike | `<button type="button">Rent</button>` |
 | button Register → SCR Register Bike Form | `<button type="button">Register</button>` |
-| COM takes title from the SCR | `com-data` on the value field: `<label class="text">title <input class="com-data" value="Buy milk" readonly></label>` |
-| RMO fills a table cell | `rmo-data` on that cell: `<td class="rmo-data">Buy milk</td>` |
-| RMO / COM value in a `p.label` | wrap the value only: `<p class="label">bikeId <span class="com-data">B-101</span></p>` |
+| COM takes title from the SCR | `com-data` + `data-prop` on the value field: `<label class="text">title <input class="com-data" data-prop="title" value="Buy milk" readonly></label>` |
+| RMO fills a table cell | `rmo-data` + `data-prop` on that cell: `<td class="rmo-data" data-prop="title">Buy milk</td>` |
+| RMO / COM value in a `p.label` | wrap the value only: `<p class="label">bikeId <span class="com-data" data-prop="bikeId">B-101</span></p>` |
 
 ```html
 <article class="scr" id="scr-rent-bike-form">
@@ -857,7 +859,7 @@ An SPA: one screen, several `area`s. Repeat the same layout in every slice; only
   <div class="wire">
     <div class="col">
       <fieldset class="area"><legend>Add</legend>
-        <label class="text">title <input class="com-data" value="Buy milk" readonly></label>
+        <label class="text">title <input class="com-data" data-prop="title" value="Buy milk" readonly></label>
         <div class="row end"><button type="button">Add</button></div>
       </fieldset>
       <fieldset class="area"><legend>Open</legend>
@@ -890,8 +892,8 @@ An SPA: one screen, several `area`s. Repeat the same layout in every slice; only
           <thead><tr><th>todoId</th><th>title</th><th></th></tr></thead>
           <tbody>
             <tr>
-              <td class="rmo-data">T-1</td>
-              <td class="rmo-data">Buy milk</td>
+              <td class="rmo-data" data-prop="todoId">T-1</td>
+              <td class="rmo-data" data-prop="title">Buy milk</td>
               <td><button type="button">Complete</button></td>
             </tr>
           </tbody>
@@ -1011,6 +1013,6 @@ One cell per slice. A SLC may have no timelines, or many GWTs on one or more ver
 
 Each GWT card uses the same `h2` and `dl.props` as the cards above, with the example values from that step of the timeline, and no `id`. An empty RMO at the start of a timeline is the `h2` only. A slice with no GWTs is an empty `.cell.gwt`.
 
-Hover lights a path; click a connector scrolls any clipped end into view. Tile files, sticky-row measurements, and corridor continuity rules are in [`html-css.md`](html-css.md).
+Hover lights a path; hover a property value to trace that name through SCR ↔ COM/RMO ↔ EVT (following MAP renames); click a connector scrolls any clipped end into view. Put `data-prop` on every SCR value field so that trace can find the screen. Tile files, sticky-row measurements, and corridor continuity rules are in [`html-css.md`](html-css.md).
 
 For more, see: [eventmodeling.org](https://eventmodeling.org) or review example EMDs in this folder.

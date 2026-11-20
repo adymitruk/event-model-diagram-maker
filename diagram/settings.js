@@ -6,6 +6,9 @@
   const FADE_KEY = 'emd-focus-fade';
   const TILE_KEY = 'emd-tile';
   const SCALE_KEY = 'emd-scale';
+  const HOVER_CONNECTORS_KEY = 'emd-hover-connectors';
+  const HOVER_VALUES_KEY = 'emd-hover-values';
+  const HOVER_CARDS_KEY = 'emd-hover-cards';
   const FADE_DEFAULT = 0.2;
   const TILE_DEFAULT = 16;
   const TILE_MIN = 8;
@@ -26,8 +29,24 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
+  function readBool(key, fallback) {
+    const raw = localStorage.getItem(key);
+    if (raw == null || raw === '') return fallback;
+    if (raw === '0' || raw === 'false') return false;
+    if (raw === '1' || raw === 'true') return true;
+    return fallback;
+  }
+
   function clamp(n, min, max) {
     return Math.min(max, Math.max(min, n));
+  }
+
+  function applyHoverPref(key, datasetKey, on) {
+    const v = !!on;
+    localStorage.setItem(key, v ? '1' : '0');
+    document.documentElement.dataset[datasetKey] = v ? '1' : '0';
+    window.dispatchEvent(new Event('emd:hover-prefs'));
+    return v;
   }
 
   function applyFade(value) {
@@ -91,6 +110,21 @@
     const fade0 = applyFade(readNum(FADE_KEY, FADE_DEFAULT));
     const tile0 = applyTile(readNum(TILE_KEY, TILE_DEFAULT), false);
     const scale0 = applyScale(readNum(SCALE_KEY, SCALE_DEFAULT), false);
+    const hoverConnectors0 = applyHoverPref(
+      HOVER_CONNECTORS_KEY,
+      'emdHoverConnectors',
+      readBool(HOVER_CONNECTORS_KEY, true)
+    );
+    const hoverValues0 = applyHoverPref(
+      HOVER_VALUES_KEY,
+      'emdHoverValues',
+      readBool(HOVER_VALUES_KEY, true)
+    );
+    const hoverCards0 = applyHoverPref(
+      HOVER_CARDS_KEY,
+      'emdHoverCards',
+      readBool(HOVER_CARDS_KEY, true)
+    );
 
     corner.removeAttribute('aria-hidden');
     corner.classList.add('emd-corner');
@@ -136,6 +170,18 @@
       tile0 +
       '">' +
       '</label>' +
+      '<fieldset class="emd-settings-fieldset">' +
+      '<legend>Highlight on hover</legend>' +
+      '<label class="emd-settings-check"><input id="emd-hover-connectors" type="checkbox"' +
+      (hoverConnectors0 ? ' checked' : '') +
+      '> Connectors</label>' +
+      '<label class="emd-settings-check"><input id="emd-hover-values" type="checkbox"' +
+      (hoverValues0 ? ' checked' : '') +
+      '> Values</label>' +
+      '<label class="emd-settings-check"><input id="emd-hover-cards" type="checkbox"' +
+      (hoverCards0 ? ' checked' : '') +
+      '> Cards</label>' +
+      '</fieldset>' +
       '</div>' +
       '<div class="emd-popover emd-help-pop" id="emd-help-pop" role="dialog" aria-label="About this board">' +
       '<h2>About this board</h2>' +
@@ -147,7 +193,7 @@
       '<li><strong>GWT</strong> (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a <strong>COM</strong>: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an <strong>RMO</strong>: read model, then event, then read model, … ending with the read model — so you see how the projection changes as each event arrives (including lookup entries when the read model joins by id).</li>' +
       '<li>Arrows are the data flow: screen → command → event (or error), and event → read model → screen. A <strong>MAP</strong> on an arrow names inputs → outputs when data changes shape.</li>' +
       '<li><strong>SCR highlights</strong> — on a command slice, value fields the command takes are light blue; on a read-model slice, value fields the read model fills are light green. Highlight the field or cell only, not the property-name label. An SPA keeps one screen layout and paints those live fields in each slice.</li>' +
-      '<li>Hover any card or connector to keep that path lit and fade the rest. Click a connector to scroll any end that is partly out of view fully into the viewport. Use the gear to tune scale, fade, and connector tile size.</li>' +
+      '<li>Hover any card or connector to keep that path lit and fade the rest. Hover a <strong>property value</strong> (on a card or a screen field) to isolate that property through its sources and destinations — matching values and their connectors stay lit, everything else fades. Click a connector to scroll any end that is partly out of view fully into the viewport. Use the gear to tune scale, fade, connector tile size, and which hover highlights are on (connectors, values, cards — all on by default).</li>' +
       '</ul>' +
       '</div>';
 
@@ -161,6 +207,9 @@
     const fadeOut = corner.querySelector('#emd-fade-out');
     const tileInput = corner.querySelector('#emd-tile');
     const tileOut = corner.querySelector('#emd-tile-out');
+    const hoverConnectorsInput = corner.querySelector('#emd-hover-connectors');
+    const hoverValuesInput = corner.querySelector('#emd-hover-values');
+    const hoverCardsInput = corner.querySelector('#emd-hover-cards');
 
     settingsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -189,6 +238,20 @@
       tileOut.textContent = v + 'px';
       clearTimeout(tileTimer);
       tileTimer = setTimeout(() => window.dispatchEvent(new Event('emd:retile')), 60);
+    });
+
+    hoverConnectorsInput.addEventListener('change', () => {
+      applyHoverPref(
+        HOVER_CONNECTORS_KEY,
+        'emdHoverConnectors',
+        hoverConnectorsInput.checked
+      );
+    });
+    hoverValuesInput.addEventListener('change', () => {
+      applyHoverPref(HOVER_VALUES_KEY, 'emdHoverValues', hoverValuesInput.checked);
+    });
+    hoverCardsInput.addEventListener('change', () => {
+      applyHoverPref(HOVER_CARDS_KEY, 'emdHoverCards', hoverCardsInput.checked);
     });
 
     document.addEventListener('click', (e) => {

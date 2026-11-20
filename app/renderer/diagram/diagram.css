@@ -314,6 +314,31 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
   margin: 0;
   accent-color: #333;
 }
+.emd-settings-fieldset {
+  margin: 0.35rem 0 0;
+  padding: 0.55rem 0.65rem 0.65rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.emd-settings-fieldset > legend {
+  padding: 0 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #444;
+}
+.emd-settings-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #333;
+  cursor: pointer;
+}
+.emd-settings-check input {
+  margin: 0;
+  accent-color: #333;
+}
 /* First LBA swim lane: mirror the LBA cell — flex gap above, label beside the EVTs.
    The label box is sized like a one-prop .evt card so the flex gap matches the arrow corridor. */
 .lane.lba-head {
@@ -430,11 +455,25 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 .props div { display: flex; justify-content: space-between; gap: 1em; min-width: 0; padding: 0.1em 0.25em; border-radius: 4px; transition: opacity 0.12s ease, background-color 0.12s ease; }
 .props dt { font-weight: 400; flex: 0 1 auto; }
 .props dd { margin: 0; font-weight: 700; text-align: right; min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
-/* MAP hover: emphasize the mapped property rows; dim other props on those cards. */
+/* Property / MAP hover: emphasize traced value fields; dim other props on those cards. */
 .emd.path-focus:has(.prop-hot) .endpoint-hot .props > div:not(.prop-hot) {
   opacity: 0.35;
 }
 .emd.path-focus .props > div.prop-hot {
+  opacity: 1;
+  background: var(--map);
+  box-shadow: inset 0 0 0 1px #e8d56a;
+}
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire input:not(.prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire select:not(.prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire td:not(.prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire span:not(.prop-hot) {
+  opacity: 0.35;
+}
+.emd.path-focus .wire input.prop-hot,
+.emd.path-focus .wire select.prop-hot,
+.emd.path-focus .wire td.prop-hot,
+.emd.path-focus .wire span.prop-hot {
   opacity: 1;
   background: var(--map);
   box-shadow: inset 0 0 0 1px #e8d56a;
