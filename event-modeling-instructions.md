@@ -128,6 +128,31 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
 - SCR, PRO, COM, RMO, EVT, ERR and MAP: the abbreviation followed by a title-case name (e.g., `SCR Rent Bike Form`, `PRO Bike Lister`, `COM Rent Bike`, `RMO Bike Catalog`, `EVT Bike Rented`, `ERR Unknown Customer`, `MAP Rental End`). A COM is an imperative (verb then object), an EVT is in past tense, and an RMO a PRO works from ends in `TODO`.
 - Where an item is placed, its SWL follows in parentheses: a SCR or PRO carries its USR (`SCR Rent Bike Form (Jim)`), and an RMO, EVT or ERR carries its SVC (`EVT Bike Rented (Rental)`). Where an item is referred to from another SLC, that SLC follows in parentheses instead (`EVT Bike Rented (SLC12)`).
 
+**Catalog (after USRs and SVCs).** List every distinct COM, EVT and RMO once — property names only (no example values), plus what each connects to. Put these sections immediately under **SVCs**, before **WFLs**. The slice **Properties** later still carry the concrete example values; the catalog is the schema and wiring index used for reading and for emitting the board.
+
+```
+**COMs:**
+- COM <name>
+  - properties: <names>
+  - from: SCR <name> | PRO <name>
+  - to: EVT <name>
+  - fails: ERR <name> → SCR <name>   ← only when the COM has an ERR path
+
+**EVTs:**
+- EVT <name> (<SVC>)
+  - properties: <names>
+  - from: COM <name>
+  - to: RMO <name>, …                ← every RMO that projects it; `none` if unused yet
+
+**RMOs:**
+- RMO <name> (<SVC>)
+  - properties: <names>              ← for multi-row RMOs: name the row fields; note lookup objects when it joins
+  - from: EVT <name>, …              ← include join key when it joins (e.g. join by attendeeId)
+  - to: SCR <name> | PRO <name>
+```
+
+List each type once even when the example uses it in several slices. Fold join facts into the RMO **from** line (no separate Joins list is required). MAPs and ERRs stay in their own lists after WFLs.
+
 Every item in an EMD carries concrete data: its properties and their values in the example. Where a value comes from is not written on the property; the arrows say it. A property on a COM comes from the SCR or PRO at the tail of its arrow, a property on an EVT from its COM, a property on an RMO from the EVTs whose arrows point to it, and a property on a SCR or PRO from the RMO below it. A value that first appears on a COM (e.g., an id) was generated there. Where processing changes a property's name or shape, a MAP on that arrow names its inputs and outputs; nothing else is annotated.
 
 A SCR is written as its nested elements, the way a rough wireframe is sketched: groups, rows and columns hold headings, labels, text boxes, dropdowns, date pickers, check boxes, tables and buttons, top to bottom and left to right. A button that issues a COM or opens another SCR names it with →. Each element carries only its kind, its property and value.
@@ -162,9 +187,11 @@ timeline B:
 One timeline for an RMO (RMO at start, between each EVT, and at end)
 - RMO <name> (<SVC>): (empty)              ← before any EVT
 - EVT <name> (SLC<m>): <properties>        ← Given (e.g. entity registered; builds lookup)
-- RMO <name> (<SVC>): lookup <id> → <props> ← after that EVT; lookup source for later joins
+- RMO <name> (<SVC>): attendeeId = A-1, name = Pat Lee
+                                       ← after that EVT; lookup object (named props)
 - EVT <name> (SLC<n>): <id>, <properties>  ← Given (carries the join id, not the looked-up props)
-- RMO <name> (<SVC>): lookup …; <row>      ← after that EVT; row uses lookup by id (last = Then)
+- RMO <name> (<SVC>): …; topicId = T-1, title = …, kind = …, name = Pat Lee
+                                       ← after that EVT; row object uses lookup by id (last = Then)
 ```
 
 On the board the three-letter prefix is left off, matching the cards. The timeline order is the only structure; do not add Given/When/Then labels. Samples for a COM, two COMs on one timeline, a failed COM, and an RMO are in the example.
@@ -175,6 +202,105 @@ Bike rental shop.
 
 **USRs:** Jim (Customer), Sam (Shop Clerk)
 **SVCs:** Fleet, Customer, Rental
+
+**COMs:**
+- COM Receive Bike
+  - properties: serialNumber, model, type, bikeId
+  - from: SCR Receive Bike Form
+  - to: EVT Bike Received
+- COM Register Bike
+  - properties: bikeId, dailyRate
+  - from: SCR Register Bike Form
+  - to: EVT Bike Registered
+- COM List Bike
+  - properties: bikeId, model, dailyRate
+  - from: PRO Bike Lister
+  - to: EVT Bike Listed
+- COM Submit Application
+  - properties: firstName, lastName, email, customerId
+  - from: SCR Customer Application Form
+  - to: EVT Application Submitted
+- COM Register Customer
+  - properties: customerId, firstName, lastName, email
+  - from: PRO Customer Registrar
+  - to: EVT Customer Registered
+- COM Rent Bike
+  - properties: bikeId, customerId, startDate, days, rentalId
+  - from: SCR Rent Bike Form
+  - to: EVT Bike Rented
+  - fails: ERR Unknown Customer → SCR Rent Bike Form
+- COM Return Bike
+  - properties: rentalId, returnDate
+  - from: SCR Return Desk
+  - to: EVT Bike Returned
+- COM Send Receipt
+  - properties: rentalId
+  - from: PRO Receipt Sender
+  - to: EVT Receipt Sent
+
+**EVTs:**
+- EVT Bike Received (Fleet)
+  - properties: bikeId, serialNumber, model, type
+  - from: COM Receive Bike
+  - to: RMO Unregistered Bikes, RMO Bike Listings TODO, RMO Bike Catalog
+- EVT Bike Registered (Fleet)
+  - properties: bikeId, dailyRate
+  - from: COM Register Bike
+  - to: RMO Bike Listings TODO, RMO Bike Catalog
+- EVT Bike Listed (Rental)
+  - properties: bikeId, model, dailyRate
+  - from: COM List Bike
+  - to: RMO Rental Confirmation, RMO Receipts TODO
+- EVT Application Submitted (Customer)
+  - properties: customerId, firstName, lastName, email
+  - from: COM Submit Application
+  - to: RMO Application Confirmation, RMO Customer Names TODO
+- EVT Customer Registered (Rental)
+  - properties: customerId, email, name
+  - from: COM Register Customer
+  - to: RMO Rental Confirmation, RMO Receipts TODO
+- EVT Bike Rented (Rental)
+  - properties: rentalId, bikeId, customerId, startDate, days, endDate
+  - from: COM Rent Bike
+  - to: RMO Rental Confirmation, RMO Receipts TODO
+- EVT Bike Returned (Rental)
+  - properties: rentalId, returnDate
+  - from: COM Return Bike
+  - to: RMO Receipts TODO
+- EVT Receipt Sent (Rental)
+  - properties: rentalId
+  - from: COM Send Receipt
+  - to: none
+
+**RMOs:**
+- RMO Unregistered Bikes (Fleet)
+  - properties: bikeId, serialNumber, model, type (rows; bikes with EVT Bike Received and no later EVT Bike Registered)
+  - from: EVT Bike Received (by bikeId)
+  - to: SCR Unregistered Bikes
+- RMO Bike Listings TODO (Fleet)
+  - properties: bikeId, model, dailyRate (rows; join EVT Bike Registered ⋈ EVT Bike Received by bikeId)
+  - from: EVT Bike Registered, EVT Bike Received (join by bikeId)
+  - to: PRO Bike Lister
+- RMO Bike Catalog (Fleet)
+  - properties: bikeId, model, type, dailyRate (rows; join by bikeId)
+  - from: EVT Bike Received, EVT Bike Registered (join by bikeId)
+  - to: SCR Bike Catalog
+- RMO Application Confirmation (Customer)
+  - properties: customerId, firstName, lastName, email
+  - from: EVT Application Submitted
+  - to: SCR Application Confirmation
+- RMO Customer Names TODO (Customer)
+  - properties: customerId, firstName, lastName, email (rows)
+  - from: EVT Application Submitted
+  - to: PRO Customer Registrar
+- RMO Rental Confirmation (Rental)
+  - properties: rentalId, bike, name, startDate, endDate, days, total (joins + MAPs Bike Label, Rental Total)
+  - from: EVT Bike Rented, EVT Bike Listed (join by bikeId), EVT Customer Registered (join by customerId)
+  - to: SCR Rental Confirmation
+- RMO Receipts TODO (Rental)
+  - properties: rentalId, customerId, name, email, returnDate, total (joins + MAP Rental Total)
+  - from: EVT Bike Returned, EVT Bike Rented (join by rentalId), EVT Bike Listed (join by bikeId), EVT Customer Registered (join by customerId)
+  - to: PRO Receipt Sender
 
 **WFLs:**
 - WFL1 Stock a bike: SLC1–SLC5, ends EVT Bike Listed
@@ -190,13 +316,6 @@ Bike rental shop.
 
 **ERRs:**
 - ERR Unknown Customer, on COM Rent Bike (SLC11) → SCR Rent Bike Form (SLC12)
-
-**Joins (RMO, matched by id, all EVTs in one SWL):**
-- RMO Unregistered Bikes (Fleet): EVT Bike Received without a later EVT Bike Registered, by bikeId
-- RMO Bike Listings TODO (Fleet): EVT Bike Registered ⋈ EVT Bike Received, by bikeId
-- RMO Bike Catalog (Fleet): EVT Bike Received ⋈ EVT Bike Registered, by bikeId
-- RMO Rental Confirmation (Rental): EVT Bike Rented ⋈ EVT Bike Listed by bikeId ⋈ EVT Customer Registered by customerId
-- RMO Receipts TODO (Rental): EVT Bike Returned ⋈ EVT Bike Rented by rentalId ⋈ EVT Bike Listed by bikeId ⋈ EVT Customer Registered by customerId
 
 **Diagram:**
 
@@ -438,13 +557,14 @@ Read the `EMD.md` straight into the templates below:
 |---|---|
 | USRs | one UBA row each, lane text `<name> (<ROL>)` |
 | SVCs | one LBA row each; first lane is `lba-head`, last row's cells take `foot` |
+| COMs / EVTs / RMOs (catalog) | schema for `dl.props` names and for `data-joins` / within-slice wiring; example values still come from slice **Properties** |
 | WFLs | one `.wfl` per workflow, `data-span` = its slice count, goal in the `span` |
 | COM slice | SCR or PRO, COM, EVT (or ERR), shafts in **COM slice** |
 | RMO slice | RMO, optional SCR with `arrow-up`, empty lower gap, in **RMO slice** |
 | NAV slice | SCR only, empty MBA and LBA, in **NAV slice** |
 | PRO | gear dock across the RMO slice and the next COM slice, in **Processor pair** |
 | MAP | `p.map` under the COM or the RMO, never on the EVT |
-| Properties | `dl.props` on COM, RMO, EVT, ERR (`dt` = name, `dd` = example value) |
+| Properties | `dl.props` on COM, RMO, EVT, ERR (`dt` = name, `dd` = example value); multi-row RMOs use `.obj` groups |
 | SCR wireframe | **Screen** templates; every named value gets `data-prop` |
 | COM-bound SCR values | class `com-data` + `data-prop` on the **value field only** |
 | RMO-fed SCR values | class `rmo-data` + `data-prop` on the **value field only** (never on labels, headings, legends, or `th`; empty RMO → no `rmo-data` on the SCR) |
@@ -456,17 +576,17 @@ Read the `EMD.md` straight into the templates below:
 
 For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the EMD contains.
 
-1. **Page shell** — copy **Page**. Set `<title>`, `--slices` to the SLC count, and `data-joins` to every EVT→RMO and ERR→SCR edge (ids from step 4). Link `../../diagram/diagram.css`, then at the bottom `connectors.js` and `settings.js` (in that order).
+1. **Page shell** — copy **Page**. Set `<title>`, `--slices` to the SLC count, and `data-joins` to every EVT→RMO and ERR→SCR edge from the **EVTs** / **RMOs** catalogs (and ERR list; ids from step 4). Link `../../diagram/diagram.css`, then at the bottom `connectors.js` and `settings.js` (in that order).
 2. **Board skeleton** — emit **Board rows** in order: workflow, each UBA, MBA, connector, each LBA, GWT. Every row is lane cell + one cell per SLC. Empty cells are empty `div`s with the right class and `data-slc` / `data-lane`.
 3. **WFLs** — one `.wfl` per workflow with `data-slc` = first slice and `data-span` = slice count; goal text in the inner `span`.
-4. **Ids** — every SCR, PRO, COM, RMO, EVT, ERR gets an `id` per **Ids and joins**. Reuse those ids in `data-joins`.
-5. **Fill each SLC** — COM → **COM slice** (+ **Processor pair** when a PRO); RMO → **RMO slice**; NAV → **NAV slice**. Vertical shafts per **Vertical shafts**. Put MAP notes under the COM or RMO per **Cards**.
+4. **Ids** — every SCR, PRO, COM, RMO, EVT, ERR gets an `id` per **Ids and joins**. Reuse those ids in `data-joins`. Name cards from the **COMs** / **EVTs** / **RMOs** catalogs.
+5. **Fill each SLC** — COM → **COM slice** (+ **Processor pair** when a PRO); RMO → **RMO slice**; NAV → **NAV slice**. Vertical shafts per **Vertical shafts**. Put MAP notes under the COM or RMO per **Cards**. Use catalog property names on every `dt` / `data-prop`; take example values from slice **Properties**.
 6. **Screens** — every SCR uses **Screen**. Always:
-   - `data-prop="<name>"` on every named value field (same names as the COM/RMO/EVT `dt`s).
+   - `data-prop="<name>"` on every named value field (same names as the COM/RMO/EVT catalog and `dt`s).
    - On a COM slice: `com-data` on each value the COM takes from this SCR (not on ids the COM generates).
    - On an RMO slice: `rmo-data` on each value this SCR shows from the RMO. If the RMO is empty, leave the SCR area without `rmo-data` — there are no values to highlight (do not paint the table or its headers).
    - SPA: same `area`s every slice; `com-data` / `rmo-data` only on the live fields for that slice; still put `data-prop` on fields that can carry the name.
-7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property). PRO as in **Processor card**.
+7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property; multi-row RMOs use one `.obj` per example object with named fields). PRO as in **Processor card**.
 8. **GWTs** — for each SLC that has timelines, fill `.cell.gwt` per **GWT**; otherwise leave the cell empty.
 9. **Connectors** — leave every `.cell.connector` empty. Do not hand-draw rails.
 10. **Check** — `--slices` matches column count; every `data-joins` id exists; every COM-bound and RMO-fed SCR value has `data-prop` and the right highlight class; shafts unbroken through empty UBA/LBA cells; scripts present.
@@ -756,8 +876,16 @@ The COM slice then continues like any COM slice (arrow into the COM, arrow into 
 <article class="rmo" id="rmo-topic-ballot">
   <h2>Topic Ballot</h2>
   <dl class="props">
-    <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
-    <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · Pat Lee</dd></div>
+    <div class="obj">
+      <div><dt>attendeeId</dt><dd>A-1</dd></div>
+      <div><dt>name</dt><dd>Pat Lee</dd></div>
+    </div>
+    <div class="obj">
+      <div><dt>topicId</dt><dd>T-1</dd></div>
+      <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+      <div><dt>kind</dt><dd>presentation</dd></div>
+      <div><dt>name</dt><dd>Pat Lee</dd></div>
+    </div>
   </dl>
 </article>
 
@@ -780,7 +908,7 @@ The COM slice then continues like any COM slice (arrow into the COM, arrow into 
 <p class="map">Rental End: startDate, days → endDate</p>
 ```
 
-One `div` per property, name in `dt`, example value in `dd`. A joined RMO keeps lookup rows (`lookup <id>` → the looked-up value) and one row per example line, with the row fields joined by ` · `. A TODO read model keeps `TODO` in the name. An ERR card is that property list. A clause before the colon in the EMD (the check) is not a paragraph on the card or on the GWT card; each fact it uses is a named property, and a property the check found empty is listed with an empty value. A MAP names properties only: no `MAP` prefix, no values, no formula.
+One `div` per property, name in `dt`, example value in `dd`. When an RMO holds many example rows (a list of objects), wrap each object in `<div class="obj">` and put that object's named properties inside — the same property names the SCR table columns and EVT fields use (`title`, `kind`, `name`, …). A joined RMO keeps lookup objects (`attendeeId` + `name`, not a synthetic `lookup A-1` key) and one `.obj` per joined row; do not pack row fields into one middot string under the id. A single-object RMO stays a flat list of property `div`s (no `.obj`). A TODO read model keeps `TODO` in the name. An ERR card is that property list. A clause before the colon in the EMD (the check) is not a paragraph on the card or on the GWT card; each fact it uses is a named property, and a property the check found empty is listed with an empty value. A MAP names properties only: no `MAP` prefix, no values, no formula.
 
 ### Screen
 

@@ -214,11 +214,19 @@
       return { inputs: splitProps(left), outputs: splitProps(right) };
     }
 
+    /** Flat `.props > div` rows, or fields inside `.props > .obj` (multi-row RMOs). */
+    function propRows(card) {
+      if (!card) return [];
+      return [
+        ...card.querySelectorAll('.props > div:not(.obj), .props > .obj > div'),
+      ];
+    }
+
     function markProps(card, names) {
       if (!card || !names.length) return;
       const want = new Set(names);
-      card.querySelectorAll('.props > div').forEach((row) => {
-        const dt = row.querySelector('dt');
+      propRows(card).forEach((row) => {
+        const dt = row.querySelector(':scope > dt');
         if (dt && want.has(dt.textContent.trim())) row.classList.add('prop-hot');
       });
       if (!card.classList.contains('scr')) return;
@@ -234,9 +242,16 @@
 
     function propNamesOn(card) {
       if (!card) return [];
-      return [...card.querySelectorAll('.props > div dt')]
-        .map((dt) => dt.textContent.trim())
-        .filter(Boolean);
+      return [
+        ...new Set(
+          propRows(card)
+            .map((row) => {
+              const dt = row.querySelector(':scope > dt');
+              return dt ? dt.textContent.trim() : '';
+            })
+            .filter(Boolean)
+        ),
+      ];
     }
 
     function mapElForJoin(j) {
@@ -355,10 +370,11 @@
 
     function resolvePropStart(el) {
       if (!el) return null;
-      const row = el.closest('.props > div');
+      const row =
+        el.closest('.props > .obj > div') || el.closest('.props > div:not(.obj)');
       if (row) {
         const card = row.closest('article.com, article.rmo, article.evt, article.err');
-        const dt = row.querySelector('dt');
+        const dt = row.querySelector(':scope > dt');
         if (card && dt) return { card, prop: dt.textContent.trim(), row };
       }
       const field = el.closest('[data-prop]');
@@ -852,7 +868,8 @@
         }
         const over = (e) => {
           const propEl =
-            e.target.closest('.props > div') ||
+            e.target.closest('.props > .obj > div') ||
+            e.target.closest('.props > div:not(.obj)') ||
             e.target.closest('[data-prop]') ||
             (e.target.closest('article.scr') === el
               ? (() => {
@@ -881,9 +898,13 @@
         el.addEventListener('mouseout', out);
       });
 
-    emd.querySelectorAll('.props > div, [data-prop]').forEach((el) => {
-      el.style.cursor = 'pointer';
-    });
+    emd
+      .querySelectorAll(
+        '.props > div:not(.obj), .props > .obj > div, [data-prop]'
+      )
+      .forEach((el) => {
+        el.style.cursor = 'pointer';
+      });
 
     // MAP hover — light the join and the mapped property rows on each side.
     emd.querySelectorAll('.mba > .map').forEach((el) => {

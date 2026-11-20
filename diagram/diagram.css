@@ -452,14 +452,39 @@ article { border: 0; border-radius: 1.14em; padding: 0.85em 1em 0.95em; backgrou
 }
 article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 .props { margin: 0; display: flex; flex-direction: column; gap: 0.15em; min-width: 0; }
-.props div { display: flex; justify-content: space-between; gap: 1em; min-width: 0; padding: 0.1em 0.25em; border-radius: 4px; transition: opacity 0.12s ease, background-color 0.12s ease; }
+/* Flat property row, or a field inside an .obj group (array-of-objects RMO rows). */
+.props > div:not(.obj),
+.props > .obj > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  min-width: 0;
+  padding: 0.1em 0.25em;
+  border-radius: 4px;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+/* One object in a multi-row RMO: named fields, not a middot-packed line. */
+.props > .obj {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08em;
+  min-width: 0;
+  padding: 0.35em 0;
+  border-top: 1px solid rgba(28, 28, 28, 0.1);
+}
+.props > .obj:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
 .props dt { font-weight: 400; flex: 0 1 auto; }
 .props dd { margin: 0; font-weight: 700; text-align: right; min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
 /* Property / MAP hover: emphasize traced value fields; dim other props on those cards. */
-.emd.path-focus:has(.prop-hot) .endpoint-hot .props > div:not(.prop-hot) {
+.emd.path-focus:has(.prop-hot) .endpoint-hot .props > div:not(.obj):not(.prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .props > .obj > div:not(.prop-hot) {
   opacity: 0.35;
 }
-.emd.path-focus .props > div.prop-hot {
+.emd.path-focus .props > div.prop-hot,
+.emd.path-focus .props > .obj > div.prop-hot {
   opacity: 1;
   background: var(--map);
   box-shadow: inset 0 0 0 1px #e8d56a;
