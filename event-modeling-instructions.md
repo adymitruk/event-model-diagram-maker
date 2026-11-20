@@ -146,7 +146,9 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
 
 **RMOs:**
 - RMO <name> (<SVC>)
-  - properties: <names>              ← for multi-row RMOs: name the row fields; note lookup objects when it joins
+  - properties: <names>              ← single-object RMO
+  - collections: [<fields>]          ← one table: no collection name (the RMO name is enough)
+  - collections: <RMO name> [<fields>]; <other> [<fields>]; …  ← more than one table: one collection uses the RMO name; the others are named
   - from: EVT <name>, …              ← include join key when it joins (e.g. join by attendeeId)
   - to: SCR <name> | PRO <name>
 ```
@@ -274,15 +276,15 @@ Bike rental shop.
 
 **RMOs:**
 - RMO Unregistered Bikes (Fleet)
-  - properties: bikeId, serialNumber, model, type (rows; bikes with EVT Bike Received and no later EVT Bike Registered)
+  - collections: [bikeId, serialNumber, model, type]  ← bikes with EVT Bike Received and no later EVT Bike Registered
   - from: EVT Bike Received (by bikeId)
   - to: SCR Unregistered Bikes
 - RMO Bike Listings TODO (Fleet)
-  - properties: bikeId, model, dailyRate (rows; join EVT Bike Registered ⋈ EVT Bike Received by bikeId)
+  - collections: [bikeId, model, dailyRate]  ← join EVT Bike Registered ⋈ EVT Bike Received by bikeId
   - from: EVT Bike Registered, EVT Bike Received (join by bikeId)
   - to: PRO Bike Lister
 - RMO Bike Catalog (Fleet)
-  - properties: bikeId, model, type, dailyRate (rows; join by bikeId)
+  - collections: [bikeId, model, type, dailyRate]  ← join by bikeId
   - from: EVT Bike Received, EVT Bike Registered (join by bikeId)
   - to: SCR Bike Catalog
 - RMO Application Confirmation (Customer)
@@ -290,7 +292,7 @@ Bike rental shop.
   - from: EVT Application Submitted
   - to: SCR Application Confirmation
 - RMO Customer Names TODO (Customer)
-  - properties: customerId, firstName, lastName, email (rows)
+  - collections: [customerId, firstName, lastName, email]
   - from: EVT Application Submitted
   - to: PRO Customer Registrar
 - RMO Rental Confirmation (Rental)
@@ -564,7 +566,7 @@ Read the `EMD.md` straight into the templates below:
 | NAV slice | SCR only, empty MBA and LBA, in **NAV slice** |
 | PRO | gear dock across the RMO slice and the next COM slice, in **Processor pair** |
 | MAP | `p.map` under the COM or the RMO, never on the EVT |
-| Properties | `dl.props` on COM, RMO, EVT, ERR (`dt` = name, `dd` = example value); multi-row RMOs use `.obj` groups |
+| Properties | `dl.props` on COM, EVT, ERR, and single-object RMOs (`dt` = name, `dd` = example value); multi-row RMOs use `table.collection` inside `div.props` (caption only when the card has more than one table) |
 | SCR wireframe | **Screen** templates; every named value gets `data-prop` |
 | COM-bound SCR values | class `com-data` + `data-prop` on the **value field only** |
 | RMO-fed SCR values | class `rmo-data` + `data-prop` on the **value field only** (never on labels, headings, legends, or `th`; empty RMO → no `rmo-data` on the SCR) |
@@ -586,7 +588,7 @@ For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the 
    - On a COM slice: `com-data` on each value the COM takes from this SCR (not on ids the COM generates).
    - On an RMO slice: `rmo-data` on each value this SCR shows from the RMO. If the RMO is empty, leave the SCR area without `rmo-data` — there are no values to highlight (do not paint the table or its headers).
    - SPA: same `area`s every slice; `com-data` / `rmo-data` only on the live fields for that slice; still put `data-prop` on fields that can carry the name.
-7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property; multi-row RMOs use one `.obj` per example object with named fields). PRO as in **Processor card**.
+7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property for single objects; multi-row RMOs use `table.collection` blocks — caption the RMO name + other collection names only when there is more than one table). PRO as in **Processor card**.
 8. **GWTs** — for each SLC that has timelines, fill `.cell.gwt` per **GWT**; otherwise leave the cell empty.
 9. **Connectors** — leave every `.cell.connector` empty. Do not hand-draw rails.
 10. **Check** — `--slices` matches column count; every `data-joins` id exists; every COM-bound and RMO-fed SCR value has `data-prop` and the right highlight class; shafts unbroken through empty UBA/LBA cells; scripts present.
@@ -873,20 +875,46 @@ The COM slice then continues like any COM slice (arrow into the COM, arrow into 
   </dl>
 </article>
 
+<article class="rmo" id="rmo-agenda-builder">
+  <h2>Agenda Builder</h2>
+  <div class="props">
+    <table class="collection">
+      <thead><tr><th>topicId</th><th>title</th><th>kind</th><th>voteCount</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-prop="topicId">T-1</td>
+          <td data-prop="title">Event Sourcing in Practice</td>
+          <td data-prop="kind">presentation</td>
+          <td data-prop="voteCount">2</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</article>
+
 <article class="rmo" id="rmo-topic-ballot">
   <h2>Topic Ballot</h2>
-  <dl class="props">
-    <div class="obj">
-      <div><dt>attendeeId</dt><dd>A-1</dd></div>
-      <div><dt>name</dt><dd>Pat Lee</dd></div>
-    </div>
-    <div class="obj">
-      <div><dt>topicId</dt><dd>T-1</dd></div>
-      <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
-      <div><dt>kind</dt><dd>presentation</dd></div>
-      <div><dt>name</dt><dd>Pat Lee</dd></div>
-    </div>
-  </dl>
+  <div class="props">
+    <table class="collection">
+      <caption>Topic Ballot</caption>
+      <thead><tr><th>topicId</th><th>title</th><th>kind</th><th>name</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-prop="topicId">T-1</td>
+          <td data-prop="title">Event Sourcing in Practice</td>
+          <td data-prop="kind">presentation</td>
+          <td data-prop="name">Pat Lee</td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="collection">
+      <caption>lookups</caption>
+      <thead><tr><th>attendeeId</th><th>name</th></tr></thead>
+      <tbody>
+        <tr><td data-prop="attendeeId">A-1</td><td data-prop="name">Pat Lee</td></tr>
+      </tbody>
+    </table>
+  </div>
 </article>
 
 <article class="evt" id="evt-bike-received">
@@ -908,7 +936,7 @@ The COM slice then continues like any COM slice (arrow into the COM, arrow into 
 <p class="map">Rental End: startDate, days → endDate</p>
 ```
 
-One `div` per property, name in `dt`, example value in `dd`. When an RMO holds many example rows (a list of objects), wrap each object in `<div class="obj">` and put that object's named properties inside — the same property names the SCR table columns and EVT fields use (`title`, `kind`, `name`, …). A joined RMO keeps lookup objects (`attendeeId` + `name`, not a synthetic `lookup A-1` key) and one `.obj` per joined row; do not pack row fields into one middot string under the id. A single-object RMO stays a flat list of property `div`s (no `.obj`). A TODO read model keeps `TODO` in the name. An ERR card is that property list. A clause before the colon in the EMD (the check) is not a paragraph on the card or on the GWT card; each fact it uses is a named property, and a property the check found empty is listed with an empty value. A MAP names properties only: no `MAP` prefix, no values, no formula.
+One `div` per property, name in `dt`, example value in `dd`. When an RMO holds many example rows (collections of objects), put each collection in a `table.collection` inside `div.props`: `<th>` headers list the property names once, and each body `<td data-prop="…">` holds an example value — the same names the SCR table columns and EVT fields use. If the card has **one** table, omit `<caption>` — the RMO's `h2` is the name. If it has **more than one**, give every table a `<caption>`: one caption is the RMO name (the main collection), and each other collection gets its own name (e.g. `lookups`). A joined RMO keeps a lookups table (`attendeeId` + `name`, not a synthetic `lookup A-1` key) beside the main collection; do not pack row fields into one middot string under the id. A single-object RMO stays a flat `dl.props` list (no table). A TODO read model keeps `TODO` in the name. An ERR card is that property list. A clause before the colon in the EMD (the check) is not a paragraph on the card or on the GWT card; each fact it uses is a named property, and a property the check found empty is listed with an empty value. A MAP names properties only: no `MAP` prefix, no values, no formula.
 
 ### Screen
 
@@ -923,7 +951,7 @@ An SPA is still one SCR per slice: same screen name and the same areas in every 
 
 Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (unless you are only showing an ERR message).
 
-**`data-prop` (required for property hover).** Every SCR value that is a named property also gets `data-prop="<name>"` on that same value field — the same names as the COM / RMO / EVT `dt`s. `connectors.js` traces by property name **and** example value (plus MAP notes for renames), so hovering one cell in a multi-row RMO or table lights only that value wherever it flows — not every sibling row's same field — and fades the rest. Card `dl.props` rows need no extra attribute; the `dt` is the name and the `dd` is the value. On an SPA, put `data-prop` on every area that can show that property, and keep `com-data` / `rmo-data` only on the live fields for that slice — the tracer prefers those live fields when linking the screen to the COM or RMO.
+**`data-prop` (required for property hover).** Every SCR value that is a named property also gets `data-prop="<name>"` on that same value field — the same names as the COM / RMO / EVT `dt`s and collection headers. `connectors.js` traces by property name **and** example value (plus MAP notes for renames), so hovering one cell in a multi-row RMO collection or SCR table lights only that value wherever it flows — not every sibling row's same field — and fades the rest. Flat card `dl.props` rows need no extra attribute; the `dt` is the name and the `dd` is the value. Collection body cells carry `data-prop` on each `td`. On an SPA, put `data-prop` on every area that can show that property, and keep `com-data` / `rmo-data` only on the live fields for that slice — the tracer prefers those live fields when linking the screen to the COM or RMO.
 
 Named value fields **always** carry `data-prop`. Add `com-data` or `rmo-data` when that slice's COM or RMO owns the value (see above). Idle SPA fields keep `data-prop` only.
 

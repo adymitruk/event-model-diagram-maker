@@ -228,8 +228,8 @@
 
     function propTargetFromEvent(el, target) {
       const propEl =
-        target.closest('.props > .obj > div') ||
-        target.closest('.props > div:not(.obj)') ||
+        target.closest('.props > table.collection td[data-prop]') ||
+        target.closest('.props > div') ||
         target.closest('[data-prop]') ||
         (target.closest('article.scr') === el
           ? (() => {
@@ -270,12 +270,27 @@
       return { inputs: splitProps(left), outputs: splitProps(right) };
     }
 
-    /** Flat `.props > div` rows, or fields inside `.props > .obj` (multi-row RMOs). */
+    /**
+     * Flat `.props > div` rows, or `td[data-prop]` cells in named collection
+     * tables (multi-row RMOs).
+     */
     function propRows(card) {
       if (!card) return [];
       return [
-        ...card.querySelectorAll('.props > div:not(.obj), .props > .obj > div'),
+        ...card.querySelectorAll(
+          '.props > div, .props > table.collection td[data-prop]'
+        ),
       ];
+    }
+
+    /** Property name on a flat `dt`/`dd` row or a `data-prop` cell. */
+    function propNameOf(el) {
+      if (!el) return '';
+      if (el.hasAttribute && el.hasAttribute('data-prop')) {
+        return el.getAttribute('data-prop').trim();
+      }
+      const dt = el.querySelector && el.querySelector(':scope > dt');
+      return dt ? dt.textContent.trim() : '';
     }
 
     /** Example value on a prop row or SCR control (input/select/td/span). */
@@ -283,6 +298,9 @@
       if (!el) return '';
       if (el.matches && el.matches('input, select, textarea')) {
         return String(el.value || '').trim();
+      }
+      if (el.matches && el.matches('td[data-prop]')) {
+        return String(el.textContent || '').trim();
       }
       const dd = el.matches && el.matches('dd') ? el : el.querySelector(':scope > dd');
       if (dd) return dd.textContent.trim();
@@ -298,8 +316,8 @@
       const wantVal = value == null ? null : String(value).trim();
       const sites = [];
       propRows(card).forEach((row) => {
-        const dt = row.querySelector(':scope > dt');
-        if (!dt || dt.textContent.trim() !== prop) return;
+        const name = propNameOf(row);
+        if (name !== prop) return;
         const val = propValueOf(row);
         if (wantVal != null && val !== wantVal) return;
         sites.push({ el: row, prop, value: val });
@@ -331,16 +349,7 @@
 
     function propNamesOn(card) {
       if (!card) return [];
-      return [
-        ...new Set(
-          propRows(card)
-            .map((row) => {
-              const dt = row.querySelector(':scope > dt');
-              return dt ? dt.textContent.trim() : '';
-            })
-            .filter(Boolean)
-        ),
-      ];
+      return [...new Set(propRows(card).map(propNameOf).filter(Boolean))];
     }
 
     function mapElForJoin(j) {
@@ -507,15 +516,22 @@
 
     function resolvePropStart(el) {
       if (!el) return null;
-      const row =
-        el.closest('.props > .obj > div') || el.closest('.props > div:not(.obj)');
+      const cell = el.closest('.props > table.collection td[data-prop]');
+      if (cell) {
+        const card = cell.closest('article.com, article.rmo, article.evt, article.err');
+        const prop = propNameOf(cell);
+        if (card && prop) {
+          return { card, prop, row: cell, value: propValueOf(cell) };
+        }
+      }
+      const row = el.closest('.props > div');
       if (row) {
         const card = row.closest('article.com, article.rmo, article.evt, article.err');
-        const dt = row.querySelector(':scope > dt');
-        if (card && dt) {
+        const prop = propNameOf(row);
+        if (card && prop) {
           return {
             card,
-            prop: dt.textContent.trim(),
+            prop,
             row,
             value: propValueOf(row),
           };
@@ -523,7 +539,9 @@
       }
       const field = el.closest('[data-prop]');
       if (field) {
-        const card = field.closest('article.scr');
+        const card = field.closest(
+          'article.scr, article.com, article.rmo, article.evt, article.err'
+        );
         const prop = field.getAttribute('data-prop').trim();
         if (card && prop) {
           return { card, prop, row: field, value: propValueOf(field) };
@@ -1082,7 +1100,7 @@
 
     emd
       .querySelectorAll(
-        '.props > div:not(.obj), .props > .obj > div, [data-prop]'
+        '.props > div, .props > table.collection td[data-prop], [data-prop]'
       )
       .forEach((el) => {
         el.style.cursor = 'pointer';
