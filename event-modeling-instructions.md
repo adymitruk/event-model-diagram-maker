@@ -428,7 +428,7 @@ Bike rental shop.
 
 ## HTML board
 
-After the EMD is constructed (terms, slices, properties, arrows, and any GWTs), draw it as one file: `<name>.emd.html`. Open that file in a browser (or serve the repo). CSS, arrow tiles, fonts, connectors, and board settings stay in `diagram/`; the file is the page plus the board markup. A board under `projects/<name>/` links `../../diagram/`.
+This section is the **complete** recipe for turning any finished EMD into a browser board. Follow it for every new or updated board — do not invent markup outside these templates. After the EMD is constructed (terms, slices, properties, arrows, and any GWTs), draw it as one file: `<name>.emd.html`. Open that file in a browser (or serve the repo). CSS, arrow tiles, fonts, connectors, and board settings stay in `diagram/`; the file is the page plus the board markup. A board under `projects/<name>/` links `../../diagram/` (see **Page**). An Electron `.emd` file is the same `<main class="emd">…</main>` only, without the HTML shell or scripts.
 
 Each new SLC adds one column. Earlier columns stay as they are. Bump `--slices` when a column is added. Leave every `.cell.connector` empty — `connectors.js` draws the COM→EVT segment through that row, plus every EVT→RMO and ERR→SCR join. Put those joins on `<main>` as `data-joins="evt-a:rmo-x,err-b:scr-y,…"`.
 
@@ -444,9 +444,34 @@ Read the `EMD.md` straight into the templates below:
 | NAV slice | SCR only, empty MBA and LBA, in **NAV slice** |
 | PRO | gear dock across the RMO slice and the next COM slice, in **Processor pair** |
 | MAP | `p.map` under the COM or the RMO, never on the EVT |
-| Properties | `dl.props` on COM, RMO, EVT, ERR; the wireframe on a SCR |
+| Properties | `dl.props` on COM, RMO, EVT, ERR (`dt` = name, `dd` = example value) |
+| SCR wireframe | **Screen** templates; every named value gets `data-prop` |
+| COM-bound SCR values | class `com-data` + `data-prop` on the **value field only** |
+| RMO-fed SCR values | class `rmo-data` + `data-prop` on the **value field only** (empty RMO → `rmo-data` on the empty `table` / `tbody`) |
+| SPA / multi-region SCR | same screen + `fieldset.area` regions in every slice; only values and `com-data` / `rmo-data` change |
 | Arrows between SLCs | `data-joins` only |
 | GWT timelines | `.timeline` stacks in that slice's `.cell.gwt` |
+
+### Emit from an EMD
+
+For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the EMD contains.
+
+1. **Page shell** — copy **Page**. Set `<title>`, `--slices` to the SLC count, and `data-joins` to every EVT→RMO and ERR→SCR edge (ids from step 4). Link `../../diagram/diagram.css`, then at the bottom `connectors.js` and `settings.js` (in that order).
+2. **Board skeleton** — emit **Board rows** in order: workflow, each UBA, MBA, connector, each LBA, GWT. Every row is lane cell + one cell per SLC. Empty cells are empty `div`s with the right class and `data-slc` / `data-lane`.
+3. **WFLs** — one `.wfl` per workflow with `data-slc` = first slice and `data-span` = slice count; goal text in the inner `span`.
+4. **Ids** — every SCR, PRO, COM, RMO, EVT, ERR gets an `id` per **Ids and joins**. Reuse those ids in `data-joins`.
+5. **Fill each SLC** — COM → **COM slice** (+ **Processor pair** when a PRO); RMO → **RMO slice**; NAV → **NAV slice**. Vertical shafts per **Vertical shafts**. Put MAP notes under the COM or RMO per **Cards**.
+6. **Screens** — every SCR uses **Screen**. Always:
+   - `data-prop="<name>"` on every named value field (same names as the COM/RMO/EVT `dt`s).
+   - On a COM slice: `com-data` on each value the COM takes from this SCR (not on ids the COM generates).
+   - On an RMO slice: `rmo-data` on each value this SCR shows from the RMO; empty projection → `rmo-data` on the empty table/tbody.
+   - SPA: same `area`s every slice; `com-data` / `rmo-data` only on the live fields for that slice; still put `data-prop` on fields that can carry the name.
+7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property). PRO as in **Processor card**.
+8. **GWTs** — for each SLC that has timelines, fill `.cell.gwt` per **GWT**; otherwise leave the cell empty.
+9. **Connectors** — leave every `.cell.connector` empty. Do not hand-draw rails.
+10. **Check** — `--slices` matches column count; every `data-joins` id exists; every COM-bound and RMO-fed SCR value has `data-prop` and the right highlight class; shafts unbroken through empty UBA/LBA cells; scripts present.
+
+An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tree).
 
 ### Board help (`?`)
 
@@ -772,6 +797,8 @@ Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (
 
 **`data-prop` (required for property hover).** Every SCR value that is a named property also gets `data-prop="<name>"` on that same value field — the same names as the COM / RMO / EVT `dt`s. `connectors.js` uses those names (plus MAP notes) so hovering a value lights that property on every card and screen it flows through and fades the rest, the same way hovering a connector isolates a path. Card `dl.props` rows need no extra attribute; the `dt` is the name. On an SPA, put `data-prop` on every area that can show that property, and keep `com-data` / `rmo-data` only on the live fields for that slice — the tracer prefers those live fields when linking the screen to the COM or RMO.
 
+Named value fields **always** carry `data-prop`. Add `com-data` or `rmo-data` when that slice's COM or RMO owns the value (see above). Idle SPA fields keep `data-prop` only.
+
 | EMD line | Markup |
 |---|---|
 | heading Rent Bike | `<p class="heading">Rent Bike</p>` |
@@ -780,19 +807,21 @@ Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (
 | row, right-aligned | `<div class="row end">…</div>` |
 | area Add | `<fieldset class="area"><legend>Add</legend>…</fieldset>` |
 | group Bike | `<fieldset class="group"><legend>Bike</legend>…</fieldset>` |
-| group Bike (read only) | the same fieldset; children are `p.label`, not inputs |
-| label bikeId = B-101 | `<p class="label">bikeId B-101</p>` |
-| text box name = Pat Lee | `<label class="text">name <input value="Pat Lee" readonly></label>` |
-| text box name = (empty) | `<label class="text">name <input value="" readonly></label>` |
-| dropdown kind = presentation | `<label class="dropdown">kind <select disabled><option>presentation</option></select></label>` |
-| date picker startDate = 2026-10-22 | `<label class="date">startDate <input value="2026-10-22" readonly></label>` |
-| check box agree = yes | `<label class="check">agree <input type="checkbox" checked disabled></label>` |
-| table | one `table`; header cells are the column names; one `tr` per example row |
+| group Bike (read only) | the same fieldset; children are `p.label` / value `span`s, not inputs |
+| label bikeId = B-101 (display) | `<p class="label">bikeId <span data-prop="bikeId">B-101</span></p>` |
+| text box name = Pat Lee | `<label class="text">name <input data-prop="name" value="Pat Lee" readonly></label>` |
+| text box name = (empty) | `<label class="text">name <input data-prop="name" value="" readonly></label>` |
+| dropdown kind = presentation | `<label class="dropdown">kind <select data-prop="kind" disabled><option>presentation</option></select></label>` |
+| date picker startDate = 2026-10-22 | `<label class="date">startDate <input data-prop="startDate" value="2026-10-22" readonly></label>` |
+| check box agree = yes | `<label class="check">agree <input type="checkbox" data-prop="agree" checked disabled></label>` |
+| table | one `table`; header cells are the column names; one `tr` per example row; each body `td` that is a named property gets `data-prop` |
 | button Rent → COM Rent Bike | `<button type="button">Rent</button>` |
 | button Register → SCR Register Bike Form | `<button type="button">Register</button>` |
-| COM takes title from the SCR | `com-data` + `data-prop` on the value field: `<label class="text">title <input class="com-data" data-prop="title" value="Buy milk" readonly></label>` |
-| RMO fills a table cell | `rmo-data` + `data-prop` on that cell: `<td class="rmo-data" data-prop="title">Buy milk</td>` |
-| RMO / COM value in a `p.label` | wrap the value only: `<p class="label">bikeId <span class="com-data" data-prop="bikeId">B-101</span></p>` |
+| COM takes title from the SCR | also `com-data` on the value: `<input class="com-data" data-prop="title" value="Buy milk" readonly>` |
+| RMO fills a table cell | also `rmo-data` on the cell: `<td class="rmo-data" data-prop="title">Buy milk</td>` |
+| COM takes a label value | wrap the value: `<p class="label">bikeId <span class="com-data" data-prop="bikeId">B-101</span></p>` |
+
+COM-slice form (values the COM takes are light blue):
 
 ```html
 <article class="scr" id="scr-rent-bike-form">
@@ -802,18 +831,18 @@ Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (
       <p class="heading">Rent Bike</p>
       <fieldset class="group"><legend>Bike</legend>
         <div class="row">
-          <p class="label">bikeId B-101</p>
-          <p class="label">model Trailblazer 29</p>
-          <p class="label">dailyRate 25.00</p>
+          <p class="label">bikeId <span class="com-data" data-prop="bikeId">B-101</span></p>
+          <p class="label">model <span data-prop="model">Trailblazer 29</span></p>
+          <p class="label">dailyRate <span data-prop="dailyRate">25.00</span></p>
         </div>
       </fieldset>
       <fieldset class="group"><legend>Customer</legend>
-        <label class="text">customerId <input value="C-7" readonly></label>
+        <label class="text">customerId <input class="com-data" data-prop="customerId" value="C-7" readonly></label>
       </fieldset>
       <fieldset class="group"><legend>Dates</legend>
         <div class="row">
-          <label class="date">startDate <input value="2026-10-22" readonly></label>
-          <label class="text">days <input value="3" readonly></label>
+          <label class="date">startDate <input class="com-data" data-prop="startDate" value="2026-10-22" readonly></label>
+          <label class="text">days <input class="com-data" data-prop="days" value="3" readonly></label>
         </div>
       </fieldset>
       <div class="row end">
@@ -824,7 +853,7 @@ Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (
 </article>
 ```
 
-A table screen. The button column has an empty header. Put one body row per example row in the EMD.
+RMO-slice table (values from the RMO are light green). The button column has an empty header. Put one body row per example row in the EMD.
 
 ```html
 <article class="scr" id="scr-bike-catalog">
@@ -835,7 +864,13 @@ A table screen. The button column has an empty header. Put one body row per exam
       <table>
         <thead><tr><th>bikeId</th><th>model</th><th>type</th><th>dailyRate</th><th></th></tr></thead>
         <tbody>
-          <tr><td>B-101</td><td>Trailblazer 29</td><td>Mountain</td><td>25.00</td><td><button type="button">Rent</button></td></tr>
+          <tr>
+            <td class="rmo-data" data-prop="bikeId">B-101</td>
+            <td class="rmo-data" data-prop="model">Trailblazer 29</td>
+            <td class="rmo-data" data-prop="type">Mountain</td>
+            <td class="rmo-data" data-prop="dailyRate">25.00</td>
+            <td><button type="button">Rent</button></td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -843,11 +878,11 @@ A table screen. The button column has an empty header. Put one body row per exam
 </article>
 ```
 
-A NAV screen shows the ERR message as a label under the field that failed:
+A NAV screen shows the ERR message as a label under the field that failed (no `com-data` / `rmo-data`):
 
 ```html
-<label class="text">customerId <input value="C-8" readonly></label>
-<p class="label">message Customer C-8 is not registered</p>
+<label class="text">customerId <input data-prop="customerId" value="C-8" readonly></label>
+<p class="label">message <span data-prop="message">Customer C-8 is not registered</span></p>
 ```
 
 An SPA: one screen, several `area`s. Repeat the same layout in every slice; only values and highlights change. COM slice — light blue on what the command takes. RMO slice — light green on what the read model shows.
@@ -884,7 +919,7 @@ An SPA: one screen, several `area`s. Repeat the same layout in every slice; only
   <div class="wire">
     <div class="col">
       <fieldset class="area"><legend>Add</legend>
-        <label class="text">title <input value="" readonly></label>
+        <label class="text">title <input data-prop="title" value="" readonly></label>
         <div class="row end"><button type="button">Add</button></div>
       </fieldset>
       <fieldset class="area"><legend>Open</legend>
@@ -1013,6 +1048,15 @@ One cell per slice. A SLC may have no timelines, or many GWTs on one or more ver
 
 Each GWT card uses the same `h2` and `dl.props` as the cards above, with the example values from that step of the timeline, and no `id`. An empty RMO at the start of a timeline is the `h2` only. A slice with no GWTs is an empty `.cell.gwt`.
 
-Hover lights a path; hover a property value to trace that name through SCR ↔ COM/RMO ↔ EVT (following MAP renames); click a connector scrolls any clipped end into view. Put `data-prop` on every SCR value field so that trace can find the screen. Tile files, sticky-row measurements, and corridor continuity rules are in [`html-css.md`](html-css.md).
+### What the board scripts provide
 
-For more, see: [eventmodeling.org](https://eventmodeling.org) or review example EMDs in this folder.
+Do not reimplement these in the `.emd.html` file — only include the two scripts from **Page**:
+
+| Script | Behaviour |
+|---|---|
+| `diagram/connectors.js` | Fills empty `.cell.connector` cells; draws COM→EVT / COM→ERR through the connector row; draws every `data-joins` EVT→RMO and ERR→SCR path; hover on cards / connectors / property values (`dt` or `data-prop`) fades the rest; click a connector scrolls clipped ends into view; respects gear **Highlight on hover** prefs |
+| `diagram/settings.js` | Gear + `?` in the `emd-corner` lane; scale, fade, tile size, and Highlight on hover (connectors / values / cards); About-this-board help (keep in sync with **Board help**) |
+
+Tile files, sticky-row measurements, and corridor continuity rules are in [`html-css.md`](html-css.md). That file is a stylesheet lookup — **this HTML board section is the source of truth for markup**.
+
+For more on event modeling itself, see: [eventmodeling.org](https://eventmodeling.org).

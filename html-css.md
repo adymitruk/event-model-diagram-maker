@@ -1,6 +1,6 @@
 # HTML and CSS
 
-Stylesheet lookup for an EMD board: sticky rows, tiles, corridors, and continuity. The markup for every slice, card, screen control, processor dock, and GWT timeline is in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**HTML board**). Use that file to build `<name>.emd.html` from an `EMD.md`.
+Stylesheet lookup for an EMD board: sticky rows, tiles, corridors, and continuity. The markup for every slice, card, screen control, processor dock, and GWT timeline — and the **Emit from an EMD** procedure for building any board — is in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**HTML board**). Use that file to build `<name>.emd.html` from an `EMD.md`; this file does not replace it.
 
 The diagram is one file named `<name>.emd.html`. Each new slice adds one column. Earlier columns stay as they are.
 
