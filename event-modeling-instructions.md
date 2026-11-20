@@ -12,8 +12,8 @@ Basic terms, which need no other terms:
 
 Terms built from the basic terms:
   - USR: a user - this is the instance of a ROL in the system. You can have more than one instance of a ROL. example 2 customers Jim and Bob.
-  - COM: a command - an instruction to the system that results in a state change, recorded as an EVT.
-  - RMO: read model - a projection of state from existing EVTs to the left on the diagram. All the EVTs an RMO projects must live in the same SWL, so it is known where the implementation of that RMO lives. An RMO joins the EVTs it projects by their shared ids, so it is where the properties of several entities are shown together (e.g., an invoice showing the customer's name next to the rental, joined by customerId).
+  - COM: a command - an instruction to the system that results in a state change, recorded as an EVT. Like an EVT, a COM is in 3NF: it carries only the ids and the new facts it establishes, never a property that already depends on another entity's id (e.g., a topic's title when the COM already has topicId).
+  - RMO: read model - a projection of state from existing EVTs to the left on the diagram. All the EVTs an RMO projects must live in the same SWL, so it is known where the implementation of that RMO lives. An RMO joins the EVTs it projects by their shared ids, so it is where the properties of several entities are shown together (e.g., an invoice showing the customer's name next to the rental, joined by customerId). Unlike COM and EVT, an RMO is deliberately denormalized — the opposite of DRY — so one view can show everything the USR needs without looking up again.
   - SVC: a service - a physical or logical grouping of state, tracked by EVTs in a SWL.
 
 Terms built from those:
@@ -60,7 +60,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
    - UBA: place a SCR when a USR makes the change, or a PRO when an automation does. Put a SCR in the UBA SWL of the USR who uses it, and a PRO in the UBA SWL of the USR who waits on its result (see UBA).
    - MBA: place the COM.
    - LBA: place the EVT in the LBA SWL of the SVC whose state changed. Describe the EVT in past tense (e.g., "Prescription Created", "Medication Dispensed") so it clearly represents what happened and which part of the workflow it belongs to.
-   - Keep the EVT in 3NF: record the facts the COM established, keyed by the id the COM generated or acted on, and refer to other entities by their id only (e.g., bikeId, customerId). The RMO that needs their properties joins the EVTs by that id (see step 6). A COM carries only the ids and the new facts it establishes; it never carries a property that is already recorded on an EVT in the SWL it records in (e.g., the email address a receipt is sent to), since the system looks that up from the history by id.
+   - Keep the COM and its EVT in 3NF: record the facts the COM established, keyed by the id the COM generated or acted on, and refer to other entities by their id only (e.g., bikeId, customerId, topicId). Do not copy that entity's other properties onto the COM or EVT (e.g., a topic title when topicId is already there) — those already live on the entity's own earlier EVT. The RMO that needs their properties joins the EVTs by that id (see step 6). A COM also never carries a property that is already recorded on an EVT in the SWL it records in (e.g., the email address a receipt is sent to), since the system looks that up from the history by id. A SCR may still *show* a denormalized label (title next to topicId) for the person; that display is session or query state from an earlier SCR, not a COM property — mark only the fields the COM actually takes with `com-data`.
    - When the EVT should record a value in a different shape than the COM carries it (e.g., an end date computed from a start date and a number of days), put a MAP on the arrow from the COM to the EVT. The COM carries the inputs; the EVT records the outputs. The MAP names the inputs and outputs only, not how one becomes the other.
    - A COM that fails is its own SLC, with the ERR in the LBA where its EVT would otherwise be (see ERR). The ERR is shown instead of an EVT. Control goes back to the SCR or PRO that issued the COM. The next SLC is often a NAV slice: the same SCR again, showing the ERR's message (for example under the field that failed), with no COM and no RMO. If the USR or PRO then tries again, that attempt is a later COM slice. The EMD records only what happened in the example: a SLC never shows both an EVT and an ERR, and never a failure that did not occur.
 
@@ -70,7 +70,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
 
 6. **Fill RMO slices**
    - Add an RMO to the MBA when a SCR or PRO needs data from the system without changing it. Its data is projected from EVTs in earlier SLCs.
-   - An RMO joins the EVTs it projects by their shared ids (e.g., EVT Bike Rented and EVT Customer Registered by customerId) to show the properties of several entities together, such as an invoice with the customer's name. The EVTs stay in 3NF; the RMO does the lookup. An EVT that will be joined must carry the other entity's id (e.g., attendeeId on EVT Topic Suggested), never that entity's other properties (e.g., the attendee's name). The RMO holds the lookup from the entity's own EVT (attendeeId → name) and uses the id on the later EVT to fill the joined property.
+   - An RMO joins the EVTs it projects by their shared ids (e.g., EVT Bike Rented and EVT Customer Registered by customerId) to show the properties of several entities together, such as an invoice with the customer's name. The EVTs stay in 3NF; the RMO does the lookup and is free to repeat those properties — denormalization is the point of a read model (anti-DRY for the view). An EVT that will be joined must carry the other entity's id (e.g., attendeeId on EVT Topic Suggested, topicId on EVT Session Scheduled), never that entity's other properties (e.g., the attendee's name or the topic's title). **Lookup rule:** when an RMO projects any EVT that refers to another entity by id, that RMO must keep a **lookup** collection from the entity's own EVT(s) — keyed by that id, holding the descriptions the view needs (name, title, kind, …). Build the lookup as those EVTs arrive, including entities that never appear on a later joined row (a topic with no votes, or never scheduled, still sits in the Agenda lookups). The main collection then carries the foreign id and may also show the looked-up fields on each row for the denormalized view. **When a separate lookup is not needed:** if the RMO's main collection is already projected from that entity's own EVT (the one that first recorded the descriptions), those rows *are* the subscription — do not add a second lookups table for the same facts. Example: RMO Agenda Builder builds topic rows from EVT Topic Suggested (`topicId`, `title`, `kind`) and only joins EVT Topic Voted by `topicId` to bump `voteCount`; no lookups table. RMO Agenda, by contrast, builds session rows from EVT Session Scheduled (3NF: `topicId` but no title/kind), so it must keep lookups from EVT Topic Suggested — including topics that never get scheduled.
    - When the RMO shows a value in a different shape than the EVTs recorded it (e.g., a total from a rate and a count, or a label from an id and a model), put a MAP on the arrows from the EVTs to the RMO. The EVTs carry the inputs; the RMO shows the outputs. The RMO derives the outputs on every read, so nothing is recorded. Also put a MAP there when an EVT property is only used to produce or adjust something the RMO shows and never appears on the RMO as itself (e.g., dailyRate on EVT Bike Listed feeds total on RMO Rental Confirmation); the MAP is what shows that property is used.
    - The UBA is optional. Place a SCR in the UBA SWL of the USR who views it, when they view it to decide what to do next or to confirm a previous COM they initiated. Place a PRO in the UBA SWL of the USR who waits on it, when it reads its tasks.
    - A PRO needs a TODO RMO to keep track of its tasks, so a PRO is always expressed as two SLCs beside one another: the RMO slice in which it reads its TODO RMO, immediately followed by the COM slice in which it issues the COM for that task. Nothing sits between them. A PRO never appears in a lone RMO slice or a lone COM slice; if it handles more than one kind of task, each is its own adjacent pair.
@@ -148,8 +148,8 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
 - RMO <name> (<SVC>)
   - properties: <names>              ← single-object RMO
   - collections: [<fields>]          ← one table: no collection name (the RMO name is enough)
-  - collections: <RMO name> [<fields>]; <other> [<fields>]; …  ← more than one table: one collection uses the RMO name; the others are named
-  - from: EVT <name>, …              ← include join key when it joins (e.g. join by attendeeId)
+  - collections: <RMO name> [<fields>]; lookups [<id>, …]; …  ← more than one table: one collection uses the RMO name; lookups hold descriptions for foreign ids on EVTs this RMO projects
+  - from: EVT <name>, …              ← include join key when it joins (e.g. join by attendeeId); list the EVT that fills each lookup
   - to: SCR <name> | PRO <name>
 ```
 
@@ -568,7 +568,7 @@ Read the `EMD.md` straight into the templates below:
 | MAP | `p.map` under the COM or the RMO, never on the EVT |
 | Properties | `dl.props` on COM, EVT, ERR, and single-object RMOs (`dt` = name, `dd` = example value); multi-row RMOs use `table.collection` inside `div.props` (caption only when the card has more than one table) |
 | SCR wireframe | **Screen** templates; every named value gets `data-prop` |
-| COM-bound SCR values | class `com-data` + `data-prop` on the **value field only** |
+| COM-bound SCR values | class `com-data` + `data-prop` on the **value field only**; also `com-data` on the button that issues the COM |
 | RMO-fed SCR values | class `rmo-data` + `data-prop` on the **value field only** (never on labels, headings, legends, or `th`; empty RMO → no `rmo-data` on the SCR) |
 | SPA / multi-region SCR | same screen + `fieldset.area` regions in every slice; only values and `com-data` / `rmo-data` change |
 | Arrows between SLCs | `data-joins` only |
@@ -585,7 +585,7 @@ For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the 
 5. **Fill each SLC** — COM → **COM slice** (+ **Processor pair** when a PRO); RMO → **RMO slice**; NAV → **NAV slice**. Vertical shafts per **Vertical shafts**. Put MAP notes under the COM or RMO per **Cards**. Use catalog property names on every `dt` / `data-prop`; take example values from slice **Properties**.
 6. **Screens** — every SCR uses **Screen**. Always:
    - `data-prop="<name>"` on every named value field (same names as the COM/RMO/EVT catalog and `dt`s).
-   - On a COM slice: `com-data` on each value the COM takes from this SCR (not on ids the COM generates).
+   - On a COM slice: `com-data` on each value the COM takes from this SCR (not on ids the COM generates), and on the button that issues that COM.
    - On an RMO slice: `rmo-data` on each value this SCR shows from the RMO. If the RMO is empty, leave the SCR area without `rmo-data` — there are no values to highlight (do not paint the table or its headers).
    - SPA: same `area`s every slice; `com-data` / `rmo-data` only on the live fields for that slice; still put `data-prop` on fields that can carry the name.
 7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property for single objects; multi-row RMOs use `table.collection` blocks — caption the RMO name + other collection names only when there is more than one table). PRO as in **Processor card**.
@@ -605,8 +605,8 @@ An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tre
 - **LBA** — events (**EVT**, orange) the system recorded, or an error (**ERR**, red) when a command failed instead; empty in RMO and NAV slices.
 - **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id).
 - **Arrows** — data flow: screen → command → event (or error), and event → read model → screen. A **MAP** on an arrow names inputs → outputs when data changes shape.
-- **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name); on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). Highlight values only — never labels, headers, or an empty RMO area. An SPA keeps one screen layout and paints those highlights on the live fields in that slice.
-- **Interaction** — hover a card or connector to keep that path lit and fade the rest; hover a **property value** (a `dl.props` row, or a SCR field with `data-prop`) to isolate **that example value** through its sources and destinations — same property name **and** same value (so one row in a multi-row RMO does not light sibling rows); MAP renames still follow the mapped outputs. Matching connectors stay lit and everything else fades. **Click** the hovered value, card, MAP, or connector to **lock** that highlight so you can scroll and inspect it; release only with the **Unlock highlight** control (top right) or **Escape** — other clicks do not clear a lock. Click a connector while locked still scrolls any end that is partly out of view into the viewport without changing the highlight. Use the gear to tune scale, fade, connector tile size, and **Highlight on hover** for connectors, values, and cards (each on by default).
+- **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name), and the button that issues the COM is light blue too; on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). Never paint labels, headers, or an empty RMO area. An SPA keeps one screen layout and paints those highlights on the live fields (and the live COM button) in that slice.
+- **Interaction** — hover a card or connector to keep that path lit and fade the rest; hover a **property value** (a `dl.props` row, a collection cell, or a SCR field with `data-prop`) to isolate **that example value** through its sources and destinations — same property name **and** same value (so one row in a multi-row RMO does not light sibling rows); MAP renames still follow the mapped outputs; a value a later SCR shows from session or query state (same name and value on an earlier SCR) is linked the same way even when it is not a COM field. Matching connectors stay lit and everything else fades. **Click** the hovered value, card, or MAP to **lock** that highlight so you can scroll and inspect it; release only with the **Unlock highlight** control (top right) or **Escape** — other clicks do not clear a lock. Click a connector to scroll any end that is partly out of view into the viewport (connectors never lock a highlight). Use the gear to tune scale, fade, connector tile size, and **Highlight on hover** for connectors, values, and cards (each on by default).
 
 When you change how an EMD is read (new slice type, GWT shape, card kinds), update both the terms/construction above and this help list (and the matching HTML in `settings.js`).
 
@@ -936,7 +936,7 @@ The COM slice then continues like any COM slice (arrow into the COM, arrow into 
 <p class="map">Rental End: startDate, days → endDate</p>
 ```
 
-One `div` per property, name in `dt`, example value in `dd`. When an RMO holds many example rows (collections of objects), put each collection in a `table.collection` inside `div.props`: `<th>` headers list the property names once, and each body `<td data-prop="…">` holds an example value — the same names the SCR table columns and EVT fields use. If the card has **one** table, omit `<caption>` — the RMO's `h2` is the name. If it has **more than one**, give every table a `<caption>`: one caption is the RMO name (the main collection), and each other collection gets its own name (e.g. `lookups`). A joined RMO keeps a lookups table (`attendeeId` + `name`, not a synthetic `lookup A-1` key) beside the main collection; do not pack row fields into one middot string under the id. A single-object RMO stays a flat `dl.props` list (no table). A TODO read model keeps `TODO` in the name. An ERR card is that property list. A clause before the colon in the EMD (the check) is not a paragraph on the card or on the GWT card; each fact it uses is a named property, and a property the check found empty is listed with an empty value. A MAP names properties only: no `MAP` prefix, no values, no formula.
+One `div` per property, name in `dt`, example value in `dd`. When an RMO holds many example rows (collections of objects), put each collection in a `table.collection` inside `div.props`: `<th>` headers list the property names once, and each body `<td data-prop="…">` holds an example value — the same names the SCR table columns and EVT fields use. If the card has **one** table, omit `<caption>` — the RMO's `h2` is the name. If it has **more than one**, give every table a `<caption>`: one caption is the RMO name (the main collection), and each other collection gets its own name (e.g. `lookups`). When the RMO projects EVTs that refer to another entity by id, keep a **lookups** table for that entity's descriptions (`topicId` + `title` + `kind`, or `attendeeId` + `name` — never a synthetic `lookup A-1` key), filled from the entity's own EVTs as they arrive, even for ids that never appear on a later main-collection row. The main collection carries the foreign id and may repeat the looked-up fields on each row for the denormalized view; do not pack row fields into one middot string under the id. A single-object RMO stays a flat `dl.props` list (no table). A TODO read model keeps `TODO` in the name. An ERR card is that property list. A clause before the colon in the EMD (the check) is not a paragraph on the card or on the GWT card; each fact it uses is a named property, and a property the check found empty is listed with an empty value. A MAP names properties only: no `MAP` prefix, no values, no formula.
 
 ### Screen
 
@@ -944,10 +944,10 @@ A SCR is `article.scr` plus one `.wire`. Build the wire from the EMD's nested sk
 
 An SPA is still one SCR per slice: same screen name and the same areas in every column, with only the example values (and highlights below) changing. Put each region of that page in an `area` so Add / Open / Done (or similar) stay visible as one layout left to right.
 
-**COM / RMO highlights on the SCR.** Paint only the data value that moves on that slice's arrow — not the property name, chrome, headings, or buttons.
+**COM / RMO highlights on the SCR.** Paint the data values that move on that slice's arrow — not the property name, chrome, or headings. On a COM slice, also paint the action button that issues the COM.
 
-- **COM slice:** every value the COM takes from this SCR gets class `com-data` (light blue). Put it on the value field only: the `input` or `select`, a `td`, or a `span` around the value inside a `p.label`. Never put it on the outer `label` — that paints the property name too.
-- **RMO slice:** every value this SCR shows from the RMO gets class `rmo-data` (light green), on those same value fields (`input` / `select` / `td` / value `span`). Never put `rmo-data` on property-name text, `th` headers, legends, or headings. When the RMO is empty, omit `rmo-data` entirely on that SCR — highlighting is for values only, and an empty projection has none.
+- **COM slice:** every value the COM takes from this SCR gets class `com-data` (light blue). Put it on the value field only: the `input` or `select`, a `td`, or a `span` around the value inside a `p.label`. Never put it on the outer `label` — that paints the property name too. The button that issues the COM also gets `com-data` (same light blue): `<button type="button" class="com-data">Rent</button>`. A button that only navigates to another SCR does not.
+- **RMO slice:** every value this SCR shows from the RMO gets class `rmo-data` (light green), on those same value fields (`input` / `select` / `td` / value `span`). Never put `rmo-data` on property-name text, `th` headers, legends, headings, or buttons. When the RMO is empty, omit `rmo-data` entirely on that SCR — highlighting is for values only, and an empty projection has none.
 
 Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (unless you are only showing an ERR message).
 
@@ -971,8 +971,8 @@ Named value fields **always** carry `data-prop`. Add `com-data` or `rmo-data` wh
 | date picker startDate = 2026-10-22 | `<label class="date">startDate <input data-prop="startDate" value="2026-10-22" readonly></label>` |
 | check box agree = yes | `<label class="check">agree <input type="checkbox" data-prop="agree" checked disabled></label>` |
 | table | one `table`; header cells are the column names; one `tr` per example row; each body `td` that is a named property gets `data-prop` |
-| button Rent → COM Rent Bike | `<button type="button">Rent</button>` |
-| button Register → SCR Register Bike Form | `<button type="button">Register</button>` |
+| button Rent → COM Rent Bike | `<button type="button" class="com-data">Rent</button>` on a COM slice |
+| button Register → SCR Register Bike Form | `<button type="button">Register</button>` (navigation — no `com-data`) |
 | COM takes title from the SCR | also `com-data` on the value: `<input class="com-data" data-prop="title" value="Buy milk" readonly>` |
 | RMO fills a table cell | also `rmo-data` on the cell: `<td class="rmo-data" data-prop="title">Buy milk</td>` |
 | COM takes a label value | wrap the value: `<p class="label">bikeId <span class="com-data" data-prop="bikeId">B-101</span></p>` |
@@ -1002,14 +1002,14 @@ COM-slice form (values the COM takes are light blue):
         </div>
       </fieldset>
       <div class="row end">
-        <button type="button">Rent</button>
+        <button type="button" class="com-data">Rent</button>
       </div>
     </div>
   </div>
 </article>
 ```
 
-RMO-slice table (values from the RMO are light green). The button column has an empty header. Put one body row per example row in the EMD.
+RMO-slice table (values from the RMO are light green). The button column has an empty header and no `com-data` on those buttons (they navigate or wait for a later COM slice). Put one body row per example row in the EMD.
 
 ```html
 <article class="scr" id="scr-bike-catalog">
@@ -1051,7 +1051,7 @@ An SPA: one screen, several `area`s. Repeat the same layout in every slice; only
     <div class="col">
       <fieldset class="area"><legend>Add</legend>
         <label class="text">title <input class="com-data" data-prop="title" value="Buy milk" readonly></label>
-        <div class="row end"><button type="button">Add</button></div>
+        <div class="row end"><button type="button" class="com-data">Add</button></div>
       </fieldset>
       <fieldset class="area"><legend>Open</legend>
         <table>
@@ -1210,7 +1210,7 @@ Do not reimplement these in the `.emd.html` file — only include the two script
 
 | Script | Behaviour |
 |---|---|
-| `diagram/connectors.js` | Fills empty `.cell.connector` cells; draws COM→EVT / COM→ERR through the connector row; draws every `data-joins` EVT→RMO and ERR→SCR path; hover on cards / connectors / property values (`dt` or `data-prop`) fades the rest; click the hovered target to lock that highlight (Unlock highlight button or Escape to release); click a connector also scrolls clipped ends into view; respects gear **Highlight on hover** prefs |
+| `diagram/connectors.js` | Fills empty `.cell.connector` cells; draws COM→EVT / COM→ERR through the connector row; draws every `data-joins` EVT→RMO and ERR→SCR path; hover on cards / connectors / property values (`dt` or `data-prop`) fades the rest; click a hovered value, card, or MAP to lock that highlight (Unlock highlight button or Escape to release); click a connector to scroll clipped ends into view (no lock); respects gear **Highlight on hover** prefs |
 | `diagram/settings.js` | Gear + `?` in the `emd-corner` lane; scale, fade, tile size, and Highlight on hover (connectors / values / cards); About-this-board help (keep in sync with **Board help**) |
 
 Tile files, sticky-row measurements, and corridor continuity rules are in [`html-css.md`](html-css.md). That file is a stylesheet lookup — **this HTML board section is the source of truth for markup**.

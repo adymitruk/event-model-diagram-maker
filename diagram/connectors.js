@@ -511,6 +511,37 @@
         });
       });
 
+      // SCR → SCR: same name + value carried in session / query state across screens
+      // (a later SCR assumes what an earlier SCR already showed, even when that
+      // field is display-only and not on the COM).
+      const scrByPropVal = new Map();
+      emd.querySelectorAll('article.scr').forEach((scr) => {
+        scrPropSites(scr).forEach(({ name, el }) => {
+          const value = propValueOf(el);
+          if (!name || value === '') return;
+          const k = name + '\0' + value;
+          if (!scrByPropVal.has(k)) scrByPropVal.set(k, []);
+          scrByPropVal.get(k).push({ scr, name, value });
+        });
+      });
+      scrByPropVal.forEach((sites) => {
+        for (let i = 0; i < sites.length; i++) {
+          for (let j = i + 1; j < sites.length; j++) {
+            if (sites[i].scr === sites[j].scr) continue;
+            linkSites(
+              sites[i].scr,
+              sites[i].name,
+              sites[i].value,
+              sites[j].scr,
+              sites[j].name,
+              sites[j].value,
+              null,
+              null
+            );
+          }
+        }
+      });
+
       return adj;
     }
 
@@ -872,17 +903,10 @@
       const click = (e) => {
         e.stopPropagation();
         const ids = joinIdsForConnector(el);
-        // While a value/card highlight is locked, only pan into view — do not
-        // replace the lock. Unlock is Unlock highlight / Escape only.
-        if (focusLock()) {
-          revealJoinEndpointSlices(ids, el);
-          focusLock().apply();
-          return;
-        }
-        lockFocus(() => {
-          highlightByJoinIds(ids);
-          revealJoinEndpointSlices(ids, el);
-        });
+        // Connectors never lock: click only pans clipped ends into view.
+        // If a value/card lock is already on, re-apply it after scrolling.
+        revealJoinEndpointSlices(ids, el);
+        if (focusLock()) focusLock().apply();
       };
       el._joinHover = { enter, leave, click };
       el.style.cursor = 'pointer';

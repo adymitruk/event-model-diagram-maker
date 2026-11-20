@@ -695,11 +695,12 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   min-width: 0;
 }
 .wire .area > legend { padding: 0 0.25em; }
-/* Highlight only the value control / cell — never labels, th, legends, or empty tables. */
+/* Highlight only the value control / cell / COM action button — never labels, th, legends, or empty tables. */
 .wire input.com-data,
 .wire select.com-data,
 .wire td.com-data,
-.wire span.com-data {
+.wire span.com-data,
+.wire button.com-data {
   background: #c5e8f8;
 }
 .wire input.rmo-data,
