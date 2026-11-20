@@ -447,7 +447,7 @@ Read the `EMD.md` straight into the templates below:
 | Properties | `dl.props` on COM, RMO, EVT, ERR (`dt` = name, `dd` = example value) |
 | SCR wireframe | **Screen** templates; every named value gets `data-prop` |
 | COM-bound SCR values | class `com-data` + `data-prop` on the **value field only** |
-| RMO-fed SCR values | class `rmo-data` + `data-prop` on the **value field only** (empty RMO → `rmo-data` on the empty `table` / `tbody`) |
+| RMO-fed SCR values | class `rmo-data` + `data-prop` on the **value field only** (never on labels, headings, legends, or `th`; empty RMO → no `rmo-data` on the SCR) |
 | SPA / multi-region SCR | same screen + `fieldset.area` regions in every slice; only values and `com-data` / `rmo-data` change |
 | Arrows between SLCs | `data-joins` only |
 | GWT timelines | `.timeline` stacks in that slice's `.cell.gwt` |
@@ -464,7 +464,7 @@ For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the 
 6. **Screens** — every SCR uses **Screen**. Always:
    - `data-prop="<name>"` on every named value field (same names as the COM/RMO/EVT `dt`s).
    - On a COM slice: `com-data` on each value the COM takes from this SCR (not on ids the COM generates).
-   - On an RMO slice: `rmo-data` on each value this SCR shows from the RMO; empty projection → `rmo-data` on the empty table/tbody.
+   - On an RMO slice: `rmo-data` on each value this SCR shows from the RMO. If the RMO is empty, leave the SCR area without `rmo-data` — there are no values to highlight (do not paint the table or its headers).
    - SPA: same `area`s every slice; `com-data` / `rmo-data` only on the live fields for that slice; still put `data-prop` on fields that can carry the name.
 7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property). PRO as in **Processor card**.
 8. **GWTs** — for each SLC that has timelines, fill `.cell.gwt` per **GWT**; otherwise leave the cell empty.
@@ -483,7 +483,7 @@ An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tre
 - **LBA** — events (**EVT**, orange) the system recorded, or an error (**ERR**, red) when a command failed instead; empty in RMO and NAV slices.
 - **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id).
 - **Arrows** — data flow: screen → command → event (or error), and event → read model → screen. A **MAP** on an arrow names inputs → outputs when data changes shape.
-- **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name); on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). An SPA keeps one screen layout and paints those highlights on the live fields in that slice.
+- **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name); on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). Highlight values only — never labels, headers, or an empty RMO area. An SPA keeps one screen layout and paints those highlights on the live fields in that slice.
 - **Interaction** — hover a card or connector to keep that path lit and fade the rest; hover a **property value** (a `dl.props` row, or a SCR field with `data-prop`) to isolate that property through its sources and destinations — the same fade, with matching values and their connectors lit; click a connector to scroll any end that is partly out of view fully into the viewport; use the gear to tune scale, fade, connector tile size, and **Highlight on hover** for connectors, values, and cards (each on by default).
 
 When you change how an EMD is read (new slice type, GWT shape, card kinds), update both the terms/construction above and this help list (and the matching HTML in `settings.js`).
@@ -791,7 +791,7 @@ An SPA is still one SCR per slice: same screen name and the same areas in every 
 **COM / RMO highlights on the SCR.** Paint only the data value that moves on that slice's arrow — not the property name, chrome, headings, or buttons.
 
 - **COM slice:** every value the COM takes from this SCR gets class `com-data` (light blue). Put it on the value field only: the `input` or `select`, a `td`, or a `span` around the value inside a `p.label`. Never put it on the outer `label` — that paints the property name too.
-- **RMO slice:** every value this SCR shows from the RMO gets class `rmo-data` (light green), on those same value fields (`input` / `select` / `td` / value `span`). When the RMO is empty, put `rmo-data` on the empty `table` or `tbody` of that area so the projection surface is still marked. Do not mark static chrome or values that did not come from this RMO.
+- **RMO slice:** every value this SCR shows from the RMO gets class `rmo-data` (light green), on those same value fields (`input` / `select` / `td` / value `span`). Never put `rmo-data` on property-name text, `th` headers, legends, or headings. When the RMO is empty, omit `rmo-data` entirely on that SCR — highlighting is for values only, and an empty projection has none.
 
 Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (unless you are only showing an ERR message).
 

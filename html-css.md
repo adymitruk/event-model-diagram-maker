@@ -132,7 +132,7 @@ Build the sketch from the containers and elements below, top to bottom and left 
 | area | `fieldset.area` | A named region of an SPA (Add, Open, Done, …). Its title is a `legend`. |
 | group | `fieldset.group` | A sketched box. Its title is a `legend`. |
 
-**COM / RMO highlights.** Put `com-data` (light blue) or `rmo-data` (light green) on the **value field only** — the `input` / `select`, a `td`, or a `span` around the value in a `p.label`. Never on the outer `label` (that paints the property name). Empty RMO projections may mark the empty `table` / `tbody`. Markup rules and SPA examples are in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**Screen**).
+**COM / RMO highlights.** Put `com-data` (light blue) or `rmo-data` (light green) on the **value field only** — the `input` / `select`, a `td`, or a `span` around the value in a `p.label`. Never on the outer `label`, `th`, legend, or heading. An empty RMO has no values — do not put `rmo-data` on the table. Markup rules and SPA examples are in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**Screen**).
 
 **Elements.** Each one is a single HTML control.
 
