@@ -214,29 +214,77 @@
       return { inputs: splitProps(left), outputs: splitProps(right) };
     }
 
-    function markProps(card, names) {
-      if (!card || !names.length) return;
-      const want = new Set(names);
-      card.querySelectorAll('.props > div').forEach((row) => {
-        const dt = row.querySelector('dt');
-        if (dt && want.has(dt.textContent.trim())) row.classList.add('prop-hot');
+    /** Flat `.props > div` rows, or fields inside `.props > .obj` (multi-row RMOs). */
+    function propRows(card) {
+      if (!card) return [];
+      return [
+        ...card.querySelectorAll('.props > div:not(.obj), .props > .obj > div'),
+      ];
+    }
+
+    /** Example value on a prop row or SCR control (input/select/td/span). */
+    function propValueOf(el) {
+      if (!el) return '';
+      if (el.matches && el.matches('input, select, textarea')) {
+        return String(el.value || '').trim();
+      }
+      const dd = el.matches && el.matches('dd') ? el : el.querySelector(':scope > dd');
+      if (dd) return dd.textContent.trim();
+      return String(el.textContent || '').trim();
+    }
+
+    /**
+     * Value sites for one property on a card. Optional `value` keeps only that
+     * example (so a collection row does not light every sibling's same field).
+     */
+    function propSitesOn(card, prop, value) {
+      if (!card || !prop) return [];
+      const wantVal = value == null ? null : String(value).trim();
+      const sites = [];
+      propRows(card).forEach((row) => {
+        const dt = row.querySelector(':scope > dt');
+        if (!dt || dt.textContent.trim() !== prop) return;
+        const val = propValueOf(row);
+        if (wantVal != null && val !== wantVal) return;
+        sites.push({ el: row, prop, value: val });
       });
-      if (!card.classList.contains('scr')) return;
-      const matches = [...card.querySelectorAll('[data-prop]')].filter((el) =>
-        want.has(el.getAttribute('data-prop').trim())
-      );
-      // On an SPA, only the live COM/RMO fields for that name — not idle areas.
-      const live = matches.filter(
-        (el) => el.classList.contains('com-data') || el.classList.contains('rmo-data')
-      );
-      (live.length ? live : matches).forEach((el) => el.classList.add('prop-hot'));
+      if (card.classList.contains('scr')) {
+        const matches = [...card.querySelectorAll('[data-prop]')].filter(
+          (el) => el.getAttribute('data-prop').trim() === prop
+        );
+        const live = matches.filter(
+          (el) => el.classList.contains('com-data') || el.classList.contains('rmo-data')
+        );
+        (live.length ? live : matches).forEach((el) => {
+          const val = propValueOf(el);
+          if (wantVal != null && val !== wantVal) return;
+          sites.push({ el, prop, value: val });
+        });
+      }
+      return sites;
+    }
+
+    function markProps(card, names, value) {
+      if (!card || !names.length) return;
+      names.forEach((name) => {
+        propSitesOn(card, name, value === undefined ? null : value).forEach((site) => {
+          site.el.classList.add('prop-hot');
+        });
+      });
     }
 
     function propNamesOn(card) {
       if (!card) return [];
-      return [...card.querySelectorAll('.props > div dt')]
-        .map((dt) => dt.textContent.trim())
-        .filter(Boolean);
+      return [
+        ...new Set(
+          propRows(card)
+            .map((row) => {
+              const dt = row.querySelector(':scope > dt');
+              return dt ? dt.textContent.trim() : '';
+            })
+            .filter(Boolean)
+        ),
+      ];
     }
 
     function mapElForJoin(j) {
@@ -283,24 +331,39 @@
       return sites;
     }
 
-    function siteKey(card, prop) {
-      return (card.id || '') + '\0' + prop;
+    function siteKey(card, prop, value) {
+      return (card.id || '') + '\0' + prop + '\0' + String(value ?? '');
     }
 
     /**
-     * Undirected graph of property names across SCR ↔ COM/RMO ↔ EVT/ERR joins.
-     * MAP notes rename across a join; same-name props pass through otherwise.
+     * Undirected graph of property *values* across SCR ↔ COM/RMO ↔ EVT/ERR.
+     * Same-name edges keep one example value; MAP edges rename the property and
+     * pick up the destination site's own example value(s).
      */
     function buildPropGraph() {
-      const adj = new Map(); // key → [{ key, joinId, mapEl }]
-      function link(aCard, aProp, bCard, bProp, joinId, mapEl) {
+      const adj = new Map(); // key → [{ key, joinId, mapEl, card, prop, value }]
+      function linkSites(aCard, aProp, aValue, bCard, bProp, bValue, joinId, mapEl) {
         if (!aCard || !bCard || !aProp || !bProp) return;
-        const a = siteKey(aCard, aProp);
-        const b = siteKey(bCard, bProp);
+        const a = siteKey(aCard, aProp, aValue);
+        const b = siteKey(bCard, bProp, bValue);
         if (!adj.has(a)) adj.set(a, []);
         if (!adj.has(b)) adj.set(b, []);
-        adj.get(a).push({ key: b, joinId, mapEl, card: bCard, prop: bProp });
-        adj.get(b).push({ key: a, joinId, mapEl, card: aCard, prop: aProp });
+        adj.get(a).push({
+          key: b,
+          joinId,
+          mapEl,
+          card: bCard,
+          prop: bProp,
+          value: bValue,
+        });
+        adj.get(b).push({
+          key: a,
+          joinId,
+          mapEl,
+          card: aCard,
+          prop: aProp,
+          value: aValue,
+        });
       }
 
       joins.forEach((j) => {
@@ -313,19 +376,46 @@
         const toNames = propNamesOn(j.toEl);
         const mappedIn = new Set(inputs);
         const mappedOut = new Set(outputs);
+        // MAP: each input example links to each output example on the other card.
         inputs.forEach((inp) => {
+          const fromSites = propSitesOn(j.fromEl, inp);
           outputs.forEach((out) => {
-            link(j.fromEl, inp, j.toEl, out, j.id, mapEl);
+            const toSites = propSitesOn(j.toEl, out);
+            fromSites.forEach((fs) => {
+              toSites.forEach((ts) => {
+                linkSites(
+                  j.fromEl,
+                  inp,
+                  fs.value,
+                  j.toEl,
+                  out,
+                  ts.value,
+                  j.id,
+                  mapEl
+                );
+              });
+            });
           });
         });
+        // Same name: only when both sides share that exact example value.
         fromNames.forEach((p) => {
           if (!toNames.includes(p)) return;
           if (mappedIn.has(p) && mappedOut.size && !mappedOut.has(p)) return;
-          link(j.fromEl, p, j.toEl, p, j.id, mapEl);
+          const fromSites = propSitesOn(j.fromEl, p);
+          const toByVal = new Map();
+          propSitesOn(j.toEl, p).forEach((ts) => {
+            if (!toByVal.has(ts.value)) toByVal.set(ts.value, []);
+            toByVal.get(ts.value).push(ts);
+          });
+          fromSites.forEach((fs) => {
+            (toByVal.get(fs.value) || []).forEach((ts) => {
+              linkSites(j.fromEl, p, fs.value, j.toEl, p, ts.value, j.id, null);
+            });
+          });
         });
       });
 
-      // Same-slice SCR ↔ COM / RMO by property name.
+      // Same-slice SCR ↔ COM / RMO by property name + matching example value.
       emd.querySelectorAll('.cell.mba[data-slc]').forEach((mba) => {
         const si = sliceOf(mba);
         const host = mba.querySelector(':scope > .com, :scope > .rmo');
@@ -334,18 +424,20 @@
         const sliceJoins = joins.filter(
           (j) =>
             (j.cellSi != null && j.cellSi === si) ||
-            (j.toEl === host) ||
-            (j.fromEl === host)
+            j.toEl === host ||
+            j.fromEl === host
         );
         const joinId = sliceJoins.length ? sliceJoins[0].id : null;
         const wantClass = host.classList.contains('com') ? 'com-data' : 'rmo-data';
         emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .scr`).forEach((scr) => {
           const sites = scrPropSites(scr);
-          // Prefer the live COM/RMO highlight fields so idle SPA areas
-          // (e.g. an empty Add title) do not join the property graph.
           const live = sites.filter(({ el }) => el.classList.contains(wantClass));
-          (live.length ? live : sites).forEach(({ name }) => {
-            if (hostNames.has(name)) link(scr, name, host, name, joinId, null);
+          (live.length ? live : sites).forEach(({ name, el }) => {
+            if (!hostNames.has(name)) return;
+            const scrVal = propValueOf(el);
+            propSitesOn(host, name, scrVal).forEach((hs) => {
+              linkSites(scr, name, scrVal, host, name, hs.value, joinId, null);
+            });
           });
         });
       });
@@ -355,23 +447,39 @@
 
     function resolvePropStart(el) {
       if (!el) return null;
-      const row = el.closest('.props > div');
+      const row =
+        el.closest('.props > .obj > div') || el.closest('.props > div:not(.obj)');
       if (row) {
         const card = row.closest('article.com, article.rmo, article.evt, article.err');
-        const dt = row.querySelector('dt');
-        if (card && dt) return { card, prop: dt.textContent.trim(), row };
+        const dt = row.querySelector(':scope > dt');
+        if (card && dt) {
+          return {
+            card,
+            prop: dt.textContent.trim(),
+            row,
+            value: propValueOf(row),
+          };
+        }
       }
       const field = el.closest('[data-prop]');
       if (field) {
         const card = field.closest('article.scr');
         const prop = field.getAttribute('data-prop').trim();
-        if (card && prop) return { card, prop, row: field };
+        if (card && prop) {
+          return { card, prop, row: field, value: propValueOf(field) };
+        }
       }
-      // Inferred SCR control (no data-prop yet).
       const scr = el.closest('article.scr');
       if (scr) {
         const site = scrPropSites(scr).find((s) => s.el === el || s.el.contains(el));
-        if (site) return { card: scr, prop: site.name, row: site.el };
+        if (site) {
+          return {
+            card: scr,
+            prop: site.name,
+            row: site.el,
+            value: propValueOf(site.el),
+          };
+        }
       }
       return null;
     }
@@ -381,13 +489,20 @@
       const start = resolvePropStart(startEl);
       if (!start || !start.prop) return;
       const adj = buildPropGraph();
-      const startKey = siteKey(start.card, start.prop);
+      const startKey = siteKey(start.card, start.prop, start.value);
       const seen = new Set([startKey]);
       const queue = [startKey];
-      const cards = new Map(); // card → Set(prop)
+      // card → Map(prop → Set(value)) so collections only light the hovered example
+      const cards = new Map();
       const joinIds = new Set();
       const maps = new Set();
-      cards.set(start.card, new Set([start.prop]));
+      function remember(card, prop, value) {
+        if (!cards.has(card)) cards.set(card, new Map());
+        const byProp = cards.get(card);
+        if (!byProp.has(prop)) byProp.set(prop, new Set());
+        byProp.get(prop).add(value);
+      }
+      remember(start.card, start.prop, start.value);
 
       while (queue.length) {
         const key = queue.shift();
@@ -395,8 +510,7 @@
         edges.forEach((edge) => {
           if (edge.joinId != null) joinIds.add(String(edge.joinId));
           if (edge.mapEl) maps.add(edge.mapEl);
-          if (!cards.has(edge.card)) cards.set(edge.card, new Set());
-          cards.get(edge.card).add(edge.prop);
+          remember(edge.card, edge.prop, edge.value);
           if (!seen.has(edge.key)) {
             seen.add(edge.key);
             queue.push(edge.key);
@@ -409,9 +523,11 @@
       } else {
         emd.classList.add('path-focus');
       }
-      cards.forEach((names, card) => {
+      cards.forEach((byProp, card) => {
         markEndpoint(card);
-        markProps(card, [...names]);
+        byProp.forEach((values, prop) => {
+          values.forEach((value) => markProps(card, [prop], value));
+        });
       });
       maps.forEach(markEndpoint);
       if (start.row) start.row.classList.add('prop-hot');
@@ -841,8 +957,8 @@
       markEndpoint(el);
     }
 
-    // Card / property hover — a property value isolates that name through the
-    // system; otherwise the whole card's joins stay lit and the rest fades.
+    // Card / property hover — a property value isolates that example through
+    // the system (name + value); otherwise the card's joins stay lit.
     emd
       .querySelectorAll('article.scr, article.com, article.rmo, article.evt, article.err')
       .forEach((el) => {
@@ -852,7 +968,8 @@
         }
         const over = (e) => {
           const propEl =
-            e.target.closest('.props > div') ||
+            e.target.closest('.props > .obj > div') ||
+            e.target.closest('.props > div:not(.obj)') ||
             e.target.closest('[data-prop]') ||
             (e.target.closest('article.scr') === el
               ? (() => {
@@ -881,9 +998,13 @@
         el.addEventListener('mouseout', out);
       });
 
-    emd.querySelectorAll('.props > div, [data-prop]').forEach((el) => {
-      el.style.cursor = 'pointer';
-    });
+    emd
+      .querySelectorAll(
+        '.props > div:not(.obj), .props > .obj > div, [data-prop]'
+      )
+      .forEach((el) => {
+        el.style.cursor = 'pointer';
+      });
 
     // MAP hover — light the join and the mapped property rows on each side.
     emd.querySelectorAll('.mba > .map').forEach((el) => {
