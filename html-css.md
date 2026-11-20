@@ -1,6 +1,6 @@
 # HTML and CSS
 
-Lookup for drawing one slice of an EMD. Terms, construction, and a short HTML-board primer with samples are in [`event-modeling-instructions.md`](event-modeling-instructions.md). This file is the full markup reference for that board.
+Stylesheet lookup for an EMD board: sticky rows, tiles, corridors, and continuity. The markup for every slice, card, screen control, processor dock, and GWT timeline is in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**HTML board**). Use that file to build `<name>.emd.html` from an `EMD.md`.
 
 The diagram is one file named `<name>.emd.html`. Each new slice adds one column. Earlier columns stay as they are.
 
@@ -129,7 +129,10 @@ Build the sketch from the containers and elements below, top to bottom and left 
 | wire | `div.wire` | The sketch page. One per screen. |
 | column | `div.col` | Stacks its children top to bottom. |
 | row | `div.row` | Places its children left to right. `row end` packs them to the right. |
+| area | `fieldset.area` | A named region of an SPA (Add, Open, Done, …). Its title is a `legend`. |
 | group | `fieldset.group` | A sketched box. Its title is a `legend`. |
+
+**COM / RMO highlights.** Put `com-data` (light blue) or `rmo-data` (light green) on the **value field only** — the `input` / `select`, a `td`, or a `span` around the value in a `p.label`. Never on the outer `label` (that paints the property name). Empty RMO projections may mark the empty `table` / `tbody`. Markup rules and SPA examples are in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**Screen**).
 
 **Elements.** Each one is a single HTML control.
 
@@ -209,7 +212,6 @@ An event is past tense. An error names the facts the command was checked against
 ```html
 <article class="err">
   <h2>Unknown Customer</h2>
-  <p>no Customer Registered with customerId = C-8</p>
   <dl class="props">
     <div><dt>customerId</dt><dd>C-8</dd></div>
     <div><dt>message</dt><dd>"Customer C-8 is not registered"</dd></div>
@@ -309,6 +311,8 @@ All cross-slice projections use `diagram/connectors.js` (same router as `diagram
 **Routing (tiling-example).** Bands by leftness (`fromSlc + toSlc`) with elbow-clash sharing. Write shaft locked to the CSS card center; outbound stubs push right; arrivals centered as a group. Horizontals hop over verticals (`hop-*.svg`). One tile occupancy — shafts break around hops. **Hover / click:** by default every connector and card is fully lit (no idle mute, no 3-level color ramp). Hovering a SCR / COM / EVT / RMO / ERR or a connector piece adds `.path-focus` on `.emd`: related path tiles get `.path-hot` / hop hot flags and endpoints get `.endpoint-hot`; everything else fades via `--focus-fade`. Hovering a `.map` note lights that join and marks the mapped property rows (`.prop-hot`) on each side (`inputs → outputs` from the note text). Clicking a connector scrolls any related end card that is partly (or fully) out of view into the board viewport.
 
 **Mapping notes** still sit under the RMO (`.map`) on the join shaft; the shaft itself is JS.
+
+The rail samples below show an older hand-drawn join. Do not copy them into a board. Leave every `.cell.connector` empty and list joins as `data-joins`, using the templates in the **HTML board** section of [`event-modeling-instructions.md`](event-modeling-instructions.md). `connectors.js` clears those cells and paints the tiles.
 
 ### Command slice (no join yet)
 

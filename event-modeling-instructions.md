@@ -2,7 +2,7 @@
 
 This document uses three-letter abbreviations to identify each component and concept. Each term is defined using only the terms listed above it, so the list can be read from top to bottom.
 
-Event Modeling Diagrams (EMDs) describe information systems and processes using a clear, timeline-based approach built from vertical slices (SLCs). It is like a wire frame diagram but with more elements to track information flow and state behind the scenes. It is also specification by example: a slice may carry no given-when-thens (GWTs) or many, drawn below the lower band. The GWTs are represented on one or more vertical timelines. When GWTs share the same timeline, the previous COM's or RMO's (depending on the type of SLC) Given EVTs and Then EVTs are included as the next When's Given. Separate timelines in the same slice do not share that history. The implementation for a system described by an EMD will show the same behaviour as shown in the EMD. Learn the terms below, then follow the steps after them to construct an EMD. When the model is ready, draw it as a browser board named `<name>.emd.html` (see **HTML board** below). The full markup lookup lives in [`html-css.md`](html-css.md).
+Event Modeling Diagrams (EMDs) describe information systems and processes using a clear, timeline-based approach built from vertical slices (SLCs). It is like a wire frame diagram but with more elements to track information flow and state behind the scenes. It is also specification by example: a slice may carry no given-when-thens (GWTs) or many, drawn below the lower band. The GWTs are represented on one or more vertical timelines. When GWTs share the same timeline, the previous COM's or RMO's (depending on the type of SLC) Given EVTs and Then EVTs are included as the next When's Given. Separate timelines in the same slice do not share that history. The implementation for a system described by an EMD will show the same behaviour as shown in the EMD. Learn the terms below, then follow the steps after them to construct an EMD. When the model is ready, draw it as a browser board named `<name>.emd.html`. The **HTML board** section below is the markup for that file: every slice type, card, screen control, and arrow corridor an `EMD.md` can ask for. CSS, arrow tiles, and fonts stay in `diagram/`. [`html-css.md`](html-css.md) is the stylesheet lookup (sticky rows, tile files, continuity measurements).
 
 ## Terms:
 Basic terms, which need no other terms:
@@ -430,7 +430,23 @@ Bike rental shop.
 
 After the EMD is constructed (terms, slices, properties, arrows, and any GWTs), draw it as one file: `<name>.emd.html`. Open that file in a browser (or serve the repo). CSS, arrow tiles, fonts, connectors, and board settings stay in `diagram/`; the file is the page plus the board markup. A board under `projects/<name>/` links `../../diagram/`.
 
-Each new SLC adds one column. Earlier columns stay as they are. Bump `--slices` when a column is added. Leave every `.cell.connector` empty — `connectors.js` draws write shafts and EVT→RMO joins there. Give every EVT and RMO an `id`, and list every EVT→RMO edge on `<main>` as `data-joins="evt-a:rmo-x,…"`.
+Each new SLC adds one column. Earlier columns stay as they are. Bump `--slices` when a column is added. Leave every `.cell.connector` empty — `connectors.js` draws the COM→EVT segment through that row, plus every EVT→RMO and ERR→SCR join. Put those joins on `<main>` as `data-joins="evt-a:rmo-x,err-b:scr-y,…"`.
+
+Read the `EMD.md` straight into the templates below:
+
+| In the EMD | On the board |
+|---|---|
+| USRs | one UBA row each, lane text `<name> (<ROL>)` |
+| SVCs | one LBA row each; first lane is `lba-head`, last row's cells take `foot` |
+| WFLs | one `.wfl` per workflow, `data-span` = its slice count, goal in the `span` |
+| COM slice | SCR or PRO, COM, EVT (or ERR), shafts in **COM slice** |
+| RMO slice | RMO, optional SCR with `arrow-up`, empty lower gap, in **RMO slice** |
+| NAV slice | SCR only, empty MBA and LBA, in **NAV slice** |
+| PRO | gear dock across the RMO slice and the next COM slice, in **Processor pair** |
+| MAP | `p.map` under the COM or the RMO, never on the EVT |
+| Properties | `dl.props` on COM, RMO, EVT, ERR; the wireframe on a SCR |
+| Arrows between SLCs | `data-joins` only |
+| GWT timelines | `.timeline` stacks in that slice's `.cell.gwt` |
 
 ### Board help (`?`)
 
@@ -442,6 +458,7 @@ Each new SLC adds one column. Earlier columns stay as they are. Bump `--slices` 
 - **LBA** — events (**EVT**, orange) the system recorded, or an error (**ERR**, red) when a command failed instead; empty in RMO and NAV slices.
 - **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id).
 - **Arrows** — data flow: screen → command → event (or error), and event → read model → screen. A **MAP** on an arrow names inputs → outputs when data changes shape.
+- **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name); on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). An SPA keeps one screen layout and paints those highlights on the live fields in that slice.
 - **Interaction** — hover a card or connector to keep that path lit and fade the rest; click a connector to scroll any end that is partly out of view fully into the viewport; use the gear to tune scale, fade, and connector tile size.
 
 When you change how an EMD is read (new slice type, GWT shape, card kinds), update both the terms/construction above and this help list (and the matching HTML in `settings.js`).
@@ -472,34 +489,439 @@ When you change how an EMD is read (new slice type, GWT shape, card kinds), upda
 
 `main.emd` is the only scrollport. Do not scroll `body`/`window`.
 
-### Board chrome (one workflow, one USR, one SVC)
+### Board rows
+
+The board is one CSS grid. Column 1 is the lane labels. Each later column is one SLC, left to right. `--slices` is that column count. Emit every row left to right: the lane cell, then one cell per slice. Do not skip a slice. An empty cell is an empty `div`.
+
+Row order, top to bottom:
+
+1. Workflow. The lane is `emd-corner` and stays empty — `settings.js` puts the gear and `?` there. It must be the first lane in `.board`. Then one `.wfl` per workflow, not one per slice. `data-slc` is the first SLC of that workflow. `data-span` is how many slices it covers (the stylesheet spans 2 through 24; span 1 is a single column). The goal text goes in a `span`. Omit `continues`.
+2. One UBA row per USR, top to bottom in the order the EMD lists them. Lane text is `<name> (<ROL>)`. `data-lane` is the name in kebab case (`jim`).
+3. One MBA row. The lane is empty.
+4. One connector row. The lane is empty. Every `.cell.connector` stays empty; `connectors.js` draws the cross-slice lines.
+5. One LBA row per SVC. The first service lane is `lba-head` (the gap aligns the name with the event cards). Later service lanes are plain `lane open` with the service name as text. Cells on the last service row also take `foot`. A single service is both: the lane is `lba-head`, and every cell is `lba foot`.
+6. GWT, last. Lane text is `GWT`. One `.cell.gwt` per slice.
 
 ```html
 <div class="cell lane emd-corner"></div>
-<div class="cell wfl" data-slc="1" data-span="1"><span>Stock a bike</span></div>
+<div class="cell wfl" data-slc="1" data-span="2"><span>Stock a bike</span></div>
+<div class="cell wfl" data-slc="3" data-span="1"><span>Rent a bike</span></div>
 
 <div class="cell lane open">Jim (Customer)</div>
-<div class="cell uba" data-slc="1" data-lane="jim"><!-- SCR or empty shaft --></div>
+<div class="cell uba" data-slc="1" data-lane="jim"></div>
+<div class="cell uba" data-slc="2" data-lane="jim"></div>
+<div class="cell uba" data-slc="3" data-lane="jim"></div>
+
+<div class="cell lane open">Sam (Shop Clerk)</div>
+<div class="cell uba" data-slc="1" data-lane="sam"></div>
+<div class="cell uba" data-slc="2" data-lane="sam"></div>
+<div class="cell uba" data-slc="3" data-lane="sam"></div>
 
 <div class="cell lane open"></div>
-<div class="cell mba" data-slc="1"><!-- COM or RMO + gaps --></div>
+<div class="cell mba" data-slc="1"></div>
+<div class="cell mba" data-slc="2"></div>
+<div class="cell mba" data-slc="3"></div>
 
 <div class="cell lane open"></div>
-<div class="cell connector" data-slc="1"></div><!-- leave empty -->
+<div class="cell connector" data-slc="1"></div>
+<div class="cell connector" data-slc="2"></div>
+<div class="cell connector" data-slc="3"></div>
 
 <div class="cell lane open lba-head">
   <div class="lba-head-gap" aria-hidden="true"></div>
   <div class="lba-head-label">Fleet</div>
 </div>
-<div class="cell lba" data-slc="1" data-lane="fleet"><!-- EVT/ERR or empty shaft --></div>
+<div class="cell lba" data-slc="1" data-lane="fleet"></div>
+<div class="cell lba" data-slc="2" data-lane="fleet"></div>
+<div class="cell lba" data-slc="3" data-lane="fleet"></div>
+
+<div class="cell lane open foot">Rental</div>
+<div class="cell lba foot" data-slc="1" data-lane="rental"></div>
+<div class="cell lba foot" data-slc="2" data-lane="rental"></div>
+<div class="cell lba foot" data-slc="3" data-lane="rental"></div>
 
 <div class="cell lane open">GWT</div>
-<div class="cell gwt" data-slc="1"><!-- one or more vertical timelines, or empty when no GWTs --></div>
+<div class="cell gwt" data-slc="1"></div>
+<div class="cell gwt" data-slc="2"></div>
+<div class="cell gwt" data-slc="3"></div>
 ```
 
-The GWT row is the last row. It sits under every LBA service row. `foot` stays on the last service row. Add one `.cell.gwt` per slice; leave it empty when that SLC has no GWTs. Put each timeline in a `.timeline` inside that cell.
+Do not add a slice-number row. The first lane has to stay `emd-corner`.
 
-Add `div.cell.slc-no` cells when you want slice numbers. Title cards with the name only (no `COM`/`EVT` prefix). Classes: `scr`, `pro`, `com`, `rmo`, `evt`, `err`; mappings are `p.map` under the COM or RMO. GWT timeline items reuse those card classes, with no three-letter prefix and no Given/When/Then labels.
+Title every card with the name only (no `COM` / `EVT` prefix). Classes: `scr`, `pro`, `com`, `rmo`, `evt`, `err`. A mapping is `p.map` under the COM or RMO. GWT timeline cards reuse those classes, with no ids and no Given/When/Then labels.
+
+### Ids and joins
+
+Give every SCR, PRO, COM, RMO, EVT, and ERR an `id`: the class, a hyphen, then the name in kebab case (`evt-bike-received`). When the same name appears more than once, add one distinguisher, and do not put the slice number in the id:
+
+- the actor, when different users record the same item (`evt-attendee-registered-pat`, `scr-signup-form-jordan`)
+- `-empty`, when that copy's example value is empty (`scr-signup-form-jordan-empty`)
+- `-error`, when that copy is the screen showing the ERR message (`scr-signup-form-jordan-error`)
+- `-1`, `-2`, in order, when the same user repeats the same item (`evt-session-scheduled-1`, `com-schedule-session-2`)
+
+On `<main class="emd">`, list every cross-slice arrow in `data-joins` as `fromId:toId`, comma-separated:
+
+- each `EVT → RMO` line: `evt-bike-received:rmo-bike-catalog`
+- each `ERR → SCR` line (the screen in the next slice): `err-unknown-customer:scr-rent-bike-form`
+
+Leave every `.cell.connector` empty. Do not hand-build rails. `connectors.js` draws EVT→RMO and ERR→SCR, and the connector segment of each COM→EVT (or COM→ERR) vertical.
+
+### Vertical shafts
+
+A same-slice vertical is HTML. A cross-slice join is not.
+
+- Under a SCR or PRO that issues a COM: shaft only (no arrowhead).
+- Into a COM: shaft, then `arrow-down`.
+- Under a COM, toward the connector: shaft only.
+- Into an EVT or ERR: shaft, then `arrow-down`.
+- Under an RMO: an empty `.gap`. JS draws `arrow-up` there.
+- Under a SCR that reads an RMO in the same slice: `arrow-up`, then shaft.
+- Through an empty UBA cell below that SCR (or PRO), and through an empty LBA cell above that EVT or ERR: shaft only, so the line does not break. Cells above the actor, and service rows below the event, stay empty.
+- A NAV slice has a shaft under its SCR and nothing in the MBA or LBA.
+
+Every MBA cell that holds a card has a `.gap` above the card and a `.gap` below it, so COM and RMO tops line up. The upper gap stays compact; the lower gap takes the spare height.
+
+### COM slice
+
+SCR (or the PRO dock below) → COM → EVT. Put a MAP on `COM → EVT` between the COM and the lower gap.
+
+```html
+<!-- the USR who issues the COM -->
+<div class="cell uba" data-slc="1" data-lane="alex">
+  <article class="scr" id="scr-receive-bike-form">…</article>
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+<!-- each user row below that USR, same slice -->
+<div class="cell uba" data-slc="1" data-lane="pat">
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+
+<div class="cell mba" data-slc="1">
+  <div class="gap">
+    <div class="arr v">
+      <div class="shaft"></div>
+      <div class="tile arrow-down"></div>
+    </div>
+  </div>
+  <article class="com" id="com-rent-bike">…</article>
+  <p class="map">Rental End: startDate, days → endDate</p>
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+
+<!-- service rows above Rental, same slice: shaft only -->
+<div class="cell lba" data-slc="1" data-lane="fleet">
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+<div class="cell lba foot" data-slc="1" data-lane="rental">
+  <div class="gap">
+    <div class="arr v">
+      <div class="shaft"></div>
+      <div class="tile arrow-down"></div>
+    </div>
+  </div>
+  <article class="evt" id="evt-bike-rented">…</article>
+</div>
+```
+
+Omit `p.map` when that arrow has no MAP. A failed COM uses the same corridors and puts the ERR where the EVT would be:
+
+```html
+<article class="err" id="err-unknown-customer">…</article>
+```
+
+Add `err-unknown-customer:scr-rent-bike-form` to `data-joins`. The next slice is usually a NAV slice.
+
+### RMO slice
+
+Shaft down from the UBA into the RMO. Empty gap under the RMO. `arrow-up` then shaft under each SCR in this slice that shows the RMO. A MAP on `EVT → RMO` sits under the RMO, before the empty gap.
+
+```html
+<div class="cell uba" data-slc="2" data-lane="jim">
+  <article class="scr" id="scr-bike-catalog">…</article>
+  <div class="gap">
+    <div class="arr v">
+      <div class="tile arrow-up"></div>
+      <div class="shaft"></div>
+    </div>
+  </div>
+</div>
+
+<div class="cell mba" data-slc="2">
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+  <article class="rmo" id="rmo-signup-qr">…</article>
+  <p class="map">Signup Url: signupToken → signupUrl</p>
+  <div class="gap"></div>
+</div>
+```
+
+Omit `p.map` when no MAP lands on this RMO. When several USRs show the same RMO, repeat the SCR (new id each time) and give each one the `arrow-up` gap. User cells between those screens and the MBA that have no screen of their own keep a shaft only.
+
+List every EVT that feeds this RMO in `data-joins`.
+
+### NAV slice
+
+A screen, a shaft under it, and empty MBA and LBA. No COM, RMO, EVT, or ERR.
+
+```html
+<div class="cell uba" data-slc="12" data-lane="jim">
+  <article class="scr" id="scr-rent-bike-form">…</article>
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+<div class="cell mba" data-slc="12"></div>
+<div class="cell lba foot" data-slc="12" data-lane="rental"></div>
+```
+
+The ERR message is a `p.label` on this screen. The ERR card stays in the previous slice.
+
+### Processor pair
+
+A PRO is two adjacent slices. The RMO slice holds the gear dock that runs into the next column. The COM slice holds the gear and the PRO. Draw the gear only in the COM slice.
+
+```html
+<!-- RMO slice, that user's cell -->
+<div class="cell uba" data-slc="4" data-lane="sam">
+  <div class="gear-dock split">
+    <div class="tile turn-br"></div>
+    <div class="arr h"><div class="shaft"></div></div>
+  </div>
+  <div class="arr v fill"><div class="shaft"></div></div>
+</div>
+
+<!-- COM slice, same user -->
+<div class="cell uba" data-slc="5" data-lane="sam">
+  <div class="gear-dock">
+    <div class="arr h">
+      <div class="shaft"></div>
+      <div class="tile arrow-right"></div>
+    </div>
+    <article class="pro" id="pro-bike-lister">…</article>
+    <div class="balance" aria-hidden="true"></div>
+  </div>
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+```
+
+The COM slice then continues like any COM slice (arrow into the COM, arrow into the EVT). User rows below the dock still carry a shaft. There is no `arrow-up` into a screen on the RMO slice of a processor pair.
+
+### Cards
+
+```html
+<article class="com" id="com-receive-bike">
+  <h2>Receive Bike</h2>
+  <dl class="props">
+    <div><dt>bikeId</dt><dd>B-101</dd></div>
+    <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
+  </dl>
+</article>
+
+<article class="rmo" id="rmo-topic-ballot">
+  <h2>Topic Ballot</h2>
+  <dl class="props">
+    <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
+    <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · Pat Lee</dd></div>
+  </dl>
+</article>
+
+<article class="evt" id="evt-bike-received">
+  <h2>Bike Received</h2>
+  <dl class="props">
+    <div><dt>bikeId</dt><dd>B-101</dd></div>
+    <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
+  </dl>
+</article>
+
+<article class="err" id="err-unknown-customer">
+  <h2>Unknown Customer</h2>
+  <dl class="props">
+    <div><dt>customerId</dt><dd>C-8</dd></div>
+    <div><dt>message</dt><dd>Customer C-8 is not registered</dd></div>
+  </dl>
+</article>
+
+<p class="map">Rental End: startDate, days → endDate</p>
+```
+
+One `div` per property, name in `dt`, example value in `dd`. A joined RMO keeps lookup rows (`lookup <id>` → the looked-up value) and one row per example line, with the row fields joined by ` · `. A TODO read model keeps `TODO` in the name. An ERR card is that property list. A clause before the colon in the EMD (the check) is not a paragraph on the card or on the GWT card; each fact it uses is a named property, and a property the check found empty is listed with an empty value. A MAP names properties only: no `MAP` prefix, no values, no formula.
+
+### Screen
+
+A SCR is `article.scr` plus one `.wire`. Build the wire from the EMD's nested sketch, top to bottom. `readonly` and `disabled` keep it from being a working form. A button's text is only the word the person sees; leave off `→` and the COM or SCR it names.
+
+An SPA is still one SCR per slice: same screen name and the same areas in every column, with only the example values (and highlights below) changing. Put each region of that page in an `area` so Add / Open / Done (or similar) stay visible as one layout left to right.
+
+**COM / RMO highlights on the SCR.** Paint only the data value that moves on that slice's arrow — not the property name, chrome, headings, or buttons.
+
+- **COM slice:** every value the COM takes from this SCR gets class `com-data` (light blue). Put it on the value field only: the `input` or `select`, a `td`, or a `span` around the value inside a `p.label`. Never put it on the outer `label` — that paints the property name too.
+- **RMO slice:** every value this SCR shows from the RMO gets class `rmo-data` (light green), on those same value fields (`input` / `select` / `td` / value `span`). When the RMO is empty, put `rmo-data` on the empty `table` or `tbody` of that area so the projection surface is still marked. Do not mark static chrome or values that did not come from this RMO.
+
+Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (unless you are only showing an ERR message).
+
+| EMD line | Markup |
+|---|---|
+| heading Rent Bike | `<p class="heading">Rent Bike</p>` |
+| column | `<div class="col">…</div>` |
+| row | `<div class="row">…</div>` |
+| row, right-aligned | `<div class="row end">…</div>` |
+| area Add | `<fieldset class="area"><legend>Add</legend>…</fieldset>` |
+| group Bike | `<fieldset class="group"><legend>Bike</legend>…</fieldset>` |
+| group Bike (read only) | the same fieldset; children are `p.label`, not inputs |
+| label bikeId = B-101 | `<p class="label">bikeId B-101</p>` |
+| text box name = Pat Lee | `<label class="text">name <input value="Pat Lee" readonly></label>` |
+| text box name = (empty) | `<label class="text">name <input value="" readonly></label>` |
+| dropdown kind = presentation | `<label class="dropdown">kind <select disabled><option>presentation</option></select></label>` |
+| date picker startDate = 2026-10-22 | `<label class="date">startDate <input value="2026-10-22" readonly></label>` |
+| check box agree = yes | `<label class="check">agree <input type="checkbox" checked disabled></label>` |
+| table | one `table`; header cells are the column names; one `tr` per example row |
+| button Rent → COM Rent Bike | `<button type="button">Rent</button>` |
+| button Register → SCR Register Bike Form | `<button type="button">Register</button>` |
+| COM takes title from the SCR | `com-data` on the value field: `<label class="text">title <input class="com-data" value="Buy milk" readonly></label>` |
+| RMO fills a table cell | `rmo-data` on that cell: `<td class="rmo-data">Buy milk</td>` |
+| RMO / COM value in a `p.label` | wrap the value only: `<p class="label">bikeId <span class="com-data">B-101</span></p>` |
+
+```html
+<article class="scr" id="scr-rent-bike-form">
+  <h2>Rent Bike Form</h2>
+  <div class="wire">
+    <div class="col">
+      <p class="heading">Rent Bike</p>
+      <fieldset class="group"><legend>Bike</legend>
+        <div class="row">
+          <p class="label">bikeId B-101</p>
+          <p class="label">model Trailblazer 29</p>
+          <p class="label">dailyRate 25.00</p>
+        </div>
+      </fieldset>
+      <fieldset class="group"><legend>Customer</legend>
+        <label class="text">customerId <input value="C-7" readonly></label>
+      </fieldset>
+      <fieldset class="group"><legend>Dates</legend>
+        <div class="row">
+          <label class="date">startDate <input value="2026-10-22" readonly></label>
+          <label class="text">days <input value="3" readonly></label>
+        </div>
+      </fieldset>
+      <div class="row end">
+        <button type="button">Rent</button>
+      </div>
+    </div>
+  </div>
+</article>
+```
+
+A table screen. The button column has an empty header. Put one body row per example row in the EMD.
+
+```html
+<article class="scr" id="scr-bike-catalog">
+  <h2>Bike Catalog</h2>
+  <div class="wire">
+    <div class="col">
+      <p class="heading">Bikes</p>
+      <table>
+        <thead><tr><th>bikeId</th><th>model</th><th>type</th><th>dailyRate</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>B-101</td><td>Trailblazer 29</td><td>Mountain</td><td>25.00</td><td><button type="button">Rent</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</article>
+```
+
+A NAV screen shows the ERR message as a label under the field that failed:
+
+```html
+<label class="text">customerId <input value="C-8" readonly></label>
+<p class="label">message Customer C-8 is not registered</p>
+```
+
+An SPA: one screen, several `area`s. Repeat the same layout in every slice; only values and highlights change. COM slice — light blue on what the command takes. RMO slice — light green on what the read model shows.
+
+```html
+<!-- COM slice: Add Todo takes title from the Add area -->
+<article class="scr" id="scr-todo-app-add">
+  <h2>Todo App</h2>
+  <div class="wire">
+    <div class="col">
+      <fieldset class="area"><legend>Add</legend>
+        <label class="text">title <input class="com-data" value="Buy milk" readonly></label>
+        <div class="row end"><button type="button">Add</button></div>
+      </fieldset>
+      <fieldset class="area"><legend>Open</legend>
+        <table>
+          <thead><tr><th>todoId</th><th>title</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </fieldset>
+      <fieldset class="area"><legend>Done</legend>
+        <table>
+          <thead><tr><th>todoId</th><th>title</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </fieldset>
+    </div>
+  </div>
+</article>
+
+<!-- RMO slice: Open Todos fills the Open area -->
+<article class="scr" id="scr-todo-app-open">
+  <h2>Todo App</h2>
+  <div class="wire">
+    <div class="col">
+      <fieldset class="area"><legend>Add</legend>
+        <label class="text">title <input value="" readonly></label>
+        <div class="row end"><button type="button">Add</button></div>
+      </fieldset>
+      <fieldset class="area"><legend>Open</legend>
+        <table>
+          <thead><tr><th>todoId</th><th>title</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="rmo-data">T-1</td>
+              <td class="rmo-data">Buy milk</td>
+              <td><button type="button">Complete</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </fieldset>
+      <fieldset class="area"><legend>Done</legend>
+        <table>
+          <thead><tr><th>todoId</th><th>title</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </fieldset>
+    </div>
+  </div>
+</article>
+```
+
+The same screen on several users is a separate `article.scr` in each of those lanes, each with its own id.
+
+### Processor card
+
+```html
+<article class="pro" id="pro-bike-lister">
+  <h2>Bike Lister</h2>
+  <svg class="gear" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.26.42.49.42h3.8c.23 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
+  </svg>
+</article>
+```
+
+The name sits above the gear. The card shows no properties. It lives in the COM slice's gear dock, in the UBA of the USR who waits on it.
 
 ### GWT (below the LBA)
 
@@ -568,84 +990,27 @@ One cell per slice. A SLC may have no timelines, or many GWTs on one or more ver
     <article class="err"><h2>Unknown Customer</h2>…</article>
   </div>
 </div>
-```
 
-### Cards
-
-```html
-<article class="com" id="com-receive-bike">
-  <h2>Receive Bike</h2>
-  <dl class="props">
-    <div><dt>bikeId</dt><dd>B-101</dd></div>
-    <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
-  </dl>
-</article>
-
-<article class="evt" id="evt-bike-received">
-  <h2>Bike Received</h2>
-  <dl class="props">
-    <div><dt>bikeId</dt><dd>B-101</dd></div>
-    <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
-  </dl>
-</article>
-
-<article class="err" id="err-unknown-customer">
-  <h2>Unknown Customer</h2>
-  <dl class="props">
-    <div><dt>customerId</dt><dd>C-8</dd></div>
-    <div><dt>message</dt><dd>Customer C-8 is not registered</dd></div>
-  </dl>
-</article>
-
-<p class="map">Rental End: startDate, days → endDate</p>
-```
-
-An ERR sits in the LBA instead of an EVT when the COM failed (see SLC11 in the example). The next slice is often a NAV slice: SCR in the UBA with the message on the form, empty MBA and LBA (see SLC12).
-
-Screens use a `.wire` sketch inside `article.scr`. Processors are `article.pro` with a gear SVG. Every MBA cell needs a `.gap` above and below the card so COM/RMO tops line up across slices.
-
-### Same-slice verticals (COM slice)
-
-```html
-<!-- UBA: screen, then shaft down -->
-<article class="scr" id="scr-receive-bike-form">…</article>
-<div class="gap">
-  <div class="arr v"><div class="shaft"></div></div>
-</div>
-
-<!-- MBA: arrow into COM, shaft toward connector -->
-<div class="gap">
-  <div class="arr v">
-    <div class="shaft"></div>
-    <div class="tile arrow-down"></div>
+<!-- two timelines in one slice; they do not share history -->
+<div class="cell gwt" data-slc="8">
+  <div class="timeline">
+    <article class="com"><h2>Register Attendee</h2>…</article>
+    <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+    <article class="evt"><h2>Attendee Registered</h2>…</article>
+  </div>
+  <div class="timeline">
+    <article class="com"><h2>Register Attendee</h2>…</article>
+    <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+    <article class="err"><h2>Already Registered</h2>…</article>
   </div>
 </div>
-<article class="com" id="com-receive-bike">…</article>
-<div class="gap">
-  <div class="arr v"><div class="shaft"></div></div>
-</div>
 
-<!-- LBA: shaft + arrow into EVT (connector segment is JS) -->
-<div class="gap">
-  <div class="arr v">
-    <div class="shaft"></div>
-    <div class="tile arrow-down"></div>
-  </div>
-</div>
-<article class="evt" id="evt-bike-received">…</article>
+<!-- slice with no GWTs -->
+<div class="cell gwt" data-slc="5"></div>
 ```
 
-Empty `uba`/`lba` cells a vertical crosses keep only `.gap > .arr.v > .shaft`. In an RMO slice, leave the MBA lower `.gap` empty so JS can draw the join `arrow-up`; put `arrow-up` then shaft under the SCR when the screen sits in the same slice.
+Each GWT card uses the same `h2` and `dl.props` as the cards above, with the example values from that step of the timeline, and no `id`. An empty RMO at the start of a timeline is the `h2` only. A slice with no GWTs is an empty `.cell.gwt`.
 
-### Cross-slice joins
-
-1. `id` on every EVT and RMO.
-2. `data-joins="evt-bike-received:rmo-bike-catalog,…"` on `main.emd` — every EVT→RMO edge.
-3. Empty `.cell.connector` columns; do not hand-build join rails.
-4. Load `connectors.js` and `settings.js`.
-
-Hover lights a path; click a connector scrolls any clipped end (including SCR on a tall vertical) into view, clear of the sticky lane and scrollbars.
-
-For wireframe controls, gear docks, continuity rules, and tile tables, use [`html-css.md`](html-css.md).
+Hover lights a path; click a connector scrolls any clipped end into view. Tile files, sticky-row measurements, and corridor continuity rules are in [`html-css.md`](html-css.md).
 
 For more, see: [eventmodeling.org](https://eventmodeling.org) or review example EMDs in this folder.

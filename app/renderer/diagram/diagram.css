@@ -362,6 +362,22 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 .wfl[data-span="6"] { grid-column: span 6; }
 .wfl[data-span="7"] { grid-column: span 7; }
 .wfl[data-span="8"] { grid-column: span 8; }
+.wfl[data-span="9"] { grid-column: span 9; }
+.wfl[data-span="10"] { grid-column: span 10; }
+.wfl[data-span="11"] { grid-column: span 11; }
+.wfl[data-span="12"] { grid-column: span 12; }
+.wfl[data-span="13"] { grid-column: span 13; }
+.wfl[data-span="14"] { grid-column: span 14; }
+.wfl[data-span="15"] { grid-column: span 15; }
+.wfl[data-span="16"] { grid-column: span 16; }
+.wfl[data-span="17"] { grid-column: span 17; }
+.wfl[data-span="18"] { grid-column: span 18; }
+.wfl[data-span="19"] { grid-column: span 19; }
+.wfl[data-span="20"] { grid-column: span 20; }
+.wfl[data-span="21"] { grid-column: span 21; }
+.wfl[data-span="22"] { grid-column: span 22; }
+.wfl[data-span="23"] { grid-column: span 23; }
+.wfl[data-span="24"] { grid-column: span 24; }
 .wfl > span {
   position: sticky;
   left: calc(var(--lane) + 0.4rem);
@@ -555,6 +571,36 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 }
 .wire table { width: 100%; border-collapse: collapse; }
 .wire th, .wire td { border: 2px solid #222; padding: 0.15em 0.3em; text-align: left; }
+/* SPA regions and COM/RMO data highlights on the wireframe. */
+.wire .area {
+  margin: 0;
+  border: 2px solid #222;
+  border-radius: 2px;
+  padding: 0.35em 0.45em 0.45em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  align-self: stretch;
+  min-width: 0;
+}
+.wire .area > legend { padding: 0 0.25em; }
+/* Highlight only the value control / cell — never the property-name label text. */
+.wire input.com-data,
+.wire select.com-data,
+.wire td.com-data,
+.wire span.com-data,
+.wire table.com-data,
+.wire tbody.com-data {
+  background: #c5e8f8;
+}
+.wire input.rmo-data,
+.wire select.rmo-data,
+.wire td.rmo-data,
+.wire span.rmo-data,
+.wire table.rmo-data,
+.wire tbody.rmo-data {
+  background: #d8f3df;
+}
 
 /* Arrow corridors: 30x30 SVG tiles. Long shafts tile via background-repeat. No JS. */
 .gap {
