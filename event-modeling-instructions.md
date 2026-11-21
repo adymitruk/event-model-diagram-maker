@@ -29,7 +29,7 @@ Bands, which are made of SWLs:
 
 Structures built from the bands:
   - SLC: slice - a column that spans all bands (the UBA, the MBA and the LBA) and is one step in a process. A SLC has one position in the MBA. That position may hold a COM (COM slice), an RMO (RMO slice), or nothing. A COM slice also has a PRO or SCR in the UBA and one item in the LBA: the EVT the COM recorded when it passed, or the ERR it failed with (an ERR is shown instead of an EVT; a SLC never holds both). An RMO slice has an optional PRO or SCR in the UBA and nothing in the LBA. A NAV slice has a SCR (or PRO) in the UBA and nothing in the MBA or LBA — navigation or showing an ERR message after a failed COM, with no command and no read model.
-  - GWT: given-when-then - a specification example that describes the COM or the RMO of one SLC. A SLC may carry no GWTs or many. When a SLC carries GWTs, they are drawn below the LBA in that column on one or more vertical timelines, top to bottom. Each GWT is read from its timeline, not written as separate Given/When/Then labels. For a COM: zero or more EVTs sit above the COM (those are the Given); the COM is the When; the EVT immediately below the COM is the Then. For an RMO: the timeline starts with the RMO, then places each EVT the RMO projects with the RMO again after it — RMO, EVT, RMO, EVT, …, RMO — so the RMO is shown at the beginning, between every EVT, and as the last step; that shows how the projection changes as each EVT is received. When the RMO joins, intermediate cards show lookup state (id → properties) built from earlier EVTs, and a later EVT carries only the join id so the looked-up property has a visible source. The EVTs are the Given; each RMO card after an EVT is that EVT's Then; there is no COM and no When. GWTs on the same timeline build on one another: the previous COM's or RMO's Given EVTs and Then EVTs are included as the next When's Given (every EVT above that next COM). Separate timelines in the same slice do not share that history. Another COM of the same type may follow on the same timeline to start that next GWT. A failed COM may use an ERR as its Then instead of an EVT. The GWT does not restate the SCR, the PRO or a MAP.
+  - GWT: given-when-then - a specification example that describes the COM or the RMO of one SLC. A SLC may carry no GWTs or many. When a SLC carries GWTs, they are drawn below the LBA in that column on one or more vertical timelines, top to bottom. Each GWT is read from its timeline, not written as separate Given/When/Then labels. For a COM: zero or more EVTs sit above the COM (those are the Given); the COM is the When; the EVT immediately below the COM is the Then. For an RMO: the timeline starts with the RMO, then places each EVT the RMO projects with the RMO again after it — RMO, EVT, RMO, EVT, …, RMO — so the RMO is shown at the beginning, between every EVT, and as the last step; that shows how the projection changes as each EVT is received. Every RMO snapshot already shows the RMO's full structure (collection table headers, or single-object property names); an empty first card means empty bodies / blank values, not a bare title. When the RMO joins, intermediate cards show lookup state (id → properties) built from earlier EVTs, and a later EVT carries only the join id so the looked-up property has a visible source. The EVTs are the Given; each RMO card after an EVT is that EVT's Then; there is no COM and no When. GWTs on the same timeline build on one another: the previous COM's or RMO's Given EVTs and Then EVTs are included as the next When's Given (every EVT above that next COM). Separate timelines in the same slice do not share that history. Another COM of the same type may follow on the same timeline to start that next GWT. A failed COM may use an ERR as its Then instead of an EVT. The GWT does not restate the SCR, the PRO or a MAP.
   - WFL: workflow - a grouping of SLCs to outline a process that the system and USRs go through to accomplish a goal. Each SLC is one step in that process. An EMD may have 1 or more WFLs
 
 The whole diagram:
@@ -101,7 +101,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
    - A SLC may carry no GWTs or many. When it carries any, draw them in that column below every LBA SWL. One row spans the diagram; the lane label is GWT. The cell is part of the SLC. It is not a SWL, and it is not a SVC.
    - Represent the GWTs on one or more vertical timelines in that cell. Do not split a GWT into separate Given/When/Then blocks; the timeline order is the GWT. Use the example values of the COM or RMO being described (COM slice or RMO slice).
    - COM: place zero or more EVTs, then the COM, then the EVT (or ERR) that COM produced. That is one GWT: all EVTs above the COM are the Given, the COM is the When, the EVT (or ERR) right under the COM is the Then. To add another GWT for the same COM type on the same timeline, place another COM of that type and its Then EVT below it. That next When's Given is the previous COM's Given EVTs plus its Then EVTs — every EVT above that next COM.
-   - RMO: place the RMO first (empty, or its state before any of this GWT's EVTs), then each EVT that RMO projects with the RMO again immediately after it. The pattern is RMO, EVT, RMO, EVT, …, RMO: the RMO appears at the beginning, between every EVT, and as the last step, so each RMO card shows how the projection changed when that EVT was received. Those EVTs are the Given; there is no When. When the RMO joins, every intermediate RMO card must show what that EVT contributed — including lookup entries keyed by id (e.g., attendeeId → name after EVT Attendee Registered) — so a later EVT that only carries that id has a visible source for the looked-up property on the prior RMO cards. When a later GWT on the same timeline needs that history, the previous RMO's Given EVTs (and any Then EVTs already on that timeline) are included in the next When's Given if a COM follows, or continue as further EVTs interleaved with RMO snapshots if another RMO GWT follows.
+   - RMO: place the RMO first (empty, or its state before any of this GWT's EVTs), then each EVT that RMO projects with the RMO again immediately after it. The pattern is RMO, EVT, RMO, EVT, …, RMO: the RMO appears at the beginning, between every EVT, and as the last step, so each RMO card shows how the projection changed when that EVT was received. Those EVTs are the Given; there is no When. **Structure from the first card:** every RMO snapshot on the timeline — including the opening empty one — already shows the RMO's full shape (every collection table with its column headers, or every single-object property name). Empty means no body rows / blank values, not a bare title. When the RMO has a main collection and lookups, both tables appear on every snapshot (main may stay header-only until its first row arrives). When the RMO joins, every intermediate RMO card must show what that EVT contributed — including lookup entries keyed by id (e.g., attendeeId → name after EVT Attendee Registered) — so a later EVT that only carries that id has a visible source for the looked-up property on the prior RMO cards. When a later GWT on the same timeline needs that history, the previous RMO's Given EVTs (and any Then EVTs already on that timeline) are included in the next When's Given if a COM follows, or continue as further EVTs interleaved with RMO snapshots if another RMO GWT follows.
    - GWTs on separate timelines in the same slice do not share history. Only GWTs on the same timeline build on one another.
    - A MAP stays on its arrow. The Then EVT or RMO on the timeline carries the example values of the MAP's outputs; the timeline does not restate the MAP.
 
@@ -118,7 +118,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
    - Check that every EVT is in 3NF: each property depends on the EVT's own key, and no EVT copies a property of another entity that is already recorded on an EVT in the same SWL. Where two entities meet (e.g., a rental and its customer), the EVT holds the id and the RMO joins.
    - Check that every MAP sits on one arrow (COM → EVT or EVT → RMO), that all of its inputs are present on the item at the tail of that arrow (the COM, or the EVTs), and that all of its outputs appear on the item at the head (the EVT, or the RMO). Check that it names inputs and outputs only: no values, since those sit on the items at either end, and no calculation, formula or transformation, since the EMD holds no implementation. A SCR or PRO passes data to its COM unchanged.
    - Check that every SLC belongs to exactly one WFL, that the SLCs of each WFL are contiguous, and that no RMO projects an EVT from a later WFL.
-   - Check each GWT timeline below the LBA. A SLC may have none, or one or more timelines. Where a timeline describes a COM, each COM of that type on the timeline has a Then EVT (or ERR) immediately below it, and every EVT above that COM is its Given. Where a later GWT follows on the same timeline, the next When's Given is the previous COM's or RMO's Given EVTs plus its Then EVTs. Separate timelines do not share that history. Where a timeline describes an RMO, it starts with that RMO, places the RMO again after every EVT, and ends with that RMO; the EVTs interleaved with those RMO cards are its Given. Where the RMO joins, intermediate RMO cards show lookup state from earlier EVTs, and each joined EVT on the timeline carries the join id. Values match the COM or RMO being specified.
+   - Check each GWT timeline below the LBA. A SLC may have none, or one or more timelines. Where a timeline describes a COM, each COM of that type on the timeline has a Then EVT (or ERR) immediately below it, and every EVT above that COM is its Given. Where a later GWT follows on the same timeline, the next When's Given is the previous COM's or RMO's Given EVTs plus its Then EVTs. Separate timelines do not share that history. Where a timeline describes an RMO, it starts with that RMO, places the RMO again after every EVT, and ends with that RMO; the EVTs interleaved with those RMO cards are its Given. Every RMO snapshot — including the first empty one — already carries the RMO's full structure (all collection tables with headers, or all single-object property names). Where the RMO joins, intermediate RMO cards show lookup state from earlier EVTs, and each joined EVT on the timeline carries the join id. Values match the COM or RMO being specified.
 
 ## Notation
 
@@ -189,14 +189,16 @@ timeline B:
 - COM <name>: <properties>
 - EVT <name>: <properties>
 
-One timeline for an RMO (RMO at start, between each EVT, and at end)
-- RMO <name> (<SVC>): (empty)              ← before any EVT
+One timeline for an RMO (RMO at start, between each EVT, and at end).
+Every RMO line keeps the full shape (tables/headers or property names); `(empty)` means no rows / blank values yet.
+- RMO <name> (<SVC>): (empty) Topic Ballot [topicId, title, kind, name]; lookups [attendeeId, name]
+                                       ← before any EVT; both tables present, bodies empty
 - EVT <name> (SLC<m>): <properties>        ← Given (e.g. entity registered; builds lookup)
-- RMO <name> (<SVC>): attendeeId = A-1, name = Pat Lee
-                                       ← after that EVT; lookup object (named props)
+- RMO <name> (<SVC>): Topic Ballot []; lookups [A-1 → Pat Lee]
+                                       ← after that EVT; main still header-only; lookup has a row
 - EVT <name> (SLC<n>): <id>, <properties>  ← Given (carries the join id, not the looked-up props)
-- RMO <name> (<SVC>): …; topicId = T-1, title = …, kind = …, name = Pat Lee
-                                       ← after that EVT; row object uses lookup by id (last = Then)
+- RMO <name> (<SVC>): Topic Ballot [T-1 | … | Pat Lee]; lookups [A-1 → Pat Lee, …]
+                                       ← after that EVT; main row uses lookup by id (last = Then)
 ```
 
 On the board the three-letter prefix is left off, matching the cards. The timeline order is the only structure; do not add Given/When/Then labels. Samples for a COM, two COMs on one timeline, a failed COM, and an RMO are in the example.
@@ -386,7 +388,7 @@ Bike rental shop.
     - row: SN-48213 | Trailblazer 29 | Mountain | Register
     - (bikeId stays on the RMO / session for the COM — not on the wire)
 - GWT timeline (describes RMO Unregistered Bikes):
-  - RMO Unregistered Bikes (Fleet): (empty)
+  - RMO Unregistered Bikes (Fleet): (empty) [bikeId, serialNumber, model, type]
   - EVT Bike Received (SLC1): bikeId = B-101, serialNumber = SN-48213, model = Trailblazer 29, type = Mountain
   - RMO Unregistered Bikes (Fleet): bikeId = B-101, serialNumber = SN-48213, model = Trailblazer 29, type = Mountain
 
@@ -525,7 +527,7 @@ Bike rental shop.
     - row: label Start (startDate) = 2026-10-22 | label End (endDate) = 2026-10-25 | label Days (days) = 3
     - label Total (total) = 75.00, right-aligned
 - GWT timeline (describes RMO Rental Confirmation):
-  - RMO Rental Confirmation (Rental): (empty)
+  - RMO Rental Confirmation (Rental): (empty) rentalId, bike, name, startDate, endDate, days, total
   - EVT Bike Rented (SLC13): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, days = 3, endDate = 2026-10-25
   - RMO Rental Confirmation (Rental): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, endDate = 2026-10-25, days = 3
   - EVT Bike Listed (SLC5): bikeId = B-101, model = Trailblazer 29, dailyRate = 25.00
@@ -612,7 +614,7 @@ An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tre
 - **UBA** — actors and their screens (**SCR**) or automations (**PRO**).
 - **MBA** — commands (**COM**, blue) and read models (**RMO**, green); empty in a NAV slice.
 - **LBA** — events (**EVT**, orange) the system recorded, or an error (**ERR**, red) when a command failed instead; empty in RMO and NAV slices.
-- **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id).
+- **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id). Every read-model snapshot already shows the full shape (table headers or property names); empty means no rows yet.
 - **Arrows** — data flow: screen → command → event (or error), event → read model → screen, and a read model → a **later** screen when that view first loads (upper connector band above commands/read models). Several events into the same read model stay on consecutive connector rows (bundled, not merged). Later screens that show the same values again do so by session or query convention — no second arrow. A **MAP** on an arrow names inputs → outputs when data changes shape.
 - **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name), and the button that issues the COM is light blue too; on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). Never paint labels, headers, or an empty RMO area. Screens show what people see (titles, names, invoice numbers, …), not technical join keys. An SPA keeps one screen layout and paints those highlights on the live fields (and the live COM button) in that slice.
 - **Interaction** — hover a **card**, **connector piece** (JS tile/shaft or CSS shaft/arrow tile — not empty slice/gap space), or **property value** to keep that path lit and fade the rest; a property value (`dl.props` row, collection cell, or SCR field with `data-prop`) isolates **that example value** through its sources and destinations — same property name **and** same value (so one row in a multi-row RMO does not light sibling rows); MAP renames still follow the mapped outputs; a value a later SCR shows from session or query state (same name and value on an earlier SCR) is linked the same way even when it is not a COM field. Matching connectors stay lit and everything else fades. Empty column gaps are not hover targets (avoids path-focus while scrolling). **Click** the hovered value, card, or MAP to **lock** that highlight so you can scroll and inspect it; release only with the **Unlock highlight** control (top right) or **Escape** — other clicks do not clear a lock. Click a connector to scroll any end that is partly out of view into the viewport (connectors never lock a highlight). Use the gear to tune scale, fade, connector tile size, **hover delay** (0–5s; 0 is immediate), and **Highlight on hover** for connectors, values, and cards (each on by default).
@@ -1206,7 +1208,7 @@ The name sits above the gear. The card shows no properties. It lives in the COM 
 
 ### GWT (below the LBA)
 
-One cell per slice. A SLC may have no timelines, or many GWTs on one or more vertical timelines. Stack EVT / COM / EVT (or RMO) cards top to bottom inside each `.timeline`, with a down-arrow corridor (`.arr.v` → shaft + `arrow-down`) between every consecutive card. For a COM: EVTs above it are the Given, the COM is the When, the EVT (or ERR) right under it is the Then. When GWTs share the same timeline, the previous COM's or RMO's Given EVTs and Then EVTs are included as the next When's Given. Separate `.timeline` stacks do not share that history. For an RMO: start with the RMO, then EVT, RMO, EVT, …, RMO — the RMO at the beginning, between every EVT, and at the end — so each RMO card shows the projection after that EVT (including lookup entries when the RMO joins); the EVTs are the Given, and a joined EVT carries the join id.
+One cell per slice. A SLC may have no timelines, or many GWTs on one or more vertical timelines. Stack EVT / COM / EVT (or RMO) cards top to bottom inside each `.timeline`, with a down-arrow corridor (`.arr.v` → shaft + `arrow-down`) between every consecutive card. For a COM: EVTs above it are the Given, the COM is the When, the EVT (or ERR) right under it is the Then. When GWTs share the same timeline, the previous COM's or RMO's Given EVTs and Then EVTs are included as the next When's Given. Separate `.timeline` stacks do not share that history. For an RMO: start with the RMO, then EVT, RMO, EVT, …, RMO — the RMO at the beginning, between every EVT, and at the end — so each RMO card shows the projection after that EVT (including lookup entries when the RMO joins); the EVTs are the Given, and a joined EVT carries the join id. **Do not emit a bare `<article class="rmo"><h2>…</h2></article>` for an empty snapshot.** Match the MBA card's shape from the first GWT RMO onward: multi-collection RMOs get every `table.collection` with `<thead>` (and captions when there is more than one table) and an empty `<tbody>`; single-object RMOs get `dl.props` with every `dt` and blank `dd`. Later snapshots only add or fill body rows / values — they never introduce a new table or property name mid-timeline.
 
 ```html
 <!-- one GWT for a COM (no prior EVTs); down arrows between cards -->
@@ -1237,29 +1239,66 @@ One cell per slice. A SLC may have no timelines, or many GWTs on one or more ver
   </div>
 </div>
 
-<!-- RMO: RMO at start, between each EVT, and at end; joins show lookup then joined row -->
+<!-- RMO: first card already has the table headers (empty tbody); later cards fill rows -->
 <div class="cell gwt" data-slc="2">
   <div class="timeline">
-    <article class="rmo"><h2>Unregistered Bikes</h2>…</article>
+    <article class="rmo"><h2>Unregistered Bikes</h2>
+      <div class="props">
+        <table class="collection">
+          <thead><tr><th>bikeId</th><th>serialNumber</th><th>model</th><th>type</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </article>
     <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
     <article class="evt"><h2>Bike Received</h2>…</article>
     <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
-    <article class="rmo"><h2>Unregistered Bikes</h2>…</article>
+    <article class="rmo"><h2>Unregistered Bikes</h2>…<!-- same headers + one body row --></article>
   </div>
 </div>
 
-<!-- RMO join: lookup after entity EVT, then later EVT carries join id -->
+<!-- Multi-collection RMO: every snapshot includes every table (empty tbody until rows arrive) -->
+<div class="cell gwt" data-slc="15">
+  <div class="timeline">
+    <article class="rmo"><h2>Topic Ballot</h2>
+      <div class="props">
+        <table class="collection">
+          <caption>Topic Ballot</caption>
+          <thead><tr><th>topicId</th><th>title</th><th>kind</th><th>name</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <table class="collection">
+          <caption>lookups</caption>
+          <thead><tr><th>attendeeId</th><th>name</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </article>
+    <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+    <article class="evt"><h2>Attendee Registered</h2>…</article>
+    <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+    <article class="rmo"><h2>Topic Ballot</h2>…<!-- same two tables; main still empty; lookups has a row --></article>
+  </div>
+</div>
+
+<!-- Single-object RMO: empty card still lists every property with blank dd -->
 <div class="cell gwt" data-slc="14">
   <div class="timeline">
-    <article class="rmo"><h2>Rental Confirmation</h2>…</article>
+    <article class="rmo"><h2>Rental Confirmation</h2>
+      <dl class="props">
+        <div><dt>rentalId</dt><dd></dd></div>
+        <div><dt>bike</dt><dd></dd></div>
+        <div><dt>name</dt><dd></dd></div>
+        <div><dt>startDate</dt><dd></dd></div>
+        <div><dt>endDate</dt><dd></dd></div>
+        <div><dt>days</dt><dd></dd></div>
+        <div><dt>total</dt><dd></dd></div>
+      </dl>
+    </article>
     <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
     <article class="evt"><h2>Bike Rented</h2>…<!-- includes customerId --></article>
     <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
-    <article class="rmo"><h2>Rental Confirmation</h2>…<!-- holds customerId until lookup --></article>
-    <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
-    <article class="evt"><h2>Customer Registered</h2>…</article>
-    <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
-    <article class="rmo"><h2>Rental Confirmation</h2>…<!-- name from Customer Registered by customerId --></article>
+    <article class="rmo"><h2>Rental Confirmation</h2>…<!-- same dts; values filled as EVTs arrive --></article>
   </div>
 </div>
 
