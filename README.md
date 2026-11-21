@@ -1,6 +1,6 @@
 # Event modeling framework
 
-Generic event modeling and event-sourcing tooling. No client or product-specific models live here.
+Generic event modeling and event-sourcing tooling. No client or product-specific models live here — those live under `projects/`, each as its **own git repository** (the parent repo ignores that folder). Clone or open a project next to this framework so `../../diagram/` links resolve.
 
 An EMD is an AST. An EMD board renders that AST using HTML/CSS.
 

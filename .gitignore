@@ -1,7 +1,7 @@
 # Electron
 app/node_modules/
 
-# Client / local artefacts (not part of the generic framework)
+# Client models — each projects/<name>/ is its own git repo (not nested in this one)
 projects/
 compare-slices.html
 instruction-rebuild/
