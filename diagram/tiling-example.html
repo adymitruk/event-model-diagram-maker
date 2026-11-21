@@ -1293,9 +1293,10 @@
       }
 
       // Leftness: smaller from+to must sit on a higher (or equal) band than a worse
-      // claim. Place in leftness order with floor = max band already used so a later
-      // join cannot climb above an earlier one. Share a band only when there is room
-      // (no elbow clash at another join’s source/dest); hops handle vertical crossings.
+      // claim. Joins that share a destination (many EVTs → one RMO) form a bundle:
+      // consecutive bands, leftness from the first source + that dest. Floor = max
+      // band already used so a later join cannot climb above an earlier one. Share a
+      // band only when there is room (no elbow clash); hops handle vertical crossings.
       const leftnessOf = (j) => j.from.si + j.to.si;
       const throughSlice = (j, si) => j.from.si < si && si < j.to.si;
       function bandConflicts(a, b) {
@@ -1307,31 +1308,65 @@
       const bandOf = new Map();
       const bandMembers = [];
       let leftnessFloor = 0;
-      [...cross]
-        .sort(
+      const byTo = new Map();
+      for (const j of cross) {
+        // Same dest slice+part = same RMO (or SCR) arrival — bundle those feeds.
+        const key = `${j.to.si}:${j.to.part}`;
+        if (!byTo.has(key)) byTo.set(key, []);
+        byTo.get(key).push(j);
+      }
+      const bundles = [...byTo.values()].map((members) => {
+        const sorted = [...members].sort(
           (a, b) =>
-            leftnessOf(a) - leftnessOf(b) ||
-            a.from.si - b.from.si ||
-            a.to.si - b.to.si ||
-            a.id - b.id
-        )
-        .forEach((j) => {
-          let placed = false;
-          for (let b = leftnessFloor; b < bandMembers.length; b++) {
-            if (bandMembers[b].every((o) => !bandConflicts(j, o))) {
-              bandMembers[b].push(j);
-              bandOf.set(j.id, b);
-              leftnessFloor = b;
-              placed = true;
+            a.from.si - b.from.si || a.to.si - b.to.si || a.id - b.id
+        );
+        const first = sorted[0];
+        return {
+          members: sorted,
+          leftness: leftnessOf(first),
+          fromSi: first.from.si,
+          toSi: first.to.si,
+          id: first.id,
+        };
+      });
+      bundles.sort(
+        (a, b) =>
+          a.leftness - b.leftness ||
+          a.fromSi - b.fromSi ||
+          a.toSi - b.toSi ||
+          a.id - b.id
+      );
+      function bandFreeFor(band, join) {
+        const existing = bandMembers[band];
+        if (!existing || !existing.length) return true;
+        return existing.every((o) => !bandConflicts(join, o));
+      }
+      bundles.forEach((bundle) => {
+        const n = bundle.members.length;
+        let placedAt = -1;
+        const searchEnd = bandMembers.length + n + 1;
+        for (let b = leftnessFloor; b < searchEnd; b++) {
+          let ok = true;
+          for (let k = 0; k < n; k++) {
+            if (!bandFreeFor(b + k, bundle.members[k])) {
+              ok = false;
               break;
             }
           }
-          if (!placed) {
-            leftnessFloor = bandMembers.length;
-            bandOf.set(j.id, leftnessFloor);
-            bandMembers.push([j]);
+          if (ok) {
+            placedAt = b;
+            break;
           }
-        });
+        }
+        if (placedAt < 0) placedAt = Math.max(leftnessFloor, bandMembers.length);
+        for (let k = 0; k < n; k++) {
+          const band = placedAt + k;
+          if (!bandMembers[band]) bandMembers[band] = [];
+          bandMembers[band].push(bundle.members[k]);
+          bandOf.set(bundle.members[k].id, band);
+        }
+        leftnessFloor = placedAt;
+      });
       const nBands = bandMembers.length;
       // Stub row + one row per band + top arrow row; never shorter than 3 tiles.
       const middleTiles = Math.max(3, nBands + 2);

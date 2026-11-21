@@ -66,6 +66,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
 
 5b. **Fill NAV slices**
    - A NAV slice has a SCR (or PRO) in the UBA and nothing in the MBA or LBA. Use it when the step is only navigation or showing feedback — for example the screen after a failed COM, with the ERR message on the form and no new command or read model.
+   - Also use a NAV slice when a later SCR first **reads** an earlier RMO (e.g. open Signup Form with the conference title from RMO Signup QR before the person fills the signup COM). Keep the **same screen layout** as the later COM SCR; put `rmo-data` only on the RMO-fed fields, and leave the other controls empty without `com-data`. Draw an **RMO → SCR** arrow between SLCs (upper connector band on the board). Later SCRs that show the same values again do so by session or query convention — do **not** draw another arrow back to the RMO.
    - Do not put a COM, RMO, EVT or ERR in a NAV slice. The ERR of the failed COM stays in that earlier COM slice's LBA; the NAV slice only shows its message on the SCR.
 
 6. **Fill RMO slices**
@@ -90,8 +91,9 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
 8. **Connect All SLCs**
    - Within a COM slice, draw an arrow from the SCR or PRO to the COM, and from the COM to its EVT. In a failed COM slice, draw it from the COM to its ERR (the ERR stands in place of an EVT).
    - Within an RMO slice, draw an arrow from the RMO up to the SCR or PRO, if there is one.
-   - A NAV slice has no MBA or LBA item and no within-slice arrows.
-   - Between SLCs, draw an arrow from each EVT to every RMO that projects it, to show the source of data. The EVT must be in an earlier SLC than the RMO, and in the same SWL as every other EVT that RMO projects (see step 6 for crossing SWLs).
+   - A NAV slice has no MBA or LBA item and no within-slice arrows (cross-slice RMO → SCR into a NAV title-view still uses a between-SLC arrow).
+   - Between SLCs, draw an arrow from each EVT to every RMO that projects it, to show the source of data. The EVT must be in an earlier SLC than the RMO, and in the same SWL as every other EVT that RMO projects (see step 6 for crossing SWLs). On the HTML board, every such arrow is its own `data-joins` pair; several EVTs into one RMO are listed earliest-first and paint as a bundled run of connector rows (see **Ids and joins**).
+   - Between SLCs, when an RMO feeds a SCR in a **later** SLC (first read of that view data), draw an arrow from the RMO to that SCR. Do not repeat the arrow for later SCRs that only carry the same values by session or query convention.
    - Write each MAP on the arrow it belongs to: COM → EVT or EVT → RMO. The reader then sees exactly where the inputs become the outputs, and in which item the outputs first appear.
    - Connect the ERR to the SCR in the next slice (often a NAV slice that shows the message).
 
@@ -161,7 +163,7 @@ A SCR is written as its nested elements, the way a rough wireframe is sketched: 
 
 A MAP is written as `MAP <name>: <inputs> → <outputs>, on <tail> → <head>`. It carries property names only. No values are written on it, since the reader sees the example data on the items at either end of the arrow, and no calculation, formula or transformation is written, since the EMD describes behaviour, not implementation.
 
-Arrows within a SLC are not written due to convention; step 8 fixes them from the slice type (SCR/PRO → COM → EVT or ERR in a COM slice, RMO → SCR/PRO in an RMO slice). Only arrows between SLCs are listed, one per line as `EVT <name> (SLC<n>) → RMO <name> (SLC<m>)`, with any MAP written on the arrow.
+Arrows within a SLC are not written due to convention; step 8 fixes them from the slice type (SCR/PRO → COM → EVT or ERR in a COM slice, RMO → SCR/PRO in an RMO slice). Only arrows between SLCs are listed, one per line as `EVT <name> (SLC<n>) → RMO <name> (SLC<m>)`, `RMO <name> (SLC<n>) → SCR <name> (SLC<m>)` when an RMO first feeds a later SCR, or `ERR <name> (SLC<n>) → SCR <name> (SLC<m>)`, with any MAP written on the arrow.
 
 GWTs are written in their SLC, below the LBA, on one or more vertical timelines. A SLC may have no timelines, or many GWTs across one or more timelines. Read each GWT from its timeline: for a COM, EVTs above it are the Given, the COM is the When, the EVT (or ERR) right under the COM is the Then; for an RMO, start with the RMO, then EVT, RMO, …, RMO, and show lookup entries when the RMO joins. When GWTs share the same timeline, the previous COM's or RMO's Given EVTs and Then EVTs are included as the next When's Given (every EVT above that next COM). Separate timelines do not share that history.
 
@@ -549,9 +551,9 @@ Bike rental shop.
 
 ## HTML board
 
-This section is the **complete** recipe for turning any finished EMD into a browser board. Follow it for every new or updated board — do not invent markup outside these templates. After the EMD is constructed (terms, slices, properties, arrows, and any GWTs), draw it as one file: `<name>.emd.html`. Open that file in a browser (or serve the repo). CSS, arrow tiles, fonts, connectors, and board settings stay in `diagram/`; the file is the page plus the board markup. A board under `projects/<name>/` links `../../diagram/` (see **Page**). An Electron `.emd` file is the same `<main class="emd">…</main>` only, without the HTML shell or scripts.
+This section is the **complete** recipe for turning any finished EMD into a browser board. Follow it for every new or updated board — do not invent markup outside these templates. After the EMD is constructed (terms, slices, properties, arrows, and any GWTs), draw it as one file: `<name>.emd.html`. Open that file in a browser (or serve the repo). CSS, arrow tiles, fonts, connectors, and board settings stay in `diagram/`; the file is the page plus the board markup. A board under `projects/<name>/` links `../../diagram/` (see **Page**) — always the shared files, never a forked copy inside the project, so every board gets scroll smoothness, hover, and connector tiling from `diagram/`. An Electron `.emd` file is the same `<main class="emd">…</main>` only, without the HTML shell or scripts.
 
-Each new SLC adds one column. Earlier columns stay as they are. Bump `--slices` when a column is added. Leave every `.cell.connector` empty — `connectors.js` draws the COM→EVT segment through that row, plus every EVT→RMO and ERR→SCR join. Put those joins on `<main>` as `data-joins="evt-a:rmo-x,err-b:scr-y,…"`.
+Each new SLC adds one column. Earlier columns stay as they are. Bump `--slices` when a column is added. Leave every connector cell empty — two rows: `.cell.connector.connector-upper` (between UBA and MBA; RMO→later SCR) and `.cell.connector` (between MBA and LBA; EVT→RMO, ERR→SCR, COM→EVT segment). Put those joins on `<main>` as `data-joins="evt-a:rmo-x,rmo-y:scr-z,err-b:scr-y,…"`.
 
 Read the `EMD.md` straight into the templates below:
 
@@ -563,7 +565,7 @@ Read the `EMD.md` straight into the templates below:
 | WFLs | one `.wfl` per workflow, `data-span` = its slice count, goal in the `span` |
 | COM slice | SCR or PRO, COM, EVT (or ERR), shafts in **COM slice** |
 | RMO slice | RMO, optional SCR with `arrow-up`, empty lower gap, in **RMO slice** |
-| NAV slice | SCR only, empty MBA and LBA, in **NAV slice** |
+| NAV slice | SCR only, empty MBA and LBA, in **NAV slice** (error feedback **or** RMO title-view with `rmo-data` + upper `rmo:scr` join) |
 | PRO | gear dock across the RMO slice and the next COM slice, in **Processor pair** |
 | MAP | `p.map` under the COM or the RMO, never on the EVT |
 | Properties | `dl.props` on COM, EVT, ERR, and single-object RMOs (`dt` = name, `dd` = example value); multi-row RMOs use `table.collection` inside `div.props` (caption only when the card has more than one table) |
@@ -578,8 +580,8 @@ Read the `EMD.md` straight into the templates below:
 
 For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the EMD contains.
 
-1. **Page shell** — copy **Page**. Set `<title>`, `--slices` to the SLC count, and `data-joins` to every EVT→RMO and ERR→SCR edge from the **EVTs** / **RMOs** catalogs (and ERR list; ids from step 4). Link `../../diagram/diagram.css`, then at the bottom `connectors.js` and `settings.js` (in that order).
-2. **Board skeleton** — emit **Board rows** in order: workflow, each UBA, MBA, connector, each LBA, GWT. Every row is lane cell + one cell per SLC. Empty cells are empty `div`s with the right class and `data-slc` / `data-lane`.
+1. **Page shell** — copy **Page**. Set `<title>`, `--slices` to the SLC count, and `data-joins` to every EVT→RMO, RMO→later SCR, and ERR→SCR edge (ids from step 4). When several EVTs feed one RMO, list **each** pair and put the earliest EVT first for that RMO (bundled connector rows — see **Ids and joins**). Link `../../diagram/diagram.css`, then at the bottom `connectors.js` and `settings.js` (in that order). Those shared scripts already include the scroll guard (`.is-scrolling`, freeze hover while flinging, soft `emd:retile-check`); do not paste local scroll/hover CSS into the board. After changing `diagram/` CSS or JS, sync `app/renderer/diagram/` and bump `?v=` on the board links.
+2. **Board skeleton** — emit **Board rows** in order: workflow, each UBA, **connector-upper**, MBA, **connector** (lower), each LBA, GWT. Every row is lane cell + one cell per SLC. Empty cells are empty `div`s with the right class and `data-slc` / `data-lane`.
 3. **WFLs** — one `.wfl` per workflow with `data-slc` = first slice and `data-span` = slice count; goal text in the inner `span`.
 4. **Ids** — every SCR, PRO, COM, RMO, EVT, ERR gets an `id` per **Ids and joins**. Reuse those ids in `data-joins`. Name cards from the **COMs** / **EVTs** / **RMOs** catalogs.
 5. **Fill each SLC** — COM → **COM slice** (+ **Processor pair** when a PRO); RMO → **RMO slice**; NAV → **NAV slice**. Vertical shafts per **Vertical shafts**. Put MAP notes under the COM or RMO per **Cards**. Use catalog property names on every `dt` / `data-prop`; take example values from slice **Properties**.
@@ -590,7 +592,7 @@ For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the 
    - SPA: same `area`s every slice; `com-data` / `rmo-data` only on the live fields for that slice; still put `data-prop` on fields that can carry the name.
 7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property for single objects; multi-row RMOs use `table.collection` blocks — caption the RMO name + other collection names only when there is more than one table). PRO as in **Processor card**.
 8. **GWTs** — for each SLC that has timelines, fill `.cell.gwt` per **GWT**; otherwise leave the cell empty.
-9. **Connectors** — leave every `.cell.connector` empty. Do not hand-draw rails.
+9. **Connectors** — leave every `.cell.connector` and `.cell.connector.connector-upper` empty. Do not hand-draw rails.
 10. **Check** — `--slices` matches column count; every `data-joins` id exists; every COM-bound and RMO-fed SCR value has `data-prop` and the right highlight class; shafts unbroken through empty UBA/LBA cells; scripts present.
 
 An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tree).
@@ -604,9 +606,9 @@ An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tre
 - **MBA** — commands (**COM**, blue) and read models (**RMO**, green); empty in a NAV slice.
 - **LBA** — events (**EVT**, orange) the system recorded, or an error (**ERR**, red) when a command failed instead; empty in RMO and NAV slices.
 - **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id).
-- **Arrows** — data flow: screen → command → event (or error), and event → read model → screen. A **MAP** on an arrow names inputs → outputs when data changes shape.
+- **Arrows** — data flow: screen → command → event (or error), event → read model → screen, and a read model → a **later** screen when that view first loads (upper connector band above commands/read models). Several events into the same read model stay on consecutive connector rows (bundled, not merged). Later screens that show the same values again do so by session or query convention — no second arrow. A **MAP** on an arrow names inputs → outputs when data changes shape.
 - **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name), and the button that issues the COM is light blue too; on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). Never paint labels, headers, or an empty RMO area. An SPA keeps one screen layout and paints those highlights on the live fields (and the live COM button) in that slice.
-- **Interaction** — hover a card or connector to keep that path lit and fade the rest; hover a **property value** (a `dl.props` row, a collection cell, or a SCR field with `data-prop`) to isolate **that example value** through its sources and destinations — same property name **and** same value (so one row in a multi-row RMO does not light sibling rows); MAP renames still follow the mapped outputs; a value a later SCR shows from session or query state (same name and value on an earlier SCR) is linked the same way even when it is not a COM field. Matching connectors stay lit and everything else fades. **Click** the hovered value, card, or MAP to **lock** that highlight so you can scroll and inspect it; release only with the **Unlock highlight** control (top right) or **Escape** — other clicks do not clear a lock. Click a connector to scroll any end that is partly out of view into the viewport (connectors never lock a highlight). Use the gear to tune scale, fade, connector tile size, and **Highlight on hover** for connectors, values, and cards (each on by default).
+- **Interaction** — hover a **card**, **connector piece** (JS tile/shaft or CSS shaft/arrow tile — not empty slice/gap space), or **property value** to keep that path lit and fade the rest; a property value (`dl.props` row, collection cell, or SCR field with `data-prop`) isolates **that example value** through its sources and destinations — same property name **and** same value (so one row in a multi-row RMO does not light sibling rows); MAP renames still follow the mapped outputs; a value a later SCR shows from session or query state (same name and value on an earlier SCR) is linked the same way even when it is not a COM field. Matching connectors stay lit and everything else fades. Empty column gaps are not hover targets (avoids path-focus while scrolling). **Click** the hovered value, card, or MAP to **lock** that highlight so you can scroll and inspect it; release only with the **Unlock highlight** control (top right) or **Escape** — other clicks do not clear a lock. Click a connector to scroll any end that is partly out of view into the viewport (connectors never lock a highlight). Use the gear to tune scale, fade, connector tile size, **hover delay** (0–5s; 0 is immediate), and **Highlight on hover** for connectors, values, and cards (each on by default).
 
 When you change how an EMD is read (new slice type, GWT shape, card kinds), update both the terms/construction above and this help list (and the matching HTML in `settings.js`).
 
@@ -621,10 +623,14 @@ When you change how an EMD is read (new slice type, GWT shape, card kinds), upda
   <link rel="stylesheet" href="../../diagram/diagram.css">
 </head>
 <body>
-  <main class="emd" style="--slices: 1" data-joins="">
+  <main
+    class="emd"
+    style="--slices: 4"
+    data-joins="evt-registration-opened:rmo-signup-qr,rmo-signup-qr:scr-signup-form-pat-title"
+  >
     <div class="sheet">
       <div class="board">
-        <!-- lane + slice columns -->
+        <!-- lane + slice columns: UBA → connector-upper → MBA → connector → LBA → GWT -->
       </div>
     </div>
   </main>
@@ -634,7 +640,7 @@ When you change how an EMD is read (new slice type, GWT shape, card kinds), upda
 </html>
 ```
 
-`main.emd` is the only scrollport. Do not scroll `body`/`window`.
+`main.emd` is the only scrollport. Do not scroll `body`/`window`. Dual connector bands and scroll performance live in the shared `diagram/` files — see **RMO → later SCR (upper band)** and **Scroll performance** in [`html-css.md`](html-css.md) for the CSS/JS contract and sample code. When regenerating a board after a `diagram/` change, bump `?v=` on the three links.
 
 ### Board rows
 
@@ -644,10 +650,11 @@ Row order, top to bottom:
 
 1. Workflow. The lane is `emd-corner` and stays empty — `settings.js` puts the gear and `?` there. It must be the first lane in `.board`. Then one `.wfl` per workflow, not one per slice. `data-slc` is the first SLC of that workflow. `data-span` is how many slices it covers (the stylesheet spans 2 through 24; span 1 is a single column). The goal text goes in a `span`. Omit `continues`.
 2. One UBA row per USR, top to bottom in the order the EMD lists them. Lane text is `<name> (<ROL>)`. `data-lane` is the name in kebab case (`jim`).
-3. One MBA row. The lane is empty.
-4. One connector row. The lane is empty. Every `.cell.connector` stays empty; `connectors.js` draws the cross-slice lines.
-5. One LBA row per SVC. The first service lane is `lba-head` (the gap aligns the name with the event cards). Later service lanes are plain `lane open` with the service name as text. Cells on the last service row also take `foot`. A single service is both: the lane is `lba-head`, and every cell is `lba foot`.
-6. GWT, last. Lane text is `GWT`. One `.cell.gwt` per slice.
+3. One **upper connector** row (between UBA and MBA). The lane is empty. Every `.cell.connector.connector-upper` stays empty; `connectors.js` draws RMO→later SCR joins there and the same-slice SCR↔COM / SCR↔RMO local vertical (bridges CSS shafts through the band, like COM→EVT on the lower connector).
+4. One MBA row. The lane is empty.
+5. One **lower connector** row (between MBA and LBA). The lane is empty. Every `.cell.connector` (without `connector-upper`) stays empty; `connectors.js` draws EVT→RMO, ERR→SCR, and the COM→EVT segment there.
+6. One LBA row per SVC. The first service lane is `lba-head` (the gap aligns the name with the event cards). Later service lanes are plain `lane open` with the service name as text. Cells on the last service row also take `foot`. A single service is both: the lane is `lba-head`, and every cell is `lba foot`.
+7. GWT, last. Lane text is `GWT`. One `.cell.gwt` per slice.
 
 ```html
 <div class="cell lane emd-corner"></div>
@@ -663,6 +670,11 @@ Row order, top to bottom:
 <div class="cell uba" data-slc="1" data-lane="sam"></div>
 <div class="cell uba" data-slc="2" data-lane="sam"></div>
 <div class="cell uba" data-slc="3" data-lane="sam"></div>
+
+<div class="cell lane open"></div>
+<div class="cell connector connector-upper" data-slc="1"></div>
+<div class="cell connector connector-upper" data-slc="2"></div>
+<div class="cell connector connector-upper" data-slc="3"></div>
 
 <div class="cell lane open"></div>
 <div class="cell mba" data-slc="1"></div>
@@ -704,14 +716,44 @@ Give every SCR, PRO, COM, RMO, EVT, and ERR an `id`: the class, a hyphen, then t
 - the actor, when different users record the same item (`evt-attendee-registered-pat`, `scr-signup-form-jordan`)
 - `-empty`, when that copy's example value is empty (`scr-signup-form-jordan-empty`)
 - `-error`, when that copy is the screen showing the ERR message (`scr-signup-form-jordan-error`)
+- `-title`, when that copy is a NAV title-view that first reads an earlier RMO (`scr-signup-form-pat-title`)
 - `-1`, `-2`, in order, when the same user repeats the same item (`evt-session-scheduled-1`, `com-schedule-session-2`)
 
 On `<main class="emd">`, list every cross-slice arrow in `data-joins` as `fromId:toId`, comma-separated:
 
-- each `EVT → RMO` line: `evt-bike-received:rmo-bike-catalog`
-- each `ERR → SCR` line (the screen in the next slice): `err-unknown-customer:scr-rent-bike-form`
+- each `EVT → RMO` line: `evt-bike-received:rmo-bike-catalog` (lower connector band)
+- each `RMO → SCR` line when an RMO feeds a **later** SCR: `rmo-signup-qr:scr-signup-form-pat-title` (upper connector band; same-slice SCR↔RMO stays out of `data-joins` — CSS shafts plus the upper-band local vertical)
+- each `ERR → SCR` line (the screen in the next slice): `err-unknown-customer:scr-rent-bike-form` (lower band)
 
-Leave every `.cell.connector` empty. Do not hand-build rails. `connectors.js` draws EVT→RMO and ERR→SCR, and the connector segment of each COM→EVT (or COM→ERR) vertical.
+**Several EVTs → one RMO.** List **every** `EVT → RMO` edge for that read model (one pair per source EVT). Order those pairs by story order: **earliest EVT first**, then later EVTs that also feed the same RMO. `connectors.js` paints them as one **bundle** on the lower connector band — consecutive horizontal rows (not a single merged line), with leftness from the **first** EVT + that RMO — so other joins (e.g. an ERR→SCR) cannot sit between them.
+
+```html
+<main
+  class="emd"
+  style="--slices: 4"
+  data-joins="evt-registration-opened:rmo-signup-qr,rmo-signup-qr:scr-signup-form-pat-title,err-name-required:scr-signup-form-jordan-error"
+>
+  <!-- board… -->
+</main>
+```
+
+```html
+<!-- Several EVTs project into RMO Topic Ballot: every edge, earliest EVT first -->
+<main
+  class="emd"
+  style="--slices: 15"
+  data-joins="
+    evt-attendee-registered-pat:rmo-topic-ballot,
+    evt-attendee-registered-riley:rmo-topic-ballot,
+    evt-attendee-registered-jordan:rmo-topic-ballot,
+    evt-topic-suggested-pat:rmo-topic-ballot,
+    evt-topic-suggested-riley:rmo-topic-ballot,
+    evt-topic-suggested-jordan:rmo-topic-ballot
+  "
+>
+```
+
+Leave every connector cell empty. Do not hand-build rails. `connectors.js` draws upper RMO→SCR, lower EVT→RMO and ERR→SCR, and the lower-band COM→EVT (or COM→ERR) vertical.
 
 ### Vertical shafts
 
@@ -724,7 +766,7 @@ A same-slice vertical is HTML. A cross-slice join is not.
 - Under an RMO: an empty `.gap`. JS draws `arrow-up` there.
 - Under a SCR that reads an RMO in the same slice: `arrow-up`, then shaft.
 - Through an empty UBA cell below that SCR (or PRO), and through an empty LBA cell above that EVT or ERR: shaft only, so the line does not break. Cells above the actor, and service rows below the event, stay empty.
-- A NAV slice has a shaft under its SCR and nothing in the MBA or LBA.
+- A NAV slice has `arrow-up` + shaft under its SCR and nothing in the MBA or LBA. Empty UBA cells **below** that SCR (other actor lanes) get a shaft only, same as any vertical corridor. Cross-slice RMO→SCR is JS only inside the upper connector row — do not also draw that join through the UBA gap (the CSS shaft already covers it).
 
 Every MBA cell that holds a card has a `.gap` above the card and a `.gap` below it, so COM and RMO tops line up. The upper gap stays compact; the lower gap takes the spare height.
 
@@ -813,11 +855,13 @@ Shaft down from the UBA into the RMO. Empty gap under the RMO. `arrow-up` then s
 
 Omit `p.map` when no MAP lands on this RMO. When several USRs show the same RMO, repeat the SCR (new id each time) and give each one the `arrow-up` gap. User cells between those screens and the MBA that have no screen of their own keep a shaft only.
 
-List every EVT that feeds this RMO in `data-joins`.
+List every EVT that feeds this RMO in `data-joins` (one `evt-…:rmo-…` per source). Earliest EVT first; `connectors.js` keeps those horizontals on consecutive bands (see **Ids and joins** / **Several EVTs → one RMO** in [`html-css.md`](html-css.md)).
 
 ### NAV slice
 
-A screen, a shaft under it, and empty MBA and LBA. No COM, RMO, EVT, or ERR.
+A screen, a shaft under it, and empty MBA and LBA. No COM, RMO, EVT, or ERR in this column. Emit empty upper and lower connector cells for the slice like every other column.
+
+**Error feedback** (after a failed COM) — message only, no `rmo-data` / `com-data`:
 
 ```html
 <div class="cell uba" data-slc="12" data-lane="jim">
@@ -826,11 +870,47 @@ A screen, a shaft under it, and empty MBA and LBA. No COM, RMO, EVT, or ERR.
     <div class="arr v"><div class="shaft"></div></div>
   </div>
 </div>
+<div class="cell connector connector-upper" data-slc="12"></div>
 <div class="cell mba" data-slc="12"></div>
+<div class="cell connector" data-slc="12"></div>
 <div class="cell lba foot" data-slc="12" data-lane="rental"></div>
 ```
 
-The ERR message is a `p.label` on this screen. The ERR card stays in the previous slice.
+The ERR message is a `p.label` on this screen. The ERR card stays in the previous slice. Add `err-…:scr-…` to `data-joins` (lower band).
+
+**RMO title-view** (first read of an earlier RMO before a later COM) — same screen layout as the later COM SCR (same fields and buttons). Values the RMO feeds get `rmo-data` + `data-prop`; other controls are present but empty and **not** `com-data` / `rmo-data` (no blue/green). List `rmo-…:scr-…-title` in `data-joins` (upper band). Later COM screens that show the same RMO values again keep `data-prop` (and may keep `rmo-data` for the green paint) but **omit** another join to the RMO:
+
+```html
+<!-- SLC3 NAV — same Signup Form chrome as the COM slice; only title is RMO-fed -->
+<div class="cell uba" data-slc="3" data-lane="pat">
+  <article class="scr" id="scr-signup-form-pat-title">
+    <h2>Signup Form</h2>
+    <div class="wire">
+      <div class="col">
+        <p class="heading">Sign Up</p>
+        <p class="label">title <span class="rmo-data" data-prop="title">Adaptech Unconference 2026</span></p>
+        <label class="text">name <input data-prop="name" value="" readonly></label>
+        <div class="row end"><button type="button">Sign up</button></div>
+      </div>
+    </div>
+  </article>
+  <div class="gap">
+    <div class="arr v">
+      <div class="tile arrow-up"></div>
+      <div class="shaft"></div>
+    </div>
+  </div>
+</div>
+<div class="cell connector connector-upper" data-slc="3"></div>
+<div class="cell mba" data-slc="3"></div>
+<div class="cell connector" data-slc="3"></div>
+<div class="cell lba foot" data-slc="3" data-lane="unconference"></div>
+```
+
+```html
+<!-- data-joins includes (among other edges): -->
+<!-- rmo-signup-qr:scr-signup-form-pat-title -->
+```
 
 ### Processor pair
 
@@ -949,7 +1029,7 @@ An SPA is still one SCR per slice: same screen name and the same areas in every 
 - **COM slice:** every value the COM takes from this SCR gets class `com-data` (light blue). Put it on the value field only: the `input` or `select`, a `td`, or a `span` around the value inside a `p.label`. Never put it on the outer `label` — that paints the property name too. The button that issues the COM also gets `com-data` (same light blue): `<button type="button" class="com-data">Rent</button>`. A button that only navigates to another SCR does not.
 - **RMO slice:** every value this SCR shows from the RMO gets class `rmo-data` (light green), on those same value fields (`input` / `select` / `td` / value `span`). Never put `rmo-data` on property-name text, `th` headers, legends, headings, or buttons. When the RMO is empty, omit `rmo-data` entirely on that SCR — highlighting is for values only, and an empty projection has none.
 
-Never mix `com-data` and `rmo-data` on the same field. A NAV slice has neither (unless you are only showing an ERR message).
+Never mix `com-data` and `rmo-data` on the same field. A NAV **error** screen has neither (message only). A NAV **title-view** that first reads an earlier RMO puts `rmo-data` on those fed value fields (see **NAV slice**).
 
 **`data-prop` (required for property hover).** Every SCR value that is a named property also gets `data-prop="<name>"` on that same value field — the same names as the COM / RMO / EVT `dt`s and collection headers. `connectors.js` traces by property name **and** example value (plus MAP notes for renames), so hovering one cell in a multi-row RMO collection or SCR table lights only that value wherever it flows — not every sibling row's same field — and fades the rest. Flat card `dl.props` rows need no extra attribute; the `dt` is the name and the `dd` is the value. Collection body cells carry `data-prop` on each `td`. On an SPA, put `data-prop` on every area that can show that property, and keep `com-data` / `rmo-data` only on the live fields for that slice — the tracer prefers those live fields when linking the screen to the COM or RMO.
 
@@ -1206,13 +1286,13 @@ Each GWT card uses the same `h2` and `dl.props` as the cards above, with the exa
 
 ### What the board scripts provide
 
-Do not reimplement these in the `.emd.html` file — only include the two scripts from **Page**:
+Do not reimplement these in the `.emd.html` file — only include the two scripts from **Page** (and link the shared `diagram/diagram.css`). Future boards get scroll smoothness and hover behaviour by linking those files, not by copying logic into each project:
 
 | Script | Behaviour |
 |---|---|
-| `diagram/connectors.js` | Fills empty `.cell.connector` cells; draws COM→EVT / COM→ERR through the connector row; draws every `data-joins` EVT→RMO and ERR→SCR path; hover on cards / connectors / property values (`dt` or `data-prop`) fades the rest; click a hovered value, card, or MAP to lock that highlight (Unlock highlight button or Escape to release); click a connector to scroll clipped ends into view (no lock); respects gear **Highlight on hover** prefs |
-| `diagram/settings.js` | Gear + `?` in the `emd-corner` lane; scale, fade, tile size, and Highlight on hover (connectors / values / cards); About-this-board help (keep in sync with **Board help**) |
+| `diagram/connectors.js` | Fills empty `.cell.connector.connector-upper` (RMO→later SCR) and `.cell.connector` (EVT→RMO, ERR→SCR, COM→EVT / COM→ERR) cells; hover on cards / connectors / property values (`dt` or `data-prop`) fades the rest; click a hovered value, card, or MAP to lock that highlight (Unlock highlight button or Escape to release); click a connector to scroll clipped ends into view (no lock); respects gear **Highlight on hover** prefs; **scroll guard** toggles `.is-scrolling`, freezes hover clear/paint while flinging, defers ResizeObserver retiles until idle, and fires soft `emd:retile-check` (redraw only when board size actually changed) |
+| `diagram/settings.js` | Gear + `?` in the `emd-corner` lane; scale, fade, tile size, hover delay, and Highlight on hover (connectors / values / cards); About-this-board help (keep in sync with **Board help**); scale/tile fire forced `emd:retile` |
 
-Tile files, sticky-row measurements, and corridor continuity rules are in [`html-css.md`](html-css.md). That file is a stylesheet lookup — **this HTML board section is the source of truth for markup**.
+Tile files, sticky-row measurements, corridor continuity, and the **Scroll performance** CSS/JS samples are in [`html-css.md`](html-css.md). That file is a stylesheet lookup — **this HTML board section is the source of truth for markup**.
 
 For more on event modeling itself, see: [eventmodeling.org](https://eventmodeling.org).

@@ -1,12 +1,12 @@
 /**
- * EVT → RMO connectors — port of diagram/tiling-example.html.
+ * Dual-band connectors — port of diagram/tiling-example.html.
  *
- * Each `.cell.connector` gets a `.middle` band. Tiles are local to that middle
- * (one cell occupancy, hopped shafts, leftness bands). Leave stubs reach down
- * to EVT tops and arrival rises reach up to RMO bottoms (overflow visible).
+ * Lower `.cell.connector` (MBA↔LBA): EVT→RMO, ERR→SCR, COM→EVT local vertical.
+ * Upper `.cell.connector.connector-upper` (UBA↔MBA): RMO→later SCR, plus
+ * same-slice SCR↔COM/RMO local vertical (bridges CSS shafts through the band).
+ * CSS keeps arrow tiles in UBA/MBA/LBA gaps; each band paints its middle.
  *
- *   <main class="emd" data-joins="evt-a:rmo-x,…">
- *   <div class="cell connector" data-slc="N"></div>  <!-- empty; JS fills -->
+ *   <main class="emd" data-joins="evt-a:rmo-x,rmo-y:scr-z,…">
  */
 (function () {
   function tileSize() {
@@ -23,6 +23,7 @@
   }
 
   function drawJoins(emd) {
+    emd._propGraph = null; // DOM / joins may have changed
     const TILE = tileSize();
     // Remove legacy absolute layer if present.
     const sheet = emd.querySelector('.sheet') || emd;
@@ -32,29 +33,51 @@
     const joinsAttr = emd.getAttribute('data-joins') || '';
     const pairs = joinsAttr.split(',').map((s) => s.trim()).filter(Boolean);
 
-    const connectorCells = [...emd.querySelectorAll('.cell.connector')].sort(
+    const lowerCells = [
+      ...emd.querySelectorAll('.cell.connector:not(.connector-upper)'),
+    ].sort((a, b) => sliceOf(a) - sliceOf(b));
+    const upperCells = [
+      ...emd.querySelectorAll('.cell.connector.connector-upper'),
+    ].sort((a, b) => sliceOf(a) - sliceOf(b));
+    if (!lowerCells.length && !upperCells.length) return;
+
+    // Slice index from MBA columns (always present) so both bands share si.
+    const mbaCells = [...emd.querySelectorAll('.cell.mba[data-slc]')].sort(
       (a, b) => sliceOf(a) - sliceOf(b)
     );
-    if (!connectorCells.length) return;
-
-    // Build per-slice middle hosts; clear prior tiles.
-    const middles = [];
-    const sliceIndex = {}; // si → array index
-    connectorCells.forEach((cell, idx) => {
-      const si = sliceOf(cell);
-      sliceIndex[si] = idx;
-      cell.innerHTML = '';
-      const middle = document.createElement('div');
-      middle.className = 'middle';
-      cell.appendChild(middle);
-      middles.push(middle);
+    const sliceIndex = {}; // data-slc → array index
+    mbaCells.forEach((cell, idx) => {
+      sliceIndex[sliceOf(cell)] = idx;
     });
-    const sliceCount = middles.length;
+    const sliceCount = mbaCells.length;
     if (!sliceCount) return;
 
-    // Cross-slice projection joins from data-joins.
+    function prepareBandCells(cells) {
+      const middles = [];
+      const cellByIdx = Array(sliceCount).fill(null);
+      const middleByIdx = Array(sliceCount).fill(null);
+      cells.forEach((cell) => {
+        const si = sliceOf(cell);
+        const idx = sliceIndex[si];
+        if (idx == null) return;
+        cell.innerHTML = '';
+        const middle = document.createElement('div');
+        middle.className = 'middle';
+        cell.appendChild(middle);
+        cellByIdx[idx] = cell;
+        middleByIdx[idx] = middle;
+        middles.push(middle);
+      });
+      return { cells, middles, cellByIdx, middleByIdx };
+    }
+
+    const lowerBand = prepareBandCells(lowerCells);
+    const upperBand = prepareBandCells(upperCells);
+
+    // Cross-slice joins from data-joins — classify upper vs lower.
     let nextId = 1;
-    const cross = [];
+    const crossLower = [];
+    const crossUpper = [];
     pairs.forEach((pair) => {
       const [fromId, toId] = pair.split(':').map((s) => s.trim());
       const fromEl = document.getElementById(fromId);
@@ -63,20 +86,27 @@
       const fromSi = sliceOf(fromEl);
       const toSi = sliceOf(toEl);
       if (sliceIndex[fromSi] == null || sliceIndex[toSi] == null) return;
-      cross.push({
+      const isUpperRmoScr =
+        fromEl.classList.contains('rmo') &&
+        toEl.classList.contains('scr') &&
+        toSi > fromSi;
+      const entry = {
         id: nextId++,
         fromId,
         toId,
         fromEl,
         toEl,
-        from: { si: sliceIndex[fromSi], part: 'lower' },
-        to: { si: sliceIndex[toSi], part: 'upper' },
+        from: { si: sliceIndex[fromSi], part: isUpperRmoScr ? 'mba' : 'lower' },
+        to: { si: sliceIndex[toSi], part: isUpperRmoScr ? 'uba' : 'upper' },
         fromSi,
         toSi,
-      });
+        band: isUpperRmoScr ? 'upper' : 'lower',
+      };
+      if (isUpperRmoScr) crossUpper.push(entry);
+      else crossLower.push(entry);
     });
 
-    // Same-slice writes: MBA has a .com → treat as upper→lower local join.
+    // Same-slice writes: MBA has a .com → treat as upper→lower local join (lower band).
     const local = [];
     const vertical = Array(sliceCount).fill(null);
     emd.querySelectorAll('.cell.mba[data-slc] .com').forEach((com) => {
@@ -96,13 +126,49 @@
         from: { si: idx, part: 'upper' },
         to: { si: idx, part: 'lower' },
         cellSi: si,
+        band: 'lower',
       });
       vertical[idx] = 'down';
     });
 
-    const joins = local.concat(cross);
+    // Same-slice UBA↔MBA: SCR above COM/RMO → local vertical through the upper band
+    // (same mechanism as COM→EVT through the lower band). CSS keeps the gap shafts
+    // and arrow tiles; the band middle bridges the gap the upper row opened.
+    const localUpper = [];
+    const verticalUpper = Array(sliceCount).fill(null);
+    emd.querySelectorAll('.cell.mba[data-slc]').forEach((mba) => {
+      const host = mba.querySelector(':scope > .com, :scope > .rmo');
+      if (!host) return;
+      const si = sliceOf(mba);
+      const idx = sliceIndex[si];
+      if (idx == null) return;
+      const scr = emd.querySelector(`.cell.uba[data-slc="${si}"] .scr`);
+      if (!scr) return;
+      const mbaTopGap = mba.querySelector(':scope > .gap .arr.v');
+      const ubaShaft = emd.querySelector(
+        `.cell.uba[data-slc="${si}"] .gap .arr.v .shaft, .cell.uba[data-slc="${si}"] .gap .arr.v .tile`
+      );
+      if (!mbaTopGap && !ubaShaft) return;
+      const id = nextId++;
+      const isRmo = host.classList.contains('rmo');
+      localUpper.push({
+        id,
+        fromId: isRmo ? host.id || null : scr.id || null,
+        toId: isRmo ? scr.id || null : host.id || null,
+        fromEl: isRmo ? host : scr,
+        toEl: isRmo ? scr : host,
+        from: { si: idx, part: isRmo ? 'mba' : 'uba' },
+        to: { si: idx, part: isRmo ? 'uba' : 'mba' },
+        cellSi: si,
+        band: 'upper',
+      });
+      verticalUpper[idx] = 'up';
+    });
 
-    // --- Leftness band assignment (tiling-example) ---
+    const cross = crossLower.concat(crossUpper);
+    const joins = local.concat(localUpper).concat(cross);
+
+    // --- Leftness band assignment (tiling-example), per connector band ---
     const leftnessOf = (j) => j.from.si + j.to.si;
     const throughSlice = (j, si) => j.from.si < si && si < j.to.si;
     function bandConflicts(a, b) {
@@ -111,65 +177,138 @@
       return false;
     }
 
-    const bandOf = new Map();
-    const bandMembers = [];
-    let leftnessFloor = 0;
-    [...cross]
-      .sort(
+    function assignBands(crossList) {
+      const bandOf = new Map();
+      const bandMembers = [];
+      let leftnessFloor = 0;
+
+      // Bundle joins that share a destination (e.g. many EVTs → one RMO) onto
+      // consecutive bands. Bundle leftness = first source + destination
+      // (earliest EVT with that RMO), so unrelated joins cannot wedge between.
+      const byTo = new Map();
+      for (const j of crossList) {
+        const key = j.toId || `\0${j.id}`;
+        if (!byTo.has(key)) byTo.set(key, []);
+        byTo.get(key).push(j);
+      }
+      const bundles = [...byTo.values()].map((members) => {
+        const sorted = [...members].sort(
+          (a, b) =>
+            a.from.si - b.from.si || a.to.si - b.to.si || a.id - b.id
+        );
+        const first = sorted[0];
+        return {
+          members: sorted,
+          leftness: leftnessOf(first),
+          fromSi: first.from.si,
+          toSi: first.to.si,
+          id: first.id,
+        };
+      });
+      bundles.sort(
         (a, b) =>
-          leftnessOf(a) - leftnessOf(b) ||
-          a.from.si - b.from.si ||
-          a.to.si - b.to.si ||
+          a.leftness - b.leftness ||
+          a.fromSi - b.fromSi ||
+          a.toSi - b.toSi ||
           a.id - b.id
-      )
-      .forEach((j) => {
-        let placed = false;
-        for (let b = leftnessFloor; b < bandMembers.length; b++) {
-          if (bandMembers[b].every((o) => !bandConflicts(j, o))) {
-            bandMembers[b].push(j);
-            bandOf.set(j.id, b);
-            leftnessFloor = b;
-            placed = true;
+      );
+
+      function bandFreeFor(band, join) {
+        const existing = bandMembers[band];
+        if (!existing || !existing.length) return true;
+        return existing.every((o) => !bandConflicts(join, o));
+      }
+
+      bundles.forEach((bundle) => {
+        const n = bundle.members.length;
+        let placedAt = -1;
+        const searchEnd = bandMembers.length + n + 1;
+        for (let b = leftnessFloor; b < searchEnd; b++) {
+          let ok = true;
+          for (let k = 0; k < n; k++) {
+            if (!bandFreeFor(b + k, bundle.members[k])) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) {
+            placedAt = b;
             break;
           }
         }
-        if (!placed) {
-          leftnessFloor = bandMembers.length;
-          bandOf.set(j.id, leftnessFloor);
-          bandMembers.push([j]);
+        if (placedAt < 0) placedAt = Math.max(leftnessFloor, bandMembers.length);
+        for (let k = 0; k < n; k++) {
+          const band = placedAt + k;
+          if (!bandMembers[band]) bandMembers[band] = [];
+          bandMembers[band].push(bundle.members[k]);
+          bandOf.set(bundle.members[k].id, band);
         }
+        leftnessFloor = placedAt;
       });
-    const nBands = bandMembers.length;
-    const middleTiles = Math.max(3, nBands + 2);
-    const middleH = middleTiles * TILE;
 
-    middles.forEach((m) => {
-      m.style.height = middleH + 'px';
-      m.innerHTML = '';
-    });
-    connectorCells.forEach((cell) => {
-      cell.style.minHeight = middleH + 'px';
-    });
-
-    const outFrom = Array.from({ length: sliceCount }, () => []);
-    const inTo = Array.from({ length: sliceCount }, () => []);
-    for (const j of cross) {
-      outFrom[j.from.si].push(j);
-      inTo[j.to.si].push(j);
+      const nBands = bandMembers.length;
+      const middleTiles = Math.max(3, nBands + 2);
+      const middleH = middleTiles * TILE;
+      return { bandOf, nBands, middleH };
     }
-    const byLeftness = (a, b) =>
-      leftnessOf(a) - leftnessOf(b) || a.from.si - b.from.si || a.id - b.id;
-    outFrom.forEach((list) => list.sort(byLeftness));
-    inTo.forEach((list) => list.sort(byLeftness));
 
-    function bandYs() {
-      const stubY = middleH - TILE;
-      const bands = [];
-      for (let b = 0; b < nBands; b++) {
-        bands[b] = middleH - TILE * (nBands - b + 1);
+    function layoutBandHost(bandPrep, crossList, localList, vertArr) {
+      const { bandOf, nBands, middleH } = assignBands(crossList);
+      bandPrep.middles.forEach((m) => {
+        if (!m) return;
+        // minHeight only — flex grows .middle if the grid row is taller (lane pad).
+        m.style.minHeight = middleH + 'px';
+        m.style.height = '';
+        m.innerHTML = '';
+      });
+      bandPrep.cells.forEach((cell) => {
+        cell.style.minHeight = middleH + 'px';
+      });
+      const outFrom = Array.from({ length: sliceCount }, () => []);
+      const inTo = Array.from({ length: sliceCount }, () => []);
+      for (const j of crossList) {
+        outFrom[j.from.si].push(j);
+        inTo[j.to.si].push(j);
       }
-      return { stubY, bands };
+      const byLeftness = (a, b) =>
+        leftnessOf(a) - leftnessOf(b) || a.from.si - b.from.si || a.id - b.id;
+      outFrom.forEach((list) => list.sort(byLeftness));
+      inTo.forEach((list) => list.sort(byLeftness));
+      return {
+        bandOf,
+        nBands,
+        middleH,
+        outFrom,
+        inTo,
+        localList: localList || [],
+        vertArr: vertArr || Array(sliceCount).fill(null),
+        cellByIdx: bandPrep.cellByIdx,
+        middleByIdx: bandPrep.middleByIdx,
+      };
     }
+
+    const lowerLayout = layoutBandHost(
+      lowerBand,
+      crossLower,
+      local,
+      vertical
+    );
+    const upperLayout = layoutBandHost(
+      upperBand,
+      crossUpper,
+      localUpper,
+      verticalUpper
+    );
+    // EVT→RMO (lower) may share the destination column’s SCR↔RMO corridor for
+    // path-hot. Do NOT attach RMO→later SCR ids here — those leave on an offset
+    // spur; sharing them lit the same-slice vertical when hovering the horizontals.
+    const upperCorridorExtra = Array.from({ length: sliceCount }, () => []);
+    crossLower.forEach((j) => {
+      const idx = sliceIndex[j.toSi];
+      if (idx == null || verticalUpper[idx] == null) return;
+      upperCorridorExtra[idx].push(j.id);
+    });
+    upperLayout.corridorExtra = upperCorridorExtra;
 
     function tagJoins(el, joinIds) {
       if (!joinIds || !joinIds.length) return;
@@ -194,6 +333,80 @@
       emd.querySelectorAll('.prop-hot').forEach((el) => el.classList.remove('prop-hot'));
     }
 
+    /**
+     * Settle delay before painting hover — stops flicker while the pointer moves.
+     * Gear → Hover delay (0–5s); 0 paints immediately. Default 200ms until settings mount.
+     */
+    let hoverShowTimer = null;
+
+    function hoverShowMs() {
+      const raw = document.documentElement.dataset.emdHoverDelayMs;
+      if (raw == null || raw === '') return 200;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) && n >= 0 ? n : 200;
+    }
+
+    function cancelHoverShow() {
+      if (hoverShowTimer == null) return;
+      clearTimeout(hoverShowTimer);
+      hoverShowTimer = null;
+    }
+
+    function scheduleHoverHighlight(fn) {
+      cancelHoverShow();
+      // Content slides under the pointer while scrolling — skip work until idle.
+      if (emd._scrolling) return;
+      const ms = hoverShowMs();
+      if (ms <= 0) {
+        if (focusLock()) return;
+        fn();
+        return;
+      }
+      hoverShowTimer = setTimeout(() => {
+        hoverShowTimer = null;
+        if (focusLock() || emd._scrolling) return;
+        fn();
+      }, ms);
+    }
+
+    function clearHoverHighlight() {
+      cancelHoverShow();
+      if (focusLock()) return;
+      // Content slides under the pointer (and pointer-events drop) while
+      // scrolling — freezing paint avoids a whole-board opacity flash.
+      if (emd._scrolling) return;
+      clearConnectionHighlight();
+    }
+
+    // One scroll guard per board: cancel pending hover paint; flag idle for retile;
+    // toggle .is-scrolling so CSS can drop transitions / pointer-events mid-fling.
+    if (!emd._scrollGuardBound) {
+      emd._scrollGuardBound = true;
+      let scrollIdle = 0;
+      emd.addEventListener(
+        'scroll',
+        () => {
+          emd._scrolling = true;
+          if (!emd.classList.contains('is-scrolling')) {
+            emd.classList.add('is-scrolling');
+          }
+          cancelHoverShow();
+          clearTimeout(scrollIdle);
+          scrollIdle = setTimeout(() => {
+            emd._scrolling = false;
+            emd.classList.remove('is-scrolling');
+            if (emd._retileAfterScroll) {
+              emd._retileAfterScroll = false;
+              // Soft check only — forced retile wiped every connector tile
+              // even when the board size never changed (visible post-scroll jump).
+              window.dispatchEvent(new Event('emd:retile-check'));
+            }
+          }, 180);
+        },
+        { passive: true }
+      );
+    }
+
     function ensureUnlockButton() {
       let btn = document.querySelector('.emd-unlock-focus');
       if (btn) return btn;
@@ -211,6 +424,7 @@
     }
 
     function unlockFocus() {
+      cancelHoverShow();
       emd._focusLock = null;
       emd.classList.remove('focus-locked');
       const btn = document.querySelector('.emd-unlock-focus');
@@ -220,6 +434,7 @@
 
     /** Pin the current highlight; Unlock button or Escape releases it. */
     function lockFocus(apply) {
+      cancelHoverShow();
       emd._focusLock = { apply };
       emd.classList.add('focus-locked');
       ensureUnlockButton().hidden = false;
@@ -486,17 +701,21 @@
         const host = mba.querySelector(':scope > .com, :scope > .rmo');
         if (!host) return;
         const hostNames = new Set(propNamesOn(host));
-        // COM slice: the within-slice corridor is COM→EVT/ERR. RMO slice: SCR↔RMO
-        // is vertical only — do NOT attach an EVT→RMO join here (that would light
-        // an unrelated earlier EVT when several EVTs feed the same RMO).
-        const joinId = host.classList.contains('com')
-          ? (() => {
-              const localJoin = joins.find(
-                (j) => j.cellSi === si && j.fromEl === host
-              );
-              return localJoin ? localJoin.id : null;
-            })()
-          : null;
+        // COM: prefer COM→EVT local. RMO: SCR↔RMO upper local. Do not attach an
+        // EVT→RMO join (that would light an unrelated earlier EVT when several
+        // EVTs feed the same RMO).
+        const joinId = (() => {
+          if (host.classList.contains('com')) {
+            const localJoin = local.find(
+              (j) => j.cellSi === si && j.fromEl === host
+            );
+            return localJoin ? localJoin.id : null;
+          }
+          const upperJoin = localUpper.find(
+            (j) => j.cellSi === si && (j.fromEl === host || j.toEl === host)
+          );
+          return upperJoin ? upperJoin.id : null;
+        })();
         const wantClass = host.classList.contains('com') ? 'com-data' : 'rmo-data';
         emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .scr`).forEach((scr) => {
           const sites = scrPropSites(scr);
@@ -593,11 +812,16 @@
       return null;
     }
 
+    function propGraph() {
+      if (!emd._propGraph) emd._propGraph = buildPropGraph();
+      return emd._propGraph;
+    }
+
     function highlightPropTrace(startEl) {
       clearConnectionHighlight();
       const start = resolvePropStart(startEl);
       if (!start || !start.prop) return;
-      const adj = buildPropGraph();
+      const adj = propGraph();
       const startKey = siteKey(start.card, start.prop, start.value);
       const seen = new Set([startKey]);
       const queue = [startKey];
@@ -894,11 +1118,11 @@
       }
       const enter = () => {
         if (focusLock() || !hoverOn('connectors')) return;
-        highlightByJoinIds(joinIdsForConnector(el));
+        const ids = joinIdsForConnector(el);
+        scheduleHoverHighlight(() => highlightByJoinIds(ids));
       };
       const leave = () => {
-        if (focusLock()) return;
-        clearConnectionHighlight();
+        clearHoverHighlight();
       };
       const click = (e) => {
         e.stopPropagation();
@@ -925,17 +1149,21 @@
       });
     }
 
-    /** Gap hit-target plus shafts/tiles inside (wide UBA/MBA corridor clicks). */
+    /**
+     * Shafts and arrow tiles inside CSS corridors only — never the wrapping
+     * `.gap` (that was a full-slice hit target; hovering empty column space
+     * painted path-focus while scrolling and hitching the fling).
+     */
     function piecesFromGaps(gaps) {
       const pieces = [];
       gaps.forEach((gap) => {
-        pieces.push(gap);
         pieces.push(...gap.querySelectorAll('.shaft, .tile'));
       });
       return pieces;
     }
 
-    // Tag CSS corridors so hover lights the whole SCR↔COM↔EVT / RMO↔SCR path.
+    // Tag CSS corridor shafts/tiles so card/connector hover can light them;
+    // hover/click stay on those elements (and cards / values / MAP / JS tiles).
     function bindCssCorridors() {
       local.forEach((j) => {
         const si = j.cellSi;
@@ -952,7 +1180,20 @@
         });
         tagCorridorPieces(pieces, [j.id]);
       });
-      cross.forEach((j) => {
+      // Upper local SCR↔COM/RMO: UBA pass-through shafts + MBA top gap only.
+      localUpper.forEach((j) => {
+        const si = j.cellSi;
+        const pieces = piecesFromGaps([
+          ...emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .gap`),
+        ]);
+        const mba = emd.querySelector(`.cell.mba[data-slc="${si}"]`);
+        if (mba) {
+          const gaps = [...mba.querySelectorAll(':scope > .gap')];
+          if (gaps[0]) pieces.push(...piecesFromGaps([gaps[0]]));
+        }
+        tagCorridorPieces(pieces, [j.id]);
+      });
+      crossLower.forEach((j) => {
         const si = j.toSi;
         const pieces = piecesFromGaps([
           ...emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .gap`),
@@ -962,6 +1203,15 @@
           const gaps = [...mba.querySelectorAll(':scope > .gap')];
           if (gaps[0]) pieces.push(...piecesFromGaps([gaps[0]]));
         }
+        tagCorridorPieces(pieces, [j.id]);
+      });
+      // Upper RMO→SCR: only the destination SCR corridor (CSS under the SCR).
+      // Source RMO’s MBA top shaft is the same-slice SCR↔RMO local — leave it
+      // to localUpper, not these cross joins.
+      crossUpper.forEach((j) => {
+        const pieces = piecesFromGaps([
+          ...emd.querySelectorAll(`.cell.uba[data-slc="${j.toSi}"] .gap`),
+        ]);
         tagCorridorPieces(pieces, [j.id]);
       });
     }
@@ -1049,15 +1299,18 @@
     }
 
     function relatedJoinsFor(el) {
+      const direct = joins.filter(
+        (j) => j.fromId === el.id || j.toId === el.id
+      );
+      if (direct.length) return direct;
       if (el.classList.contains('scr')) {
         const si = sliceOf(el);
         const localsAt = local.filter((j) => j.cellSi === si);
         if (localsAt.length) return localsAt;
         const rmo = emd.querySelector(`.cell.mba[data-slc="${si}"] .rmo`);
         if (rmo) return joins.filter((j) => j.toId === rmo.id);
-        return [];
       }
-      return joins.filter((j) => j.fromId === el.id || j.toId === el.id);
+      return [];
     }
 
     function highlightCard(el) {
@@ -1087,19 +1340,18 @@
           if (focusLock()) return;
           const propEl = propTargetFromEvent(el, e.target);
           if (propEl && hoverOn('values')) {
-            highlightPropTrace(propEl);
+            scheduleHoverHighlight(() => highlightPropTrace(propEl));
             return;
           }
           if (hoverOn('cards')) {
-            highlightCard(el);
+            scheduleHoverHighlight(() => highlightCard(el));
             return;
           }
-          clearConnectionHighlight();
+          clearHoverHighlight();
         };
         const out = (e) => {
-          if (focusLock()) return;
           if (el.contains(e.relatedTarget)) return;
-          clearConnectionHighlight();
+          clearHoverHighlight();
         };
         const click = (e) => {
           if (focusLock()) {
@@ -1139,11 +1391,10 @@
       }
       const enter = () => {
         if (focusLock() || !hoverOn('values')) return;
-        highlightMap(el);
+        scheduleHoverHighlight(() => highlightMap(el));
       };
       const leave = () => {
-        if (focusLock()) return;
-        clearConnectionHighlight();
+        clearHoverHighlight();
       };
       const click = (e) => {
         e.stopPropagation();
@@ -1169,14 +1420,33 @@
       });
     }
 
-    requestAnimationFrame(() => {
-      const { stubY, bands } = bandYs();
+    function paintBandLayout(layout, crossList, bandKind) {
+      const {
+        bandOf,
+        nBands,
+        middleH: layoutMiddleH,
+        outFrom,
+        inTo,
+        localList,
+        vertArr,
+        cellByIdx,
+        middleByIdx,
+        corridorExtra,
+      } = layout;
 
       for (let si = 0; si < sliceCount; si++) {
-        const middle = middles[si];
+        const middle = middleByIdx[si];
+        if (!middle) continue;
         const w = middle.clientWidth;
-        // Prefer CSS COM corridor x when present.
-        const cellSi = sliceOf(connectorCells[si]);
+        // Prefer measured height so local verticals fill a row stretched by lane pad.
+        const middleH = Math.max(middle.clientHeight || 0, layoutMiddleH);
+        const stubY = middleH - TILE;
+        const bands = [];
+        for (let b = 0; b < nBands; b++) {
+          bands[b] = middleH - TILE * (nBands - b + 1);
+        }
+        const cell = cellByIdx[si];
+        const cellSi = cell ? sliceOf(cell) : mbaCells[si] ? sliceOf(mbaCells[si]) : si + 1;
         const arr = emd.querySelector(`.cell.mba[data-slc="${cellSi}"] .gap .arr.v`);
         let cx;
         if (arr) {
@@ -1187,7 +1457,7 @@
           cx = (w - TILE) / 2;
         }
 
-        const hasVert = vertical[si] !== null;
+        const hasVert = vertArr[si] != null;
         const outBase = hasVert ? 1 : 0;
         const outXs = outFrom[si].map((_, oi) => cx + TILE * (oi + outBase));
         const nIn = inTo[si].length;
@@ -1195,7 +1465,7 @@
         const inXs = inTo[si].map((_, ii) => inStart + TILE * ii);
 
         const throughByBand = new Map();
-        for (const j of cross) {
+        for (const j of crossList) {
           if (j.from.si >= si || j.to.si <= si) continue;
           const b = bandOf.get(j.id);
           if (!throughByBand.has(b)) throughByBand.set(b, []);
@@ -1235,13 +1505,19 @@
           return ys;
         }
 
-        const localJoinIds = local
-          .filter((j) => j.from.si === si)
+        const localJoinIds = localList
+          .filter((j) => j.from.si === si || j.to.si === si)
           .map((j) => j.id);
+        const vertJoinIds = [
+          ...new Set([
+            ...localJoinIds,
+            ...((corridorExtra && corridorExtra[si]) || []),
+          ]),
+        ];
 
         function vJoinIdsAt(x) {
           const ids = [];
-          if (hasVert && Math.abs(x - cx) < 0.5) ids.push(...localJoinIds);
+          if (hasVert && Math.abs(x - cx) < 0.5) ids.push(...vertJoinIds);
           outFrom[si].forEach((j, oi) => {
             if (Math.abs(outXs[oi] - x) < 0.5) ids.push(j.id);
           });
@@ -1251,12 +1527,12 @@
           return ids;
         }
 
-        // Write shaft through the middle (arrow-down stays in CSS LBA).
+        // Local vertical through the middle (CSS keeps arrow tiles in UBA/MBA/LBA).
         if (hasVert) {
-          placeShaftVHopped(middle, cx, 0, stubY + TILE, hopYsAt(cx), localJoinIds);
+          placeShaftVHopped(middle, cx, 0, stubY + TILE, hopYsAt(cx), vertJoinIds);
         }
 
-        // Outbound projections from events
+        // Outbound from below the band (EVT or RMO) up into the stub row.
         outFrom[si].forEach((j, oi) => {
           const band = bandOf.get(j.id);
           const y = bands[band];
@@ -1264,11 +1540,10 @@
           const ids = [j.id];
           const hops = new Set(hopYsAt(ox));
           const mr = middle.getBoundingClientRect();
-          const evtTop = j.fromEl.getBoundingClientRect().top - mr.top;
+          const fromTop = j.fromEl.getBoundingClientRect().top - mr.top;
 
-          // LBA: event top up to stub row
-          if (evtTop > stubY + TILE) {
-            placeShaftV(middle, ox, stubY + TILE, evtTop - (stubY + TILE), ids);
+          if (fromTop > stubY + TILE) {
+            placeShaftV(middle, ox, stubY + TILE, fromTop - (stubY + TILE), ids);
           }
           placeTile(middle, 'vline', ox, stubY, ids);
           for (let b = nBands - 1; b > band; b--) {
@@ -1299,7 +1574,7 @@
           );
         }
 
-        // Inbound rises into RMOs
+        // Inbound rises into targets above the band (RMO or SCR).
         inTo[si].forEach((j, ii) => {
           const band = bandOf.get(j.id);
           const y = bands[band];
@@ -1307,7 +1582,7 @@
           const ids = [j.id];
           const hops = hopYsAt(ax);
           const mr = middle.getBoundingClientRect();
-          const rmoBottom = j.toEl.getBoundingClientRect().bottom - mr.top;
+          const toBottom = j.toEl.getBoundingClientRect().bottom - mr.top;
 
           placeShaftHHopped(
             middle,
@@ -1320,29 +1595,68 @@
           );
           placeTile(middle, 'elbow-tl', ax, y, ids);
 
-          // Rise from elbow to arrow under RMO (may be above middle, y < 0).
-          if (y > rmoBottom + TILE) {
-            placeShaftVHopped(middle, ax, rmoBottom + TILE, y, hops, ids);
+          // Upper band → SCR: UBA already has the CSS shaft (+ arrow-up). Painting
+          // another shaft/arrow up into that gap doubles the stroke near the tip.
+          // Stay inside this middle; CSS corridor continues to the screen.
+          if (bandKind === 'upper' && toBottom < 0) {
+            if (y > 0) placeShaftVHopped(middle, ax, 0, y, hops, ids);
+            return;
           }
-          placeTile(middle, 'arrow-up', ax, rmoBottom, ids);
+
+          if (y > toBottom + TILE) {
+            placeShaftVHopped(middle, ax, toBottom + TILE, y, hops, ids);
+          }
+          placeTile(middle, 'arrow-up', ax, toBottom, ids);
         });
       }
+    }
+
+    requestAnimationFrame(() => {
+      if (lowerCells.length) paintBandLayout(lowerLayout, crossLower, 'lower');
+      if (upperCells.length) paintBandLayout(upperLayout, crossUpper, 'upper');
     });
   }
 
   function boot() {
     document.querySelectorAll('main.emd[data-joins]').forEach((emd) => {
       let timer = 0;
-      const run = () => {
+      let lastW = 0;
+      let lastH = 0;
+      const board = () => emd.querySelector('.board') || emd;
+      /**
+       * Full connector retile is expensive. Skip no-op resizes, and defer any
+       * ResizeObserver blip that fires while the board is scrolling (scrollbar
+       * gutter / sticky reflow) until scroll settles.
+       */
+      const run = (force) => {
         clearTimeout(timer);
-        timer = setTimeout(() => drawJoins(emd), 40);
+        timer = setTimeout(() => {
+          const el = board();
+          const w = el.clientWidth;
+          const h = el.clientHeight;
+          if (!force && emd._scrolling) {
+            // Only schedule a post-scroll retile when size actually moved.
+            if (w !== lastW || h !== lastH) emd._retileAfterScroll = true;
+            return;
+          }
+          if (!force && w === lastW && h === lastH) return;
+          lastW = w;
+          lastH = h;
+          drawJoins(emd);
+        }, 40);
       };
       drawJoins(emd);
-      window.addEventListener('resize', run);
-      window.addEventListener('emd:retile', run);
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(run);
-      const ro = new ResizeObserver(run);
-      ro.observe(emd.querySelector('.board') || emd);
+      const el0 = board();
+      lastW = el0.clientWidth;
+      lastH = el0.clientHeight;
+      window.addEventListener('resize', () => run(true));
+      window.addEventListener('emd:retile', () => run(true));
+      window.addEventListener('emd:retile-check', () => run(false));
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => run(true));
+      }
+      const ro = new ResizeObserver(() => run(false));
+      ro.observe(el0);
     });
   }
 

@@ -27,7 +27,13 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
   font-size: calc(14px * var(--scale));
 }
 /* .emd is the only scrollport — required for sticky WFL/lane to work. */
-.emd { position: relative; overflow: auto; height: 100%; }
+.emd {
+  position: relative;
+  overflow: auto;
+  height: 100%;
+  /* Keep scrolling on its own layer; avoids repainting filtered/transitioning tiles. */
+  will-change: scroll-position;
+}
 .sheet { position: relative; width: max-content; }
 /* EVT→RMO connectors: tiling-example middles inside each connector cell. */
 .cell.connector {
@@ -36,10 +42,14 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
   overflow: visible;
   padding-left: 0;
   padding-right: 0;
+  display: flex;
+  flex-direction: column;
 }
+/* Fill the grid row when a lane (padding) makes the row taller than middleH —
+   local verticals and cross joins must meet the UBA/MBA CSS shafts. */
 .cell.connector > .middle {
   position: relative;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   width: 100%;
   min-height: calc(var(--tile) * 3);
   overflow: visible;
@@ -52,7 +62,8 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
   z-index: 2;
   pointer-events: auto;
   cursor: pointer;
-  transition: opacity 0.12s ease, filter 0.12s ease;
+  /* Opacity only — never filter (filter on every tile stalls scroll compositing). */
+  transition: opacity 0.12s ease;
 }
 .cell.connector .tile {
   width: var(--tile);
@@ -88,18 +99,52 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 .lba .arr .tile,
 .gwt .arr .tile {
   opacity: 1;
-  filter: brightness(0);
-  transition: opacity 0.12s ease, filter 0.12s ease;
+  transition: opacity 0.12s ease;
 }
 .cell.connector .hop {
   opacity: 1;
-  filter: none;
   transform: scaleY(-1);
   background-image: url("arrows/hop-vh.svg?v=hop5");
   transition: opacity 0.12s ease;
 }
 .scr, .com, .rmo, .evt, .err, .pro, .map {
   transition: opacity 0.12s ease;
+}
+/* While flinging/dragging scroll: no transitions, no hover hit-testing on board chrome. */
+.emd.is-scrolling .cell.connector .tile,
+.emd.is-scrolling .cell.connector .shaft-v,
+.emd.is-scrolling .cell.connector .shaft-h,
+.emd.is-scrolling .uba .arr .shaft,
+.emd.is-scrolling .mba .arr .shaft,
+.emd.is-scrolling .lba .arr .shaft,
+.emd.is-scrolling .gwt .arr .shaft,
+.emd.is-scrolling .uba .arr .tile,
+.emd.is-scrolling .mba .arr .tile,
+.emd.is-scrolling .lba .arr .tile,
+.emd.is-scrolling .gwt .arr .tile,
+.emd.is-scrolling .scr,
+.emd.is-scrolling .com,
+.emd.is-scrolling .rmo,
+.emd.is-scrolling .evt,
+.emd.is-scrolling .err,
+.emd.is-scrolling .pro,
+.emd.is-scrolling .map,
+.emd.is-scrolling .props > div,
+.emd.is-scrolling .props > table.collection td {
+  transition: none !important;
+}
+.emd.is-scrolling .cell.connector,
+.emd.is-scrolling article.scr,
+.emd.is-scrolling article.com,
+.emd.is-scrolling article.rmo,
+.emd.is-scrolling article.evt,
+.emd.is-scrolling article.err,
+.emd.is-scrolling .map {
+  pointer-events: none;
+}
+/* Sticky chrome + cards: skip multi-layer shadows while flinging (cheaper paint). */
+.emd.is-scrolling article {
+  box-shadow: 0 1px 2px rgba(28, 28, 28, 0.05);
 }
 /* Hover focus: keep the related path + endpoints; fade everything else. */
 .emd.path-focus .scr:not(.endpoint-hot),
@@ -123,7 +168,6 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 .emd.path-focus .lba .arr .tile:not(.path-hot),
 .emd.path-focus .gwt .arr .tile:not(.path-hot) {
   opacity: var(--focus-fade);
-  filter: none;
 }
 .emd.path-focus .cell.connector .hop:not(.hot-v):not(.hot-h) {
   opacity: var(--focus-fade);
@@ -141,7 +185,6 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 .lba .arr .tile.path-hot,
 .gwt .arr .tile.path-hot {
   opacity: 1;
-  filter: brightness(0);
   z-index: 3;
 }
 .cell.connector .hop.hot-v:not(.hot-h),
@@ -175,6 +218,12 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 }
 /* MBA/LBA wrap long props; UBA may grow the slice column for wide SCRs. */
 .mba, .lba, .connector { min-width: 0; }
+/* Upper band (UBA↔MBA): same chrome as lower .connector; class is additive. */
+.cell.connector.connector-upper {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+}
 .uba { min-width: var(--col); }
 /* MBA / LBA cards share one top edge across slices. Equal flex above/below
    centers cards of different heights; keep the upper corridor compact and

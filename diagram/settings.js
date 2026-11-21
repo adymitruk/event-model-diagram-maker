@@ -9,6 +9,7 @@
   const HOVER_CONNECTORS_KEY = 'emd-hover-connectors';
   const HOVER_VALUES_KEY = 'emd-hover-values';
   const HOVER_CARDS_KEY = 'emd-hover-cards';
+  const HOVER_DELAY_KEY = 'emd-hover-delay';
   const FADE_DEFAULT = 0.2;
   const TILE_DEFAULT = 16;
   const TILE_MIN = 8;
@@ -16,6 +17,9 @@
   const SCALE_DEFAULT = 1;
   const SCALE_MIN = 0.2;
   const SCALE_MAX = 3;
+  const HOVER_DELAY_DEFAULT = 0.2;
+  const HOVER_DELAY_MIN = 0;
+  const HOVER_DELAY_MAX = 5;
 
   const GEAR_SVG =
     '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
@@ -72,8 +76,22 @@
     return v;
   }
 
+  /** Seconds before hover highlight paints; 0 = immediate. */
+  function applyHoverDelay(seconds) {
+    const v = Math.round(clamp(seconds, HOVER_DELAY_MIN, HOVER_DELAY_MAX) * 10) / 10;
+    const ms = Math.round(v * 1000);
+    document.documentElement.dataset.emdHoverDelayMs = String(ms);
+    localStorage.setItem(HOVER_DELAY_KEY, String(v));
+    return v;
+  }
+
   function pct(fade) {
     return Math.round(fade * 100) + '%';
+  }
+
+  function delayLabel(seconds) {
+    if (seconds <= 0) return 'off';
+    return seconds.toFixed(1).replace(/\.0$/, '') + 's';
   }
 
   function scaleLabel(scale) {
@@ -124,6 +142,9 @@
       HOVER_CARDS_KEY,
       'emdHoverCards',
       readBool(HOVER_CARDS_KEY, true)
+    );
+    const hoverDelay0 = applyHoverDelay(
+      readNum(HOVER_DELAY_KEY, HOVER_DELAY_DEFAULT)
     );
 
     corner.removeAttribute('aria-hidden');
@@ -181,6 +202,14 @@
       '<label class="emd-settings-check"><input id="emd-hover-cards" type="checkbox"' +
       (hoverCards0 ? ' checked' : '') +
       '> Cards</label>' +
+      '<label class="emd-settings-field">' +
+      '<span class="emd-settings-label">Hover delay <output id="emd-hover-delay-out">' +
+      delayLabel(hoverDelay0) +
+      '</output></span>' +
+      '<input id="emd-hover-delay" type="range" min="0" max="5" step="0.1" value="' +
+      hoverDelay0 +
+      '">' +
+      '</label>' +
       '</fieldset>' +
       '</div>' +
       '<div class="emd-popover emd-help-pop" id="emd-help-pop" role="dialog" aria-label="About this board">' +
@@ -191,9 +220,9 @@
       '<li><strong>MBA</strong> — commands (<strong>COM</strong>, blue) and read models (<strong>RMO</strong>, green). Empty in a NAV slice.</li>' +
       '<li><strong>LBA</strong> — events (<strong>EVT</strong>, orange) the system recorded, or an error (<strong>ERR</strong>, red) when a command failed instead. Empty in RMO and NAV slices.</li>' +
       '<li><strong>GWT</strong> (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a <strong>COM</strong>: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an <strong>RMO</strong>: read model, then event, then read model, … ending with the read model — so you see how the projection changes as each event arrives (including lookup entries when the read model joins by id).</li>' +
-      '<li>Arrows are the data flow: screen → command → event (or error), and event → read model → screen. A <strong>MAP</strong> on an arrow names inputs → outputs when data changes shape.</li>' +
+      '<li>Arrows are the data flow: screen → command → event (or error), event → read model → screen, and a read model → a <strong>later</strong> screen when that view first loads (connector band above commands/read models). Several events into the same read model stay on consecutive connector rows (bundled, not merged). Later screens that show the same values again do so by session or query convention — no second arrow. A <strong>MAP</strong> on an arrow names inputs → outputs when data changes shape.</li>' +
       '<li><strong>SCR highlights</strong> — on a command slice, value fields the command takes are light blue, and the button that issues the command is light blue too; on a read-model slice, value fields the read model fills are light green. Highlight values (and the COM action button) only — not property-name labels, table headers, or an empty read-model area. An SPA keeps one screen layout and paints those live fields in each slice.</li>' +
-      '<li>Hover any card or connector to keep that path lit and fade the rest. Hover a <strong>property value</strong> (on a card or a screen field) to isolate <strong>that example value</strong> through its sources and destinations — same name and same value (one row in a collection does not light the others); MAP renames still follow; a later screen that shows the same value from session or query state is linked too. Matching connectors stay lit, everything else fades. <strong>Click</strong> the hovered value, card, or MAP to <strong>lock</strong> the highlight while you scroll; release only with <strong>Unlock highlight</strong> (top right) or <strong>Escape</strong>. Click a connector to scroll clipped ends into view — connectors never lock a highlight. Use the gear to tune scale, fade, connector tile size, and which hover highlights are on (connectors, values, cards — all on by default).</li>' +
+      '<li>Hover a <strong>card</strong>, <strong>connector piece</strong> (arrow tile or shaft — not empty slice space), or <strong>property value</strong> to keep that path lit and fade the rest. A property value isolates <strong>that example value</strong> through its sources and destinations — same name and same value (one row in a collection does not light the others); MAP renames still follow; a later screen that shows the same value from session or query state is linked too. Matching connectors stay lit, everything else fades. <strong>Click</strong> the hovered value, card, or MAP to <strong>lock</strong> the highlight while you scroll; release only with <strong>Unlock highlight</strong> (top right) or <strong>Escape</strong>. Click a connector to scroll clipped ends into view — connectors never lock a highlight. Use the gear to tune scale, fade, connector tile size, hover delay (0–5s; 0 is immediate), and which hover highlights are on (connectors, values, cards — all on by default).</li>' +
       '</ul>' +
       '</div>';
 
@@ -210,6 +239,8 @@
     const hoverConnectorsInput = corner.querySelector('#emd-hover-connectors');
     const hoverValuesInput = corner.querySelector('#emd-hover-values');
     const hoverCardsInput = corner.querySelector('#emd-hover-cards');
+    const hoverDelayInput = corner.querySelector('#emd-hover-delay');
+    const hoverDelayOut = corner.querySelector('#emd-hover-delay-out');
 
     settingsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -252,6 +283,11 @@
     });
     hoverCardsInput.addEventListener('change', () => {
       applyHoverPref(HOVER_CARDS_KEY, 'emdHoverCards', hoverCardsInput.checked);
+    });
+    hoverDelayInput.addEventListener('input', () => {
+      hoverDelayOut.textContent = delayLabel(
+        applyHoverDelay(parseFloat(hoverDelayInput.value))
+      );
     });
 
     document.addEventListener('click', (e) => {

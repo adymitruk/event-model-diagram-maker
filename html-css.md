@@ -6,7 +6,7 @@ The diagram is one file named `<name>.emd.html`. Each new slice adds one column.
 
 ## Page
 
-Write the board to `<name>.emd.html`. Link `diagram/diagram.css`, `diagram/connectors.js`, and `diagram/settings.js` with paths relative to that file. A board under `projects/<name>/` uses `../../diagram/`.
+Write the board to `<name>.emd.html`. Link the **shared** `diagram/diagram.css`, `diagram/connectors.js`, and `diagram/settings.js` with paths relative to that file — never inline or fork those files into the board. A board under `projects/<name>/` uses `../../diagram/`. Every new board inherits scroll smoothness, hover, and connector tiling from those shared files.
 
 ```html
 <!DOCTYPE html>
@@ -28,7 +28,7 @@ Write the board to `<name>.emd.html`. Link `diagram/diagram.css`, `diagram/conne
 </html>
 ```
 
-`--slices` is the number of slice columns drawn so far. Bump it by one when a slice is added.
+`--slices` is the number of slice columns drawn so far. Bump it by one when a slice is added. After editing `diagram/diagram.css` or `diagram/connectors.js`, sync the copies under `app/renderer/diagram/` and bump the `?v=` on the board's stylesheet and script links so browsers pick up the change.
 
 `diagram.css` sets `html, body { height: 100% }`, `body { overflow: hidden }`, and `.emd { height: 100%; overflow: auto }` so **`main.emd` is the only scrollport**. Sticky workflow and lane chrome depend on that — do not scroll the page via `body`/`window`, and do not wrap `.emd` in another `overflow` container.
 
@@ -38,16 +38,19 @@ A CSS grid. Column 1 is the swim-lane labels. Each later column is one slice, le
 
 1. Workflow — one merged cell per workflow run, not one cell per slice. Set `data-span="N"` to the number of slices of that workflow drawn so far (`grid-column: span N`). Put the goal (`Stock a bike`) in a `span` inside that cell. A blue arrow runs along the bottom of the span. The shaft and the arrowhead are one shape — omit `continues` on the merged cell so the head sits at the right end of the run (when you later extend the same workflow, bump `data-span`). Leave the first-column lane cell empty of workflow text; `settings.js` places a gear (settings) and `?` (board help) there. Do **not** draw vertical rules between slice columns anywhere on the board (`.cell` has `border: 0`); only the sticky lane column keeps a right edge. Slice cells also have no bottom border (including `.foot`). The whole workflow row (`.wfl` cells and the empty corner lane) is sticky to the **top** of `.emd` while scrolling vertically. The goal `span` is also horizontally sticky so it slides along the arrow while the board scrolls sideways, staying clear of the sticky lane column, until that workflow cell scrolls away horizontally or the next workflow’s span takes over.
 2. One row per user, labeled `<name> (<role>)`.
-3. One middle row, with no lane label. Each cell holds a command or a read model. **Every MBA card lines up on one horizontal band across slices** — same **top** edge for every `com` and `rmo` in that row (not centered). Always put a `.gap` *above* and *below* the card (command and read-model cells alike). The upper gap stays compact (`flex: 0`; min height two tiles for the into-card corridor). The lower gap is the one that flexes (`flex: 1`) and absorbs spare height so taller and shorter cards still share one top line. Never park an MBA card at the top of the cell with only a gap underneath, and never give both gaps equal `flex: 1` — that vertically centers cards and breaks the band.
-4. One connector row, with no lane label. Vertical shafts continue through it; arrows that leave one slice for another run horizontally through its mid band.
-5. One row per service, labeled with the service name. **Every EVT/ERR card lines up on one top edge across slices**, same rule as MBA: compact `.gap` above the card (min two tiles for shaft + `arrow-down`), spare height below — not equal flex that centers cards. On the **first** LBA service row (the top swim lane under the connector), use `lba-head` with an empty `.lba-head-gap` above a `.lba-head-label`. The head gap is the same compact two-tile height as the EVT corridor so the service name starts where the event cards start.
-6. One GWT row below every service row, labeled `GWT`. Each cell holds that slice's GWT timelines (or is empty when the slice has none) and is part of the slice. A slice may carry no GWTs or many, on one or more vertical `.timeline` stacks. For a COM: EVT / COM / EVT (or ERR) cards. For an RMO: RMO, EVT, RMO, …, RMO (read model at the start, between each event, and at the end; include lookup entries when the RMO joins). When GWTs share the same timeline, the previous COM's or RMO's Given EVTs and Then EVTs are included as the next When's Given; separate timelines do not share that history. `foot` stays on the last service row; the GWT row follows it. Writing rules, board-help (`?`) copy, and filled samples are in [`event-modeling-instructions.md`](event-modeling-instructions.md).
+3. One **upper connector** row (`.cell.connector.connector-upper`), with no lane label — between UBA and MBA. `connectors.js` draws **RMO → later SCR** joins here.
+4. One middle row, with no lane label. Each cell holds a command or a read model. **Every MBA card lines up on one horizontal band across slices** — same **top** edge for every `com` and `rmo` in that row (not centered). Always put a `.gap` *above* and *below* the card (command and read-model cells alike). The upper gap stays compact (`flex: 0`; min height two tiles for the into-card corridor). The lower gap is the one that flexes (`flex: 1`) and absorbs spare height so taller and shorter cards still share one top line. Never park an MBA card at the top of the cell with only a gap underneath, and never give both gaps equal `flex: 1` — that vertically centers cards and breaks the band.
+5. One **lower connector** row (`.cell.connector`), with no lane label — between MBA and LBA. Vertical COM→EVT shafts continue through it; **EVT → RMO** and **ERR → SCR** arrows run horizontally through its mid band.
+6. One row per service, labeled with the service name. **Every EVT/ERR card lines up on one top edge across slices**, same rule as MBA: compact `.gap` above the card (min two tiles for shaft + `arrow-down`), spare height below — not equal flex that centers cards. On the **first** LBA service row (the top swim lane under the lower connector), use `lba-head` with an empty `.lba-head-gap` above a `.lba-head-label`. The head gap is the same compact two-tile height as the EVT corridor so the service name starts where the event cards start.
+7. One GWT row below every service row, labeled `GWT`. Each cell holds that slice's GWT timelines (or is empty when the slice has none) and is part of the slice. A slice may carry no GWTs or many, on one or more vertical `.timeline` stacks. For a COM: EVT / COM / EVT (or ERR) cards. For an RMO: RMO, EVT, RMO, …, RMO (read model at the start, between each event, and at the end; include lookup entries when the RMO joins). When GWTs share the same timeline, the previous COM's or RMO's Given EVTs and Then EVTs are included as the next When's Given; separate timelines do not share that history. `foot` stays on the last service row; the GWT row follows it. Writing rules, board-help (`?`) copy, and filled samples are in [`event-modeling-instructions.md`](event-modeling-instructions.md).
 
 ```html
 <div class="cell lane" aria-hidden="true"></div>
 <div class="cell wfl" data-slc="1" data-span="4"><span>Stock a bike</span></div>
 <div class="cell lane open">Jim (Customer)</div>
 <div class="cell uba" data-slc="1" data-lane="jim"></div>
+<div class="cell lane open"></div>
+<div class="cell connector connector-upper" data-slc="1"></div>
 <div class="cell lane open"></div>
 <div class="cell mba" data-slc="1"></div>
 <div class="cell lane open"></div>
@@ -233,7 +236,7 @@ Place the note in the middle band, **below** the COM or RMO card, on the shaft o
 
 Draw the arrows from step 8 of the event-modeling instructions.
 
-**Same-slice verticals** (`SCR → COM → EVT`, `RMO → SCR`) stay HTML corridors of 30×30 tiles in `diagram/arrows/` inside `uba` / `mba` / `lba` gaps. Do **not** put cross-slice join markup in those gaps.
+**Same-slice verticals** keep arrow tiles and gap shafts in `uba` / `mba` / `lba` HTML (`diagram/arrows/`). Each connector **band** paints the segment through its `.middle` the same way: lower band for `COM → EVT`, upper band for `SCR ↔ COM` / `SCR ↔ RMO`. Do **not** put cross-slice join markup in those gaps.
 
 **EVT → RMO projections** (and the COM→EVT segment that crosses the connector row) are drawn only by `diagram/connectors.js` — a port of `diagram/tiling-example.html`. Do not hand-build CSS `.rail` / `.joins-2` corridors for joins. After editing CSS or the script, bump the `?v=` on the stylesheet and script links.
 
@@ -295,24 +298,208 @@ Between slices, the joins section of the EMD says which event connects to which 
 
 An error connects to the screen in the next slice with the same tile pieces.
 
-When you add a later slice, bump `--slices` and add one empty `.cell.connector` (and the other row cells) for the new column. List every new EVT→RMO edge in `data-joins`.
+When you add a later slice, bump `--slices` and add one empty `.cell.connector.connector-upper`, one empty `.cell.connector`, and the other row cells for the new column. List every new EVT→RMO and RMO→later SCR edge in `data-joins`.
 
-### EVT → RMO projections (tiling connectors)
+### EVT → RMO and RMO → SCR projections (tiling connectors)
 
 All cross-slice projections use `diagram/connectors.js` (same router as `diagram/tiling-example.html`). Never CSS `.rail` / `.joins-2`.
 
-1. Give every EVT and RMO card an `id`.
-2. On `<main class="emd">` set `data-joins="evt-a:rmo-x,evt-b:rmo-x,…"`. Include **every** EVT→RMO edge, including joins that also have a `.map` note on the RMO.
+1. Give every EVT, RMO, and cross-slice destination SCR card an `id`.
+2. On `<main class="emd">` set `data-joins="evt-a:rmo-x,rmo-y:scr-z,…"`. Include **every** EVT→RMO edge (lower band), every **RMO → later SCR** edge (upper band), and ERR→SCR. Same-slice `SCR ↔ RMO` / `SCR ↔ COM` omit from `data-joins` — CSS shafts plus the upper-band local vertical (like COM→EVT on the lower band).
 3. Include `<script src="…/diagram/connectors.js"></script>` and `<script src="…/diagram/settings.js"></script>`.
 4. The sticky corner lane (`.board > .lane:first-child`) hosts gear + `?` from `diagram/settings.js`. Gear opens settings: **Scale items** (`--scale` → slice `--col` + UBA/MBA/LBA type only; WFL labels and lane chrome unchanged), **Fade opacity** (`--focus-fade`), **Connector tiles** (`--tile`), and **Highlight on hover** checkboxes for connectors, values, and cards (each on by default; stored as `emd-hover-*` in `localStorage`, reflected on `document.documentElement.dataset`). Scale/tile fire `emd:retile`; hover prefs fire `emd:hover-prefs` and clear any active path focus. `?` explains the board. Values persist in `localStorage`.
-5. Leave every `.cell.connector` empty. Leave RMO mba lower gaps empty (no CSS `arrow-up` on the join).
-6. Same-slice COM→EVT corridors stop at the mba/lba gaps; the connector segment is JS.
+5. Leave every `.cell.connector` and `.cell.connector.connector-upper` empty. Leave RMO mba lower gaps empty (no CSS `arrow-up` on the lower join).
+6. Same-slice corridors: COM→EVT uses the lower connector middle; SCR↔COM / SCR↔RMO use the upper connector middle. Leave gap shafts in HTML; leave both connector rows empty for JS.
 
-**Routing (tiling-example).** Bands by leftness (`fromSlc + toSlc`) with elbow-clash sharing. Write shaft locked to the CSS card center; outbound stubs push right; arrivals centered as a group. Horizontals hop over verticals (`hop-*.svg`). One tile occupancy — shafts break around hops. **Hover / click:** by default every connector and card is fully lit (no idle mute, no 3-level color ramp). Hovering a SCR / COM / EVT / RMO / ERR or a connector piece adds `.path-focus` on `.emd`: related path tiles get `.path-hot` / hop hot flags and endpoints get `.endpoint-hot`; everything else fades via `--focus-fade`. Hovering a **property value** (a `.props > div` row, a collection `td[data-prop]`, or a SCR control with `data-prop="<name>"`) traces that **example value** through SCR ↔ COM/RMO ↔ EVT joins (same name and same value; MAP renames follow the mapped outputs), marks matching fields `.prop-hot` without lighting sibling collection rows, lights the connecting tiles, and fades the rest the same way. **Click** the hovered value (or card / MAP) to lock that highlight (`.focus-locked` on `.emd`) so scrolling does not clear it; release with the **Unlock highlight** button (fixed top right) or Escape. Hovering a `.map` note lights that join and marks the mapped property rows on each side (`inputs → outputs` from the note text). Clicking a connector scrolls any related end card that is partly (or fully) out of view into the board viewport — connectors never lock. Put `data-prop` on every named SCR value so the trace can find the screen; card `dt`s already name COM / RMO / EVT / ERR properties.
+### Several EVTs → one RMO (bundled bands)
+
+When more than one EVT projects into the same RMO, list **each** edge in `data-joins`. Put the **earliest** source EVT first for that RMO, then the later ones (story / slice order). Do not collapse them into one pair.
+
+```html
+<main
+  class="emd"
+  style="--slices: 15"
+  data-joins="
+    evt-attendee-registered-pat:rmo-topic-ballot,
+    evt-attendee-registered-riley:rmo-topic-ballot,
+    evt-attendee-registered-jordan:rmo-topic-ballot,
+    evt-topic-suggested-pat:rmo-topic-ballot,
+    evt-topic-suggested-riley:rmo-topic-ballot,
+    evt-topic-suggested-jordan:rmo-topic-ballot
+  "
+>
+```
+
+`connectors.js` (`assignBands`) treats every join that shares the same `toId` as one **bundle**:
+
+- Leftness for the whole bundle is `fromSlc + toSlc` of the **first** EVT in that group (earliest `from.si`) plus the RMO.
+- Members take **consecutive** horizontal bands (still separate lines — not merged into one shaft).
+- Other joins (ERR→SCR, edges into a different RMO, …) cannot claim a band **between** members of the bundle.
+
+```js
+// Pseudocode of the bundling rule in assignBands:
+const byTo = groupBy(crossList, (j) => j.toId);
+for (const members of byTo.values()) {
+  members.sort((a, b) => a.from.si - b.from.si || a.id - b.id);
+  const leftness = members[0].from.si + members[0].to.si; // first EVT + RMO
+  // place members on consecutive free bands; search starts at leftnessFloor
+}
+```
+
+Empty lower `.cell.connector` cells only — JS paints the bundled horizontals. Full id / join rules: [`event-modeling-instructions.md`](event-modeling-instructions.md) (**Ids and joins**).
+
+### RMO → later SCR (upper band)
+
+Cross-slice **RMO → SCR** joins paint in `.cell.connector.connector-upper` (between UBA and MBA). Lower `.cell.connector` stays for EVT→RMO / ERR→SCR / COM→EVT. Markup for both rows (empty cells; JS fills `.middle`):
+
+```html
+<!-- after every UBA actor row -->
+<div class="cell lane open"></div>
+<div class="cell connector connector-upper" data-slc="1"></div>
+<div class="cell connector connector-upper" data-slc="2"></div>
+<div class="cell connector connector-upper" data-slc="3"></div>
+
+<!-- MBA row… then lower band -->
+<div class="cell lane open"></div>
+<div class="cell connector" data-slc="1"></div>
+<div class="cell connector" data-slc="2"></div>
+<div class="cell connector" data-slc="3"></div>
+```
+
+```html
+<main
+  class="emd"
+  style="--slices: 3"
+  data-joins="evt-registration-opened:rmo-signup-qr,rmo-signup-qr:scr-signup-form-pat-title"
+>
+```
+
+`connectors.js` classifies each `data-joins` pair (sync to `app/renderer/diagram/` when you change this):
+
+```js
+const isUpperRmoScr =
+  fromEl.classList.contains('rmo') &&
+  toEl.classList.contains('scr') &&
+  toSi > fromSi;
+// upper → .connector-upper middles; everything else → lower .connector
+```
+
+Same-slice RMO→SCR keeps `arrow-up` under the SCR and the MBA top shaft in HTML; `connectors.js` bridges them with a local vertical in `.connector-upper` (shared mechanism with COM→EVT on the lower band). Cross-slice RMO→later SCR also keeps `arrow-up` + shaft under the destination SCR in HTML — the upper band paints only inside `.connector-upper` (no second shaft up through the UBA gap). Later SCRs that only **carry** the same values by session/query convention must **not** get another `rmo:scr` edge — property hover still links them via matching `data-prop` name + value. Full title-view NAV markup is in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**NAV slice**).
+
+**Routing (tiling-example).** Bands by leftness (`fromSlc + toSlc`) with elbow-clash sharing. Multiple EVTs into the same RMO: see **Several EVTs → one RMO (bundled bands)** above. Write shaft locked to the CSS card center; outbound stubs push right; arrivals centered as a group. Horizontals hop over verticals (`hop-*.svg`). One tile occupancy — shafts break around hops. **Hover / click:** by default every connector and card is fully lit (no idle mute, no 3-level color ramp). Hover targets are **elements only** — cards (SCR / COM / EVT / RMO / ERR), MAP notes, property values, JS connector tiles/shafts, and CSS corridor `.shaft` / `.tile` pieces. Do **not** bind hover on the wrapping `.gap` (that was a full-slice hit target and hitching scrolls). Hovering a card or connector piece adds `.path-focus` on `.emd`: related path tiles get `.path-hot` / hop hot flags and endpoints get `.endpoint-hot`; everything else fades via `--focus-fade`. Hovering a **property value** (a `.props > div` row, a collection `td[data-prop]`, or a SCR control with `data-prop="<name>"`) traces that **example value** through SCR ↔ COM/RMO ↔ EVT joins (same name and same value; MAP renames follow the mapped outputs), marks matching fields `.prop-hot` without lighting sibling collection rows, lights the connecting tiles, and fades the rest the same way. **Click** the hovered value (or card / MAP) to lock that highlight (`.focus-locked` on `.emd`) so scrolling does not clear it; release with the **Unlock highlight** button (fixed top right) or Escape. Hovering a `.map` note lights that join and marks the mapped property rows on each side (`inputs → outputs` from the note text). Clicking a connector scrolls any related end card that is partly (or fully) out of view into the board viewport — connectors never lock. Put `data-prop` on every named SCR value so the trace can find the screen; card `dt`s already name COM / RMO / EVT / ERR properties.
+
+### Scroll performance
+
+Boards must keep scrolling smooth on large models. The contract lives in `diagram/diagram.css` + `diagram/connectors.js` (sync both to `app/renderer/diagram/` when you change them). Do **not** reintroduce `filter:` on connector tiles, force a full retile on every scroll, clear path-focus while the board is flinging, or bind hover on empty `.gap` slice corridors (elements only — cards, values, MAP, shafts/tiles).
+
+**CSS — opacity only; cheap paint while flinging.** Connector and card highlights transition `opacity` only. While `.emd` has `.is-scrolling`, drop transitions, disable pointer-events on board chrome, and use a flat card shadow:
+
+```css
+.emd {
+  position: relative;
+  overflow: auto;
+  height: 100%;
+  will-change: scroll-position;
+}
+.cell.connector .tile,
+.cell.connector .shaft-v,
+.cell.connector .shaft-h {
+  /* Opacity only — never filter (filter on every tile stalls scroll compositing). */
+  transition: opacity 0.12s ease;
+}
+.emd.is-scrolling .cell.connector .tile,
+.emd.is-scrolling .cell.connector .shaft-v,
+.emd.is-scrolling .cell.connector .shaft-h,
+.emd.is-scrolling .scr,
+.emd.is-scrolling .com,
+.emd.is-scrolling .rmo,
+.emd.is-scrolling .evt,
+.emd.is-scrolling .err,
+.emd.is-scrolling .pro,
+.emd.is-scrolling .map {
+  transition: none !important;
+}
+.emd.is-scrolling .cell.connector,
+.emd.is-scrolling article.scr,
+.emd.is-scrolling article.com,
+.emd.is-scrolling article.rmo,
+.emd.is-scrolling article.evt,
+.emd.is-scrolling article.err,
+.emd.is-scrolling .map {
+  pointer-events: none;
+}
+.emd.is-scrolling article {
+  box-shadow: 0 1px 2px rgba(28, 28, 28, 0.05);
+}
+```
+
+Line/turn SVGs under `diagram/arrows/` use a solid dark fill/stroke (e.g. `#1c1c1c`) — do not darken them with `filter: brightness(0)` in CSS.
+
+**JS — scroll guard, freeze hover paint, soft retile.** One passive `scroll` listener per board toggles `.is-scrolling`, skips hover work while flinging, and only schedules a size-check retile after idle (never a forced redraw when width/height did not change):
+
+```js
+function scheduleHoverHighlight(fn) {
+  cancelHoverShow();
+  if (emd._scrolling) return; // content slides under the pointer — skip until idle
+  // …delay then fn()…
+}
+
+function clearHoverHighlight() {
+  cancelHoverShow();
+  if (focusLock()) return;
+  if (emd._scrolling) return; // freeze paint — avoids a whole-board opacity flash
+  clearConnectionHighlight();
+}
+
+if (!emd._scrollGuardBound) {
+  emd._scrollGuardBound = true;
+  let scrollIdle = 0;
+  emd.addEventListener(
+    'scroll',
+    () => {
+      emd._scrolling = true;
+      if (!emd.classList.contains('is-scrolling')) {
+        emd.classList.add('is-scrolling');
+      }
+      cancelHoverShow();
+      clearTimeout(scrollIdle);
+      scrollIdle = setTimeout(() => {
+        emd._scrolling = false;
+        emd.classList.remove('is-scrolling');
+        if (emd._retileAfterScroll) {
+          emd._retileAfterScroll = false;
+          window.dispatchEvent(new Event('emd:retile-check')); // soft size check
+        }
+      }, 180);
+    },
+    { passive: true }
+  );
+}
+
+// boot ResizeObserver path:
+const run = (force) => {
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    const el = board();
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    if (!force && emd._scrolling) {
+      if (w !== lastW || h !== lastH) emd._retileAfterScroll = true;
+      return;
+    }
+    if (!force && w === lastW && h === lastH) return;
+    lastW = w;
+    lastH = h;
+    drawJoins(emd);
+  }, 40);
+};
+window.addEventListener('emd:retile', () => run(true));       // settings / fonts
+window.addEventListener('emd:retile-check', () => run(false)); // after scroll idle
+```
 
 **Mapping notes** still sit under the RMO (`.map`) on the join shaft; the shaft itself is JS.
 
-The rail samples below show an older hand-drawn join. Do not copy them into a board. Leave every `.cell.connector` empty and list joins as `data-joins`, using the templates in the **HTML board** section of [`event-modeling-instructions.md`](event-modeling-instructions.md). `connectors.js` clears those cells and paints the tiles.
+The rail samples below show an older hand-drawn join. Do not copy them into a board. Leave every `.cell.connector` and `.cell.connector.connector-upper` empty and list joins as `data-joins`, using the templates in the **HTML board** section of [`event-modeling-instructions.md`](event-modeling-instructions.md). `connectors.js` clears those cells and paints the tiles.
 
 ### Command slice (no join yet)
 
@@ -606,10 +793,14 @@ The rail samples below show an older hand-drawn join. Do not copy them into a bo
 
 ## CSS
 
-The live stylesheet is [`diagram/diagram.css`](diagram/diagram.css). Keep this file in sync when you change arrow or layout rules. Key pieces:
+The live stylesheet is [`diagram/diagram.css`](diagram/diagram.css). Keep this file (and `app/renderer/diagram/diagram.css`) in sync when you change arrow, layout, or scroll-performance rules. Key pieces:
 
 - `--tile: 16px` on `:root` (connector elbows, arrowheads, and mid-band packing)
 - `--col: 16rem` is the slice **minimum**; board columns are `minmax(var(--col), max-content)`. `.uba > .scr` / `.wire` use `width: max-content` so wide screens widen their slice. COM / RMO / EVT stay `width: fit-content; align-self: center` so a wide SCR does not stretch them
+- `.emd` — only scrollport; `will-change: scroll-position`; see **Scroll performance**
+- `.cell.connector.connector-upper` — upper band (UBA↔MBA) for RMO→later SCR; see **RMO → later SCR (upper band)**
+- Connector / card highlight transitions are **opacity only** — never `filter` on tiles
+- `.emd.is-scrolling` — `transition: none`, `pointer-events: none` on connectors/cards, flat article shadow while flinging
 - `uba`, `mba`, `lba`, `connector` are flex columns with **zero** vertical padding so shafts stay continuous
 - MBA/LBA top-band: `.mba/.lba > .gap:first-child` is `flex: 0` (min two tiles); `.mba > .gap:last-child` is `flex: 1`; empty `.lba > .gap:only-child` still flexes for fill shafts
 - Sticky stack: `.board > .lane:first-child` top+left z-index 6; `.lane` left z-index 5; `.wfl` top sticky z-index 4; `.wfl > span` left sticky z-index 3; slice body cells z-index 0 with white backgrounds
