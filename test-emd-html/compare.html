@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Unconference board comparison</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; flex-direction: column; font: 14px/1.3 system-ui, sans-serif; color: #1c1c1c; }
+    header { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #ccc; }
+    header div { padding: 0.45rem 0.75rem; font-weight: 650; }
+    header div + div { border-left: 1px solid #ccc; background: #f6f6f6; }
+    .frames { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+    iframe { width: 100%; height: 100%; border: 0; }
+    iframe + iframe { border-left: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>From instructions — test-emd-html/unconference.emd.html</div>
+    <div>Current project — projects/unconference-organizer/unconference-organizer.emd.html</div>
+  </header>
+  <div class="frames">
+    <iframe title="Instruction-built board" src="unconference.emd.html"></iframe>
+    <iframe title="Current unconference board" src="../projects/unconference-organizer/unconference-organizer.emd.html"></iframe>
+  </div>
+</body>
+</html>

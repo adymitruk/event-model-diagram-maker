@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Unconference organizer</title>
+  <link rel="stylesheet" href="../diagram/diagram.css">
+</head>
+<body>
+  <main class="emd" style="--slices: 20" data-joins="err-name-required:scr-signup-form-jordan-slc7,evt-registration-opened:rmo-signup-qr,evt-attendee-registered-pat:rmo-registrations,evt-attendee-registered-pat:rmo-topic-ballot,evt-attendee-registered-riley:rmo-topic-ballot,evt-attendee-registered-jordan:rmo-topic-ballot,evt-topic-suggested-pat:rmo-topic-ballot,evt-topic-suggested-riley:rmo-topic-ballot,evt-topic-suggested-jordan:rmo-topic-ballot,evt-topic-suggested-pat:rmo-agenda-builder,evt-topic-suggested-riley:rmo-agenda-builder,evt-topic-suggested-jordan:rmo-agenda-builder,evt-topic-voted-pat:rmo-agenda-builder,evt-topic-voted-riley:rmo-agenda-builder,evt-topic-voted-jordan:rmo-agenda-builder,evt-session-scheduled-slc18:rmo-agenda,evt-session-scheduled-slc19:rmo-agenda">
+    <div class="sheet">
+      <div class="board">
+
+        <div class="cell lane emd-corner"></div>
+        <div class="cell wfl" data-slc="1" data-span="2"><span>Open registration</span></div>
+        <div class="cell wfl" data-slc="3" data-span="6"><span>Sign up as an attendee</span></div>
+        <div class="cell wfl" data-slc="9" data-span="3"><span>Suggest a topic</span></div>
+        <div class="cell wfl" data-slc="12" data-span="4"><span>Vote on topics</span></div>
+        <div class="cell wfl" data-slc="16" data-span="1"><span>Close registration</span></div>
+        <div class="cell wfl" data-slc="17" data-span="4"><span>Build the agenda</span></div>
+
+        <div class="cell lane open">Alex (Organizer)</div>
+        <div class="cell uba" data-slc="1" data-lane="alex">
+          <article class="scr" id="scr-open-registration-form">
+            <h2>Open Registration Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Open Registration</p>
+                <label class="text">title <input value="Adaptech Unconference 2026" readonly></label>
+                <div class="row end">
+                  <button type="button">Open</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="2" data-lane="alex">
+          <article class="scr" id="scr-signup-qr">
+            <h2>Signup QR</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Signup QR</p>
+                <p class="label">title Adaptech Unconference 2026</p>
+                <p class="label">signupUrl https://unconf.example/signup/tok-7f3a</p>
+                <p class="label">qr (show signupUrl as QR)</p>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v">
+              <div class="tile arrow-up"></div>
+              <div class="shaft"></div>
+            </div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="3" data-lane="alex"></div>
+        <div class="cell uba" data-slc="4" data-lane="alex"></div>
+        <div class="cell uba" data-slc="5" data-lane="alex"></div>
+        <div class="cell uba" data-slc="6" data-lane="alex"></div>
+        <div class="cell uba" data-slc="7" data-lane="alex"></div>
+        <div class="cell uba" data-slc="8" data-lane="alex"></div>
+        <div class="cell uba" data-slc="9" data-lane="alex"></div>
+        <div class="cell uba" data-slc="10" data-lane="alex"></div>
+        <div class="cell uba" data-slc="11" data-lane="alex"></div>
+        <div class="cell uba" data-slc="12" data-lane="alex"></div>
+        <div class="cell uba" data-slc="13" data-lane="alex"></div>
+        <div class="cell uba" data-slc="14" data-lane="alex"></div>
+        <div class="cell uba" data-slc="15" data-lane="alex"></div>
+        <div class="cell uba" data-slc="16" data-lane="alex">
+          <article class="scr" id="scr-close-registration">
+            <h2>Close Registration</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Close Registration</p>
+                <p class="label">title Adaptech Unconference 2026</p>
+                <p class="label">attendees 3</p>
+                <div class="row end">
+                  <button type="button">Close</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="17" data-lane="alex">
+          <article class="scr" id="scr-agenda-builder-slc17">
+            <h2>Agenda Builder</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Build Agenda</p>
+                <table>
+                  <thead><tr><th>title</th><th>kind</th><th>voteCount</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td>Event Sourcing in Practice</td><td>presentation</td><td>2</td><td><button type="button">Schedule</button></td></tr>
+                    <tr><td>Remote Facilitation</td><td>fishBowl</td><td>1</td><td><button type="button">Schedule</button></td></tr>
+                    <tr><td>Lunch spots nearby</td><td>suggestion</td><td>0</td><td><button type="button">Schedule</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v">
+              <div class="tile arrow-up"></div>
+              <div class="shaft"></div>
+            </div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="18" data-lane="alex">
+          <article class="scr" id="scr-agenda-builder-slc18">
+            <h2>Agenda Builder</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Schedule Session</p>
+                <fieldset class="group"><legend>Topic</legend>
+                  <div class="row">
+                    <p class="label">topicId T-1</p>
+                    <p class="label">title Event Sourcing in Practice</p>
+                    <p class="label">kind presentation</p>
+                  </div>
+                </fieldset>
+                <div class="col">
+                  <label class="text">slot <input value="morning" readonly></label>
+                  <label class="text">room <input value="Room A" readonly></label>
+                </div>
+                <div class="row end">
+                  <button type="button">Schedule</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="19" data-lane="alex">
+          <article class="scr" id="scr-agenda-builder-slc19">
+            <h2>Agenda Builder</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Schedule Session</p>
+                <fieldset class="group"><legend>Topic</legend>
+                  <div class="row">
+                    <p class="label">topicId T-2</p>
+                    <p class="label">title Remote Facilitation</p>
+                    <p class="label">kind fishBowl</p>
+                  </div>
+                </fieldset>
+                <div class="col">
+                  <label class="text">slot <input value="afternoon" readonly></label>
+                  <label class="text">room <input value="Room B" readonly></label>
+                </div>
+                <div class="row end">
+                  <button type="button">Schedule</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="20" data-lane="alex">
+          <article class="scr" id="scr-agenda-alex">
+            <h2>Agenda</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Agenda</p>
+                <table>
+                  <thead><tr><th>slot</th><th>room</th><th>title</th><th>kind</th></tr></thead>
+                  <tbody>
+                    <tr><td>morning</td><td>Room A</td><td>Event Sourcing in Practice</td><td>presentation</td></tr>
+                    <tr><td>afternoon</td><td>Room B</td><td>Remote Facilitation</td><td>fishBowl</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v">
+              <div class="tile arrow-up"></div>
+              <div class="shaft"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cell lane open">Pat (Attendee)</div>
+        <div class="cell uba" data-slc="1" data-lane="pat">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="2" data-lane="pat">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="3" data-lane="pat">
+          <article class="scr" id="scr-signup-form-pat">
+            <h2>Signup Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Sign Up</p>
+                <p class="label">title Adaptech Unconference 2026</p>
+                <label class="text">name <input value="Pat Lee" readonly></label>
+                <div class="row end">
+                  <button type="button">Sign up</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="4" data-lane="pat">
+          <article class="scr" id="scr-signup-confirmation">
+            <h2>Signup Confirmation</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">You're signed up</p>
+                <p class="label">attendeeId A-1</p>
+                <p class="label">name Pat Lee</p>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v">
+              <div class="tile arrow-up"></div>
+              <div class="shaft"></div>
+            </div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="5" data-lane="pat"></div>
+        <div class="cell uba" data-slc="6" data-lane="pat"></div>
+        <div class="cell uba" data-slc="7" data-lane="pat"></div>
+        <div class="cell uba" data-slc="8" data-lane="pat"></div>
+        <div class="cell uba" data-slc="9" data-lane="pat">
+          <article class="scr" id="scr-suggest-topic-form-pat">
+            <h2>Suggest Topic Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Suggest a Topic</p>
+                <label class="text">title <input value="Event Sourcing in Practice" readonly></label>
+                <label class="dropdown">kind <select disabled><option>presentation</option></select></label>
+                <div class="row end">
+                  <button type="button">Suggest</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="10" data-lane="pat"></div>
+        <div class="cell uba" data-slc="11" data-lane="pat"></div>
+        <div class="cell uba" data-slc="12" data-lane="pat">
+          <article class="scr" id="scr-topic-ballot-pat">
+            <h2>Topic Ballot</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Topics</p>
+                <table>
+                  <thead><tr><th>title</th><th>kind</th><th>name</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td>Event Sourcing in Practice</td><td>presentation</td><td>Pat Lee</td><td><button type="button">Vote</button></td></tr>
+                    <tr><td>Remote Facilitation</td><td>fishBowl</td><td>Riley Ng</td><td><button type="button">Vote</button></td></tr>
+                    <tr><td>Lunch spots nearby</td><td>suggestion</td><td>Jordan Ortiz</td><td><button type="button">Vote</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v">
+              <div class="tile arrow-up"></div>
+              <div class="shaft"></div>
+            </div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="13" data-lane="pat">
+          <article class="scr" id="scr-topic-ballot-pat-slc13">
+            <h2>Topic Ballot</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Topics</p>
+                <table>
+                  <thead><tr><th>title</th><th>kind</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td>Remote Facilitation</td><td>fishBowl</td><td><button type="button">Vote</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="14" data-lane="pat"></div>
+        <div class="cell uba" data-slc="15" data-lane="pat"></div>
+        <div class="cell uba" data-slc="16" data-lane="pat">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="17" data-lane="pat">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="18" data-lane="pat">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="19" data-lane="pat">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="20" data-lane="pat">
+          <article class="scr" id="scr-agenda-pat">
+            <h2>Agenda</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Agenda</p>
+                <table>
+                  <thead><tr><th>slot</th><th>room</th><th>title</th><th>kind</th></tr></thead>
+                  <tbody>
+                    <tr><td>morning</td><td>Room A</td><td>Event Sourcing in Practice</td><td>presentation</td></tr>
+                    <tr><td>afternoon</td><td>Room B</td><td>Remote Facilitation</td><td>fishBowl</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v">
+              <div class="tile arrow-up"></div>
+              <div class="shaft"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cell lane open">Riley (Attendee)</div>
+        <div class="cell uba" data-slc="1" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="2" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="3" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="4" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="5" data-lane="riley">
+          <article class="scr" id="scr-signup-form-riley">
+            <h2>Signup Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Sign Up</p>
+                <p class="label">title Adaptech Unconference 2026</p>
+                <label class="text">name <input value="Riley Ng" readonly></label>
+                <div class="row end">
+                  <button type="button">Sign up</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="6" data-lane="riley"></div>
+        <div class="cell uba" data-slc="7" data-lane="riley"></div>
+        <div class="cell uba" data-slc="8" data-lane="riley"></div>
+        <div class="cell uba" data-slc="9" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="10" data-lane="riley">
+          <article class="scr" id="scr-suggest-topic-form-riley">
+            <h2>Suggest Topic Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Suggest a Topic</p>
+                <label class="text">title <input value="Remote Facilitation" readonly></label>
+                <label class="dropdown">kind <select disabled><option>fishBowl</option></select></label>
+                <div class="row end">
+                  <button type="button">Suggest</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="11" data-lane="riley"></div>
+        <div class="cell uba" data-slc="12" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="13" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="14" data-lane="riley">
+          <article class="scr" id="scr-topic-ballot-riley">
+            <h2>Topic Ballot</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Topics</p>
+                <table>
+                  <thead><tr><th>title</th><th>kind</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td>Event Sourcing in Practice</td><td>presentation</td><td><button type="button">Vote</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="15" data-lane="riley"></div>
+        <div class="cell uba" data-slc="16" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="17" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="18" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="19" data-lane="riley">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="20" data-lane="riley">
+          <article class="scr" id="scr-agenda-riley">
+            <h2>Agenda</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Agenda</p>
+                <table>
+                  <thead><tr><th>slot</th><th>room</th><th>title</th><th>kind</th></tr></thead>
+                  <tbody>
+                    <tr><td>morning</td><td>Room A</td><td>Event Sourcing in Practice</td><td>presentation</td></tr>
+                    <tr><td>afternoon</td><td>Room B</td><td>Remote Facilitation</td><td>fishBowl</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v">
+              <div class="tile arrow-up"></div>
+              <div class="shaft"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cell lane open">Jordan (Attendee)</div>
+        <div class="cell uba" data-slc="1" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="2" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="3" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="4" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="5" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="6" data-lane="jordan">
+          <article class="scr" id="scr-signup-form-jordan-slc6">
+            <h2>Signup Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Sign Up</p>
+                <p class="label">title Adaptech Unconference 2026</p>
+                <label class="text">name <input value="" readonly></label>
+                <div class="row end">
+                  <button type="button">Sign up</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="7" data-lane="jordan">
+          <article class="scr" id="scr-signup-form-jordan-slc7">
+            <h2>Signup Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Sign Up</p>
+                <p class="label">title Adaptech Unconference 2026</p>
+                <label class="text">name <input value="" readonly></label>
+                <p class="label">message Name is required</p>
+                <div class="row end">
+                  <button type="button">Sign up</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="8" data-lane="jordan">
+          <article class="scr" id="scr-signup-form-jordan-slc8">
+            <h2>Signup Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Sign Up</p>
+                <p class="label">title Adaptech Unconference 2026</p>
+                <label class="text">name <input value="Jordan Ortiz" readonly></label>
+                <div class="row end">
+                  <button type="button">Sign up</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="9" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="10" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="11" data-lane="jordan">
+          <article class="scr" id="scr-suggest-topic-form-jordan">
+            <h2>Suggest Topic Form</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Suggest a Topic</p>
+                <label class="text">title <input value="Lunch spots nearby" readonly></label>
+                <label class="dropdown">kind <select disabled><option>suggestion</option></select></label>
+                <div class="row end">
+                  <button type="button">Suggest</button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="12" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="13" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="14" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="15" data-lane="jordan">
+          <article class="scr" id="scr-topic-ballot-jordan">
+            <h2>Topic Ballot</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Topics</p>
+                <table>
+                  <thead><tr><th>title</th><th>kind</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td>Event Sourcing in Practice</td><td>presentation</td><td><button type="button">Vote</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="16" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="17" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="18" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="19" data-lane="jordan">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell uba" data-slc="20" data-lane="jordan">
+          <article class="scr" id="scr-agenda-jordan">
+            <h2>Agenda</h2>
+            <div class="wire">
+              <div class="col">
+                <p class="heading">Agenda</p>
+                <table>
+                  <thead><tr><th>slot</th><th>room</th><th>title</th><th>kind</th></tr></thead>
+                  <tbody>
+                    <tr><td>morning</td><td>Room A</td><td>Event Sourcing in Practice</td><td>presentation</td></tr>
+                    <tr><td>afternoon</td><td>Room B</td><td>Remote Facilitation</td><td>fishBowl</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+          <div class="gap">
+            <div class="arr v">
+              <div class="tile arrow-up"></div>
+              <div class="shaft"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cell lane open"></div>
+        <div class="cell mba" data-slc="1">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-open-registration">
+            <h2>Open Registration</h2>
+            <dl class="props">
+              <div><dt>title</dt><dd>Adaptech Unconference 2026</dd></div>
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="2">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+          <article class="rmo" id="rmo-signup-qr">
+            <h2>Signup QR</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>title</dt><dd>Adaptech Unconference 2026</dd></div>
+              <div><dt>signupUrl</dt><dd>https://unconf.example/signup/tok-7f3a</dd></div>
+            </dl>
+          </article>
+          <p class="map">Signup Url: signupToken → signupUrl</p>
+          <div class="gap"></div>
+        </div>
+        <div class="cell mba" data-slc="3">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-register-attendee-pat">
+            <h2>Register Attendee</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+              <div><dt>name</dt><dd>Pat Lee</dd></div>
+              <div><dt>attendeeId</dt><dd>A-1</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="4">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+          <article class="rmo" id="rmo-registrations">
+            <h2>Registrations</h2>
+            <dl class="props">
+              <div><dt>attendeeId</dt><dd>A-1</dd></div>
+              <div><dt>name</dt><dd>Pat Lee</dd></div>
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+            </dl>
+          </article>
+          <div class="gap"></div>
+        </div>
+        <div class="cell mba" data-slc="5">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-register-attendee-riley">
+            <h2>Register Attendee</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+              <div><dt>name</dt><dd>Riley Ng</dd></div>
+              <div><dt>attendeeId</dt><dd>A-2</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="6">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-register-attendee-jordan-slc6">
+            <h2>Register Attendee</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+              <div><dt>name</dt><dd></dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="7"></div>
+        <div class="cell mba" data-slc="8">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-register-attendee-jordan-slc8">
+            <h2>Register Attendee</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+              <div><dt>name</dt><dd>Jordan Ortiz</dd></div>
+              <div><dt>attendeeId</dt><dd>A-3</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="9">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-suggest-topic-pat">
+            <h2>Suggest Topic</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-1</dd></div>
+              <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+              <div><dt>kind</dt><dd>presentation</dd></div>
+              <div><dt>topicId</dt><dd>T-1</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="10">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-suggest-topic-riley">
+            <h2>Suggest Topic</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-2</dd></div>
+              <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+              <div><dt>kind</dt><dd>fishBowl</dd></div>
+              <div><dt>topicId</dt><dd>T-2</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="11">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-suggest-topic-jordan">
+            <h2>Suggest Topic</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-3</dd></div>
+              <div><dt>title</dt><dd>Lunch spots nearby</dd></div>
+              <div><dt>kind</dt><dd>suggestion</dd></div>
+              <div><dt>topicId</dt><dd>T-3</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="12">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+          <article class="rmo" id="rmo-topic-ballot">
+            <h2>Topic Ballot</h2>
+            <dl class="props">
+              <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
+              <div><dt>lookup A-2</dt><dd>Riley Ng</dd></div>
+              <div><dt>lookup A-3</dt><dd>Jordan Ortiz</dd></div>
+              <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · Pat Lee</dd></div>
+              <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · Riley Ng</dd></div>
+              <div><dt>T-3</dt><dd>Lunch spots nearby · suggestion · Jordan Ortiz</dd></div>
+            </dl>
+          </article>
+          <div class="gap"></div>
+        </div>
+        <div class="cell mba" data-slc="13">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-cast-vote-pat">
+            <h2>Cast Vote</h2>
+            <dl class="props">
+              <div><dt>topicId</dt><dd>T-2</dd></div>
+              <div><dt>attendeeId</dt><dd>A-1</dd></div>
+              <div><dt>voteId</dt><dd>V-1</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="14">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-cast-vote-riley">
+            <h2>Cast Vote</h2>
+            <dl class="props">
+              <div><dt>topicId</dt><dd>T-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-2</dd></div>
+              <div><dt>voteId</dt><dd>V-2</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="15">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-cast-vote-jordan">
+            <h2>Cast Vote</h2>
+            <dl class="props">
+              <div><dt>topicId</dt><dd>T-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-3</dd></div>
+              <div><dt>voteId</dt><dd>V-3</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="16">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-close-registration">
+            <h2>Close Registration</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="17">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+          <article class="rmo" id="rmo-agenda-builder">
+            <h2>Agenda Builder</h2>
+            <dl class="props">
+              <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · 2</dd></div>
+              <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · 1</dd></div>
+              <div><dt>T-3</dt><dd>Lunch spots nearby · suggestion · 0</dd></div>
+            </dl>
+          </article>
+          <div class="gap"></div>
+        </div>
+        <div class="cell mba" data-slc="18">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-schedule-session-slc18">
+            <h2>Schedule Session</h2>
+            <dl class="props">
+              <div><dt>topicId</dt><dd>T-1</dd></div>
+              <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+              <div><dt>kind</dt><dd>presentation</dd></div>
+              <div><dt>slot</dt><dd>morning</dd></div>
+              <div><dt>room</dt><dd>Room A</dd></div>
+              <div><dt>sessionId</dt><dd>S-1</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="19">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="com" id="com-schedule-session-slc19">
+            <h2>Schedule Session</h2>
+            <dl class="props">
+              <div><dt>topicId</dt><dd>T-2</dd></div>
+              <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+              <div><dt>kind</dt><dd>fishBowl</dd></div>
+              <div><dt>slot</dt><dd>afternoon</dd></div>
+              <div><dt>room</dt><dd>Room B</dd></div>
+              <div><dt>sessionId</dt><dd>S-2</dd></div>
+            </dl>
+          </article>
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+        </div>
+        <div class="cell mba" data-slc="20">
+          <div class="gap">
+            <div class="arr v"><div class="shaft"></div></div>
+          </div>
+          <article class="rmo" id="rmo-agenda">
+            <h2>Agenda</h2>
+            <dl class="props">
+              <div><dt>S-1</dt><dd>Event Sourcing in Practice · presentation · morning · Room A</dd></div>
+              <div><dt>S-2</dt><dd>Remote Facilitation · fishBowl · afternoon · Room B</dd></div>
+            </dl>
+          </article>
+          <div class="gap"></div>
+        </div>
+
+        <div class="cell lane open"></div>
+        <div class="cell connector" data-slc="1"></div>
+        <div class="cell connector" data-slc="2"></div>
+        <div class="cell connector" data-slc="3"></div>
+        <div class="cell connector" data-slc="4"></div>
+        <div class="cell connector" data-slc="5"></div>
+        <div class="cell connector" data-slc="6"></div>
+        <div class="cell connector" data-slc="7"></div>
+        <div class="cell connector" data-slc="8"></div>
+        <div class="cell connector" data-slc="9"></div>
+        <div class="cell connector" data-slc="10"></div>
+        <div class="cell connector" data-slc="11"></div>
+        <div class="cell connector" data-slc="12"></div>
+        <div class="cell connector" data-slc="13"></div>
+        <div class="cell connector" data-slc="14"></div>
+        <div class="cell connector" data-slc="15"></div>
+        <div class="cell connector" data-slc="16"></div>
+        <div class="cell connector" data-slc="17"></div>
+        <div class="cell connector" data-slc="18"></div>
+        <div class="cell connector" data-slc="19"></div>
+        <div class="cell connector" data-slc="20"></div>
+
+        <div class="cell lane open lba-head">
+          <div class="lba-head-gap" aria-hidden="true"></div>
+          <div class="lba-head-label">Unconference</div>
+        </div>
+        <div class="cell lba foot" data-slc="1" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-registration-opened">
+            <h2>Registration Opened</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>title</dt><dd>Adaptech Unconference 2026</dd></div>
+              <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="2" data-lane="unconference"></div>
+        <div class="cell lba foot" data-slc="3" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-attendee-registered-pat">
+            <h2>Attendee Registered</h2>
+            <dl class="props">
+              <div><dt>attendeeId</dt><dd>A-1</dd></div>
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>name</dt><dd>Pat Lee</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="4" data-lane="unconference"></div>
+        <div class="cell lba foot" data-slc="5" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-attendee-registered-riley">
+            <h2>Attendee Registered</h2>
+            <dl class="props">
+              <div><dt>attendeeId</dt><dd>A-2</dd></div>
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>name</dt><dd>Riley Ng</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="6" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="err" id="err-name-required">
+            <h2>Name Required</h2>
+            <p>name was empty</p>
+            <dl class="props">
+              <div><dt>message</dt><dd>Name is required</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="7" data-lane="unconference"></div>
+        <div class="cell lba foot" data-slc="8" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-attendee-registered-jordan">
+            <h2>Attendee Registered</h2>
+            <dl class="props">
+              <div><dt>attendeeId</dt><dd>A-3</dd></div>
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>name</dt><dd>Jordan Ortiz</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="9" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-topic-suggested-pat">
+            <h2>Topic Suggested</h2>
+            <dl class="props">
+              <div><dt>topicId</dt><dd>T-1</dd></div>
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-1</dd></div>
+              <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+              <div><dt>kind</dt><dd>presentation</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="10" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-topic-suggested-riley">
+            <h2>Topic Suggested</h2>
+            <dl class="props">
+              <div><dt>topicId</dt><dd>T-2</dd></div>
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-2</dd></div>
+              <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+              <div><dt>kind</dt><dd>fishBowl</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="11" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-topic-suggested-jordan">
+            <h2>Topic Suggested</h2>
+            <dl class="props">
+              <div><dt>topicId</dt><dd>T-3</dd></div>
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-3</dd></div>
+              <div><dt>title</dt><dd>Lunch spots nearby</dd></div>
+              <div><dt>kind</dt><dd>suggestion</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="12" data-lane="unconference"></div>
+        <div class="cell lba foot" data-slc="13" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-topic-voted-pat">
+            <h2>Topic Voted</h2>
+            <dl class="props">
+              <div><dt>voteId</dt><dd>V-1</dd></div>
+              <div><dt>topicId</dt><dd>T-2</dd></div>
+              <div><dt>attendeeId</dt><dd>A-1</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="14" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-topic-voted-riley">
+            <h2>Topic Voted</h2>
+            <dl class="props">
+              <div><dt>voteId</dt><dd>V-2</dd></div>
+              <div><dt>topicId</dt><dd>T-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-2</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="15" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-topic-voted-jordan">
+            <h2>Topic Voted</h2>
+            <dl class="props">
+              <div><dt>voteId</dt><dd>V-3</dd></div>
+              <div><dt>topicId</dt><dd>T-1</dd></div>
+              <div><dt>attendeeId</dt><dd>A-3</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="16" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-registration-closed">
+            <h2>Registration Closed</h2>
+            <dl class="props">
+              <div><dt>eventId</dt><dd>E-1</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="17" data-lane="unconference"></div>
+        <div class="cell lba foot" data-slc="18" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-session-scheduled-slc18">
+            <h2>Session Scheduled</h2>
+            <dl class="props">
+              <div><dt>sessionId</dt><dd>S-1</dd></div>
+              <div><dt>topicId</dt><dd>T-1</dd></div>
+              <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+              <div><dt>kind</dt><dd>presentation</dd></div>
+              <div><dt>slot</dt><dd>morning</dd></div>
+              <div><dt>room</dt><dd>Room A</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="19" data-lane="unconference">
+          <div class="gap">
+            <div class="arr v">
+              <div class="shaft"></div>
+              <div class="tile arrow-down"></div>
+            </div>
+          </div>
+          <article class="evt" id="evt-session-scheduled-slc19">
+            <h2>Session Scheduled</h2>
+            <dl class="props">
+              <div><dt>sessionId</dt><dd>S-2</dd></div>
+              <div><dt>topicId</dt><dd>T-2</dd></div>
+              <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+              <div><dt>kind</dt><dd>fishBowl</dd></div>
+              <div><dt>slot</dt><dd>afternoon</dd></div>
+              <div><dt>room</dt><dd>Room B</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div class="cell lba foot" data-slc="20" data-lane="unconference"></div>
+
+        <div class="cell lane open">GWT</div>
+        <div class="cell gwt" data-slc="1">
+          <div class="timeline">
+            <article class="com">
+              <h2>Open Registration</h2>
+              <dl class="props">
+                <div><dt>title</dt><dd>Adaptech Unconference 2026</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Registration Opened</h2>
+              <dl class="props">
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>title</dt><dd>Adaptech Unconference 2026</dd></div>
+                <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="2">
+          <div class="timeline">
+            <article class="rmo"><h2>Signup QR</h2></article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Registration Opened</h2>
+              <dl class="props">
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>title</dt><dd>Adaptech Unconference 2026</dd></div>
+                <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Signup QR</h2>
+              <dl class="props">
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>title</dt><dd>Adaptech Unconference 2026</dd></div>
+                <div><dt>signupUrl</dt><dd>https://unconf.example/signup/tok-7f3a</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="3">
+          <div class="timeline">
+            <article class="com">
+              <h2>Register Attendee</h2>
+              <dl class="props">
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+                <div><dt>name</dt><dd>Pat Lee</dd></div>
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Attendee Registered</h2>
+              <dl class="props">
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>name</dt><dd>Pat Lee</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="4">
+          <div class="timeline">
+            <article class="rmo"><h2>Registrations</h2></article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Attendee Registered</h2>
+              <dl class="props">
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>name</dt><dd>Pat Lee</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Registrations</h2>
+              <dl class="props">
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+                <div><dt>name</dt><dd>Pat Lee</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="5"></div>
+        <div class="cell gwt" data-slc="6">
+          <div class="timeline">
+            <article class="com">
+              <h2>Register Attendee</h2>
+              <dl class="props">
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+                <div><dt>name</dt><dd></dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="err">
+              <h2>Name Required</h2>
+              <p>name was empty</p>
+              <dl class="props">
+                <div><dt>message</dt><dd>Name is required</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="7"></div>
+        <div class="cell gwt" data-slc="8">
+          <div class="timeline">
+            <article class="com">
+              <h2>Register Attendee</h2>
+              <dl class="props">
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+                <div><dt>name</dt><dd>Jordan Ortiz</dd></div>
+                <div><dt>attendeeId</dt><dd>A-3</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Attendee Registered</h2>
+              <dl class="props">
+                <div><dt>attendeeId</dt><dd>A-3</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>name</dt><dd>Jordan Ortiz</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="com">
+              <h2>Register Attendee</h2>
+              <dl class="props">
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>signupToken</dt><dd>tok-7f3a</dd></div>
+                <div><dt>name</dt><dd>Jordan Ortiz</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="err">
+              <h2>Already Registered</h2>
+              <p>Attendee Registered already exists for name = Jordan Ortiz</p>
+              <dl class="props">
+                <div><dt>name</dt><dd>Jordan Ortiz</dd></div>
+                <div><dt>message</dt><dd>Already registered</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="9"></div>
+        <div class="cell gwt" data-slc="10"></div>
+        <div class="cell gwt" data-slc="11"></div>
+        <div class="cell gwt" data-slc="12">
+          <div class="timeline">
+            <article class="rmo"><h2>Topic Ballot</h2></article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Attendee Registered</h2>
+              <dl class="props">
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>name</dt><dd>Pat Lee</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Topic Ballot</h2>
+              <dl class="props">
+                <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Attendee Registered</h2>
+              <dl class="props">
+                <div><dt>attendeeId</dt><dd>A-2</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>name</dt><dd>Riley Ng</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Topic Ballot</h2>
+              <dl class="props">
+                <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
+                <div><dt>lookup A-2</dt><dd>Riley Ng</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Attendee Registered</h2>
+              <dl class="props">
+                <div><dt>attendeeId</dt><dd>A-3</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>name</dt><dd>Jordan Ortiz</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Topic Ballot</h2>
+              <dl class="props">
+                <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
+                <div><dt>lookup A-2</dt><dd>Riley Ng</dd></div>
+                <div><dt>lookup A-3</dt><dd>Jordan Ortiz</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Suggested</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-1</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+                <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+                <div><dt>kind</dt><dd>presentation</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Topic Ballot</h2>
+              <dl class="props">
+                <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
+                <div><dt>lookup A-2</dt><dd>Riley Ng</dd></div>
+                <div><dt>lookup A-3</dt><dd>Jordan Ortiz</dd></div>
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · Pat Lee</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Suggested</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-2</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-2</dd></div>
+                <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+                <div><dt>kind</dt><dd>fishBowl</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Topic Ballot</h2>
+              <dl class="props">
+                <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
+                <div><dt>lookup A-2</dt><dd>Riley Ng</dd></div>
+                <div><dt>lookup A-3</dt><dd>Jordan Ortiz</dd></div>
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · Pat Lee</dd></div>
+                <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · Riley Ng</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Suggested</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-3</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-3</dd></div>
+                <div><dt>title</dt><dd>Lunch spots nearby</dd></div>
+                <div><dt>kind</dt><dd>suggestion</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Topic Ballot</h2>
+              <dl class="props">
+                <div><dt>lookup A-1</dt><dd>Pat Lee</dd></div>
+                <div><dt>lookup A-2</dt><dd>Riley Ng</dd></div>
+                <div><dt>lookup A-3</dt><dd>Jordan Ortiz</dd></div>
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · Pat Lee</dd></div>
+                <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · Riley Ng</dd></div>
+                <div><dt>T-3</dt><dd>Lunch spots nearby · suggestion · Jordan Ortiz</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="13"></div>
+        <div class="cell gwt" data-slc="14"></div>
+        <div class="cell gwt" data-slc="15"></div>
+        <div class="cell gwt" data-slc="16"></div>
+        <div class="cell gwt" data-slc="17">
+          <div class="timeline">
+            <article class="rmo"><h2>Agenda Builder</h2></article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Suggested</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-1</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+                <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+                <div><dt>kind</dt><dd>presentation</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Agenda Builder</h2>
+              <dl class="props">
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · 0</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Suggested</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-2</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-2</dd></div>
+                <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+                <div><dt>kind</dt><dd>fishBowl</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Agenda Builder</h2>
+              <dl class="props">
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · 0</dd></div>
+                <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · 0</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Suggested</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-3</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-3</dd></div>
+                <div><dt>title</dt><dd>Lunch spots nearby</dd></div>
+                <div><dt>kind</dt><dd>suggestion</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Agenda Builder</h2>
+              <dl class="props">
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · 0</dd></div>
+                <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · 0</dd></div>
+                <div><dt>T-3</dt><dd>Lunch spots nearby · suggestion · 0</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Voted</h2>
+              <dl class="props">
+                <div><dt>voteId</dt><dd>V-1</dd></div>
+                <div><dt>topicId</dt><dd>T-2</dd></div>
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Agenda Builder</h2>
+              <dl class="props">
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · 0</dd></div>
+                <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · 1</dd></div>
+                <div><dt>T-3</dt><dd>Lunch spots nearby · suggestion · 0</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Voted</h2>
+              <dl class="props">
+                <div><dt>voteId</dt><dd>V-2</dd></div>
+                <div><dt>topicId</dt><dd>T-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-2</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Agenda Builder</h2>
+              <dl class="props">
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · 1</dd></div>
+                <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · 1</dd></div>
+                <div><dt>T-3</dt><dd>Lunch spots nearby · suggestion · 0</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Voted</h2>
+              <dl class="props">
+                <div><dt>voteId</dt><dd>V-3</dd></div>
+                <div><dt>topicId</dt><dd>T-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-3</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Agenda Builder</h2>
+              <dl class="props">
+                <div><dt>T-1</dt><dd>Event Sourcing in Practice · presentation · 2</dd></div>
+                <div><dt>T-2</dt><dd>Remote Facilitation · fishBowl · 1</dd></div>
+                <div><dt>T-3</dt><dd>Lunch spots nearby · suggestion · 0</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="18">
+          <div class="timeline">
+            <article class="evt">
+              <h2>Topic Suggested</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-1</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-1</dd></div>
+                <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+                <div><dt>kind</dt><dd>presentation</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Topic Suggested</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-2</dd></div>
+                <div><dt>eventId</dt><dd>E-1</dd></div>
+                <div><dt>attendeeId</dt><dd>A-2</dd></div>
+                <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+                <div><dt>kind</dt><dd>fishBowl</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="com">
+              <h2>Schedule Session</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-1</dd></div>
+                <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+                <div><dt>kind</dt><dd>presentation</dd></div>
+                <div><dt>slot</dt><dd>morning</dd></div>
+                <div><dt>room</dt><dd>Room A</dd></div>
+                <div><dt>sessionId</dt><dd>S-1</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Session Scheduled</h2>
+              <dl class="props">
+                <div><dt>sessionId</dt><dd>S-1</dd></div>
+                <div><dt>topicId</dt><dd>T-1</dd></div>
+                <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+                <div><dt>kind</dt><dd>presentation</dd></div>
+                <div><dt>slot</dt><dd>morning</dd></div>
+                <div><dt>room</dt><dd>Room A</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="com">
+              <h2>Schedule Session</h2>
+              <dl class="props">
+                <div><dt>topicId</dt><dd>T-2</dd></div>
+                <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+                <div><dt>kind</dt><dd>fishBowl</dd></div>
+                <div><dt>slot</dt><dd>afternoon</dd></div>
+                <div><dt>room</dt><dd>Room B</dd></div>
+                <div><dt>sessionId</dt><dd>S-2</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Session Scheduled</h2>
+              <dl class="props">
+                <div><dt>sessionId</dt><dd>S-2</dd></div>
+                <div><dt>topicId</dt><dd>T-2</dd></div>
+                <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+                <div><dt>kind</dt><dd>fishBowl</dd></div>
+                <div><dt>slot</dt><dd>afternoon</dd></div>
+                <div><dt>room</dt><dd>Room B</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+        <div class="cell gwt" data-slc="19"></div>
+        <div class="cell gwt" data-slc="20">
+          <div class="timeline">
+            <article class="rmo"><h2>Agenda</h2></article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Session Scheduled</h2>
+              <dl class="props">
+                <div><dt>sessionId</dt><dd>S-1</dd></div>
+                <div><dt>topicId</dt><dd>T-1</dd></div>
+                <div><dt>title</dt><dd>Event Sourcing in Practice</dd></div>
+                <div><dt>kind</dt><dd>presentation</dd></div>
+                <div><dt>slot</dt><dd>morning</dd></div>
+                <div><dt>room</dt><dd>Room A</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Agenda</h2>
+              <dl class="props">
+                <div><dt>S-1</dt><dd>Event Sourcing in Practice · presentation · morning · Room A</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="evt">
+              <h2>Session Scheduled</h2>
+              <dl class="props">
+                <div><dt>sessionId</dt><dd>S-2</dd></div>
+                <div><dt>topicId</dt><dd>T-2</dd></div>
+                <div><dt>title</dt><dd>Remote Facilitation</dd></div>
+                <div><dt>kind</dt><dd>fishBowl</dd></div>
+                <div><dt>slot</dt><dd>afternoon</dd></div>
+                <div><dt>room</dt><dd>Room B</dd></div>
+              </dl>
+            </article>
+            <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+            <article class="rmo">
+              <h2>Agenda</h2>
+              <dl class="props">
+                <div><dt>S-1</dt><dd>Event Sourcing in Practice · presentation · morning · Room A</dd></div>
+                <div><dt>S-2</dt><dd>Remote Facilitation · fishBowl · afternoon · Room B</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+  <script src="../diagram/connectors.js"></script>
+  <script src="../diagram/settings.js"></script>
+</body>
+</html>
