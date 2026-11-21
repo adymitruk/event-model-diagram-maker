@@ -4,7 +4,7 @@ Generic event modeling and event-sourcing tooling. No client or product-specific
 
 An EMD is an AST. An EMD board renders that AST using HTML/CSS.
 
-**Modeling rules (short).** COMs and EVTs stay in **3NF**: refer to other entities by id only, never copy their descriptions. RMOs are the opposite — deliberately denormalized for the view. When an RMO projects an EVT that carries a foreign id, it must keep a **lookup** collection from that entity's own EVTs (e.g. topicId → title, kind), including entities that never appear on a later joined row. Full rules and HTML templates: [`event-modeling-instructions.md`](event-modeling-instructions.md).
+**Modeling rules (short).** COMs and EVTs stay in **3NF**: refer to other entities by id only, never copy their descriptions. RMOs are the opposite — deliberately denormalized for the view. When an RMO projects an EVT that carries a foreign id, it must keep a **lookup** collection from that entity's own EVTs (e.g. topicId → title, kind), including entities that never appear on a later joined row. **SCRs** show what people see — UX captions or self-evident values, not schema names (`title`, `message`) or technical join keys (`attendeeId`, `topicId`, …) unless the id is user-facing (invoice number). Full rules and HTML templates: [`event-modeling-instructions.md`](event-modeling-instructions.md).
 
 | Path | Role |
 |---|---|

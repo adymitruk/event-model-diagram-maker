@@ -562,25 +562,6 @@
       });
     }
 
-    function propNamesOn(card) {
-      if (!card) return [];
-      return [...new Set(propRows(card).map(propNameOf).filter(Boolean))];
-    }
-
-    function mapElForJoin(j) {
-      if (j.fromEl && j.fromEl.classList.contains('com')) {
-        return j.fromEl.parentElement
-          ? j.fromEl.parentElement.querySelector(':scope > .map')
-          : null;
-      }
-      if (j.toEl && j.toEl.classList.contains('rmo')) {
-        return j.toEl.parentElement
-          ? j.toEl.parentElement.querySelector(':scope > .map')
-          : null;
-      }
-      return null;
-    }
-
     /** Named value sites on a SCR: prefer data-prop; else infer from labels/table headers. */
     function scrPropSites(scr) {
       const sites = [];
@@ -609,6 +590,32 @@
         });
       });
       return sites;
+    }
+
+    function propNamesOn(card) {
+      if (!card) return [];
+      // SCR wires use UX captions; schema names live on data-prop (needed so
+      // ERR→SCR / RMO→SCR joins still match message, title, …).
+      if (card.classList.contains('scr')) {
+        return [
+          ...new Set(scrPropSites(card).map((s) => s.name).filter(Boolean)),
+        ];
+      }
+      return [...new Set(propRows(card).map(propNameOf).filter(Boolean))];
+    }
+
+    function mapElForJoin(j) {
+      if (j.fromEl && j.fromEl.classList.contains('com')) {
+        return j.fromEl.parentElement
+          ? j.fromEl.parentElement.querySelector(':scope > .map')
+          : null;
+      }
+      if (j.toEl && j.toEl.classList.contains('rmo')) {
+        return j.toEl.parentElement
+          ? j.toEl.parentElement.querySelector(':scope > .map')
+          : null;
+      }
+      return null;
     }
 
     function siteKey(card, prop, value) {

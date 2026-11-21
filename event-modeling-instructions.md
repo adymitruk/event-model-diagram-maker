@@ -17,7 +17,7 @@ Terms built from the basic terms:
   - SVC: a service - a physical or logical grouping of state, tracked by EVTs in a SWL.
 
 Terms built from those:
-  - SCR: a screen - a UI that a USR will interact with in order to view the data of an RMO or to issue a COM.
+  - SCR: a screen - a UI that a USR will interact with in order to view the data of an RMO or to issue a COM. A SCR shows what that person **sees and uses**: labels, titles, names, amounts, choices, messages. Do **not** put technical join keys on a SCR (`attendeeId`, `topicId`, `eventId`, opaque tokens, …) — those belong on COMs, EVTs, and RMOs for wiring. Exception: an identifier people actually use as themselves (an invoice number, order number, confirmation code they read or quote). A COM may still take a technical id from session or query state without that id appearing on the wire.
   - PRO: a processor - it's an automation instead of a USR doing something manually. It works from an RMO that lists its tasks, which has TODO in its name, and it issues COMs. A PRO is always expressed as two SLCs beside one another: an RMO slice in which it reads its TODO RMO, immediately followed by a COM slice in which it issues the COM for that task.
   - MAP: a mapping - a named dependency that shows which input properties one or more output properties come from, written as `MAP <name>: <inputs> → <outputs>` (e.g., `MAP Full Name: firstName, lastName → name`). A MAP sits on an arrow where data changes shape between two items. It can sit in two places: on COM → EVT (the COM carries the inputs and the EVT records the outputs), or on EVT → RMO (the EVTs carry the inputs and the RMO shows the outputs). A SCR or PRO never maps; it only passes data on to the COM as it is. A MAP shows one of three things: a new property appears from a combination of source properties (`MAP Rental Total: days, dailyRate → total`), new properties appear from a single source property that is split (`MAP Name Parts: name → firstName, lastName`), or a property is used to adjust another property, which keeps its name (`MAP Discounted Total: discount, total → total`). In every case the MAP is what accounts for the data on both sides: it is the source of each output property, which exists nowhere before the head of the arrow, and it is the destination of each input, which would otherwise look unused. A MAP shows only the data path, never the particular data and never the calculation or transformation: it names properties, not values. The example values are read from the items at either end of the arrow (the COM or EVTs at the tail, the EVT or RMO at the head), and how one becomes the other is left to the implementer, since an EMD holds no implementation. A MAP records nothing and holds no state; the same inputs always give the same outputs, and each output is traced back to its inputs.
   - ERR: an error - marks the failure of a COM. It is not an EVT, so it records nothing. It sits in the LBA of the SLC whose COM failed, in the SWL of the SVC that would have changed, and it sends control back to the SCR or PRO that issued the COM. It names the recorded facts the COM was checked against. A SLC holds an EVT or an ERR, never both.
@@ -60,7 +60,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
    - UBA: place a SCR when a USR makes the change, or a PRO when an automation does. Put a SCR in the UBA SWL of the USR who uses it, and a PRO in the UBA SWL of the USR who waits on its result (see UBA).
    - MBA: place the COM.
    - LBA: place the EVT in the LBA SWL of the SVC whose state changed. Describe the EVT in past tense (e.g., "Prescription Created", "Medication Dispensed") so it clearly represents what happened and which part of the workflow it belongs to.
-   - Keep the COM and its EVT in 3NF: record the facts the COM established, keyed by the id the COM generated or acted on, and refer to other entities by their id only (e.g., bikeId, customerId, topicId). Do not copy that entity's other properties onto the COM or EVT (e.g., a topic title when topicId is already there) — those already live on the entity's own earlier EVT. The RMO that needs their properties joins the EVTs by that id (see step 6). A COM also never carries a property that is already recorded on an EVT in the SWL it records in (e.g., the email address a receipt is sent to), since the system looks that up from the history by id. A SCR may still *show* a denormalized label (title next to topicId) for the person; that display is session or query state from an earlier SCR, not a COM property — mark only the fields the COM actually takes with `com-data`.
+   - Keep the COM and its EVT in 3NF: record the facts the COM established, keyed by the id the COM generated or acted on, and refer to other entities by their id only (e.g., bikeId, customerId, topicId). Do not copy that entity's other properties onto the COM or EVT (e.g., a topic title when topicId is already there) — those already live on the entity's own earlier EVT. The RMO that needs their properties joins the EVTs by that id (see step 6). A COM also never carries a property that is already recorded on an EVT in the SWL it records in (e.g., the email address a receipt is sent to), since the system looks that up from the history by id. On the SCR, show the **human** values (title, name, kind, slot, …), not the technical ids the COM uses to join — unless that id is something people treat as a label (invoice number). Session or query state may still carry `topicId` / `attendeeId` into the COM without drawing those keys on the wire; mark only the visible fields the person fills or reads with `com-data` / `rmo-data`.
    - When the EVT should record a value in a different shape than the COM carries it (e.g., an end date computed from a start date and a number of days), put a MAP on the arrow from the COM to the EVT. The COM carries the inputs; the EVT records the outputs. The MAP names the inputs and outputs only, not how one becomes the other.
    - A COM that fails is its own SLC, with the ERR in the LBA where its EVT would otherwise be (see ERR). The ERR is shown instead of an EVT. Control goes back to the SCR or PRO that issued the COM. The next SLC is often a NAV slice: the same SCR again, showing the ERR's message (for example under the field that failed), with no COM and no RMO. If the USR or PRO then tries again, that attempt is a later COM slice. The EMD records only what happened in the example: a SLC never shows both an EVT and an ERR, and never a failure that did not occur.
 
@@ -72,11 +72,11 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
 6. **Fill RMO slices**
    - Add an RMO to the MBA when a SCR or PRO needs data from the system without changing it. Its data is projected from EVTs in earlier SLCs.
    - An RMO joins the EVTs it projects by their shared ids (e.g., EVT Bike Rented and EVT Customer Registered by customerId) to show the properties of several entities together, such as an invoice with the customer's name. The EVTs stay in 3NF; the RMO does the lookup and is free to repeat those properties — denormalization is the point of a read model (anti-DRY for the view). An EVT that will be joined must carry the other entity's id (e.g., attendeeId on EVT Topic Suggested, topicId on EVT Session Scheduled), never that entity's other properties (e.g., the attendee's name or the topic's title). **Lookup rule:** when an RMO projects any EVT that refers to another entity by id, that RMO must keep a **lookup** collection from the entity's own EVT(s) — keyed by that id, holding the descriptions the view needs (name, title, kind, …). Build the lookup as those EVTs arrive, including entities that never appear on a later joined row (a topic with no votes, or never scheduled, still sits in the Agenda lookups). The main collection then carries the foreign id and may also show the looked-up fields on each row for the denormalized view. **When a separate lookup is not needed:** if the RMO's main collection is already projected from that entity's own EVT (the one that first recorded the descriptions), those rows *are* the subscription — do not add a second lookups table for the same facts. Example: RMO Agenda Builder builds topic rows from EVT Topic Suggested (`topicId`, `title`, `kind`) and only joins EVT Topic Voted by `topicId` to bump `voteCount`; no lookups table. RMO Agenda, by contrast, builds session rows from EVT Session Scheduled (3NF: `topicId` but no title/kind), so it must keep lookups from EVT Topic Suggested — including topics that never get scheduled.
-   - When the RMO shows a value in a different shape than the EVTs recorded it (e.g., a total from a rate and a count, or a label from an id and a model), put a MAP on the arrows from the EVTs to the RMO. The EVTs carry the inputs; the RMO shows the outputs. The RMO derives the outputs on every read, so nothing is recorded. Also put a MAP there when an EVT property is only used to produce or adjust something the RMO shows and never appears on the RMO as itself (e.g., dailyRate on EVT Bike Listed feeds total on RMO Rental Confirmation); the MAP is what shows that property is used.
+   - When the RMO shows a value in a different shape than the EVTs recorded it (e.g., a total from a rate and a count, or a display name from a model), put a MAP on the arrows from the EVTs to the RMO. The EVTs carry the inputs; the RMO shows the outputs. The RMO derives the outputs on every read, so nothing is recorded. Also put a MAP there when an EVT property is only used to produce or adjust something the RMO shows and never appears on the RMO as itself (e.g., dailyRate on EVT Bike Listed feeds total on RMO Rental Confirmation); the MAP is what shows that property is used.
    - The UBA is optional. Place a SCR in the UBA SWL of the USR who views it, when they view it to decide what to do next or to confirm a previous COM they initiated. Place a PRO in the UBA SWL of the USR who waits on it, when it reads its tasks.
    - A PRO needs a TODO RMO to keep track of its tasks, so a PRO is always expressed as two SLCs beside one another: the RMO slice in which it reads its TODO RMO, immediately followed by the COM slice in which it issues the COM for that task. Nothing sits between them. A PRO never appears in a lone RMO slice or a lone COM slice; if it handles more than one kind of task, each is its own adjacent pair.
    - An RMO may only project EVTs that live in the same LBA SWL, so it must not depend on EVTs from other SWLs.
-   - If an RMO needs information from an EVT in another SWL, channel it: add a RMO TODO, a PRO that works from it, and a COM issued by that PRO that records a new EVT in the SWL of the RMO that needs the information. The EVT carries the needed data across, and the RMO then projects it from its own SWL. This also allows the TODO RMO and COM issued by the PRO to filter and/or change the data for the purpose of being used in the final RMO. The channel EVT is the one copy of that entity in the receiving SWL, keyed by its id; later EVTs in that SWL refer to it by that id and the RMO joins them, so the data is not copied again. A SCR may pass an id it shows from one SWL into a COM that records in another SWL, but not that entity's other properties; those cross only via the channel.
+   - If an RMO needs information from an EVT in another SWL, channel it: add a RMO TODO, a PRO that works from it, and a COM issued by that PRO that records a new EVT in the SWL of the RMO that needs the information. The EVT carries the needed data across, and the RMO then projects it from its own SWL. This also allows the TODO RMO and COM issued by the PRO to filter and/or change the data for the purpose of being used in the final RMO. The channel EVT is the one copy of that entity in the receiving SWL, keyed by its id; later EVTs in that SWL refer to it by that id and the RMO joins them, so the data is not copied again. A SCR may pass a foreign id into a COM that records in another SWL (session / query / hidden field), but the person sees the denormalized label on the SCR, not that technical id; other properties of that entity still cross only via the channel.
    - When the receiving RMO needs the data in a different shape (combined, split, renamed or reformatted), put a MAP on the arrow from the PRO's COM to the new EVT. The PRO passes the raw inputs from its TODO RMO to the COM unchanged, and the EVT records the MAP's outputs, so the receiving SWL only ever holds the shape it needs. Name the MAP and write its inputs and outputs so the dependency can be traced; the implementer decides how the outputs are produced.
    - Choose the MAP position by where the output is needed. On EVT → RMO when only that RMO needs the output and it may change later, since nothing is recorded. On COM → EVT when the output must become a fact that other SWLs or later RMOs rely on, since the EVT then records it and it can never change.
 
@@ -112,6 +112,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
    - Check that every SCR and PRO sits in a USR's UBA SWL, and every EVT sits in a SVC's LBA SWL. Every ERR sits in the LBA of its own SLC, in the SWL of the SVC its COM would have changed.
    - Check that no SLC shows an alternative outcome. Each SLC records one thing that happened; there is no "or" or branching in an EMD.
    - Check that every property on a SCR, COM, RMO and EVT has a known source, and trace it back along the arrows (SCR/PRO → COM → EVT, and EVT → RMO → SCR/PRO) to the SCR input, COM-generated value or MAP output that created it.
+   - Check that every SCR field is something a person would see or enter. Technical join keys stay off the wire (`attendeeId`, `topicId`, …) unless they are user-facing identifiers (invoice number, order number, confirmation code). Visible captions are UX wording or omitted when self-evident — never raw catalog names like `title` or `message`. A COM may still list those keys among its properties when session or query state supplies them.
    - Check that every property ends up somewhere. Start from each place a property enters the system (a SCR input, a COM-generated value or a MAP output) and trace it forward along the arrows (SCR/PRO → COM → EVT → RMO → SCR/PRO) until it reaches a valid end point. There are three: a COM, since every property a COM carries is used in its processing (recorded on the EVT, checked against the history, or both, so a password a COM checks and never records has arrived); a SCR that shows it; or a PRO that acts on it where an automation stands in for a USR. A property counts as arrived when it appears on that COM, SCR or PRO as itself, when it is an input of a MAP whose output arrives there, or when it is the id an RMO joins by. So the check bites on the EVT side: a property that is recorded on an EVT but reaches no RMO, and through it no SCR or PRO, is unaccounted for. Either a SCR is missing, a MAP that consumes it is missing (dailyRate on EVT Bike Listed appears on no later SCR as itself; MAP Rental Total is what shows it becomes total), or the property should not have been recorded.
    - Check that every RMO only has incoming arrows from EVTs in a single LBA SWL. Where data crosses SWLs, check that it does so via step 6's PRO and COM.
    - Check that every EVT is in 3NF: each property depends on the EVT's own key, and no EVT copies a property of another entity that is already recorded on an EVT in the same SWL. Where two entities meet (e.g., a rental and its customer), the EVT holds the id and the RMO joins.
@@ -159,7 +160,7 @@ List each type once even when the example uses it in several slices. Fold join f
 
 Every item in an EMD carries concrete data: its properties and their values in the example. Where a value comes from is not written on the property; the arrows say it. A property on a COM comes from the SCR or PRO at the tail of its arrow, a property on an EVT from its COM, a property on an RMO from the EVTs whose arrows point to it, and a property on a SCR or PRO from the RMO below it. A value that first appears on a COM (e.g., an id) was generated there. Where processing changes a property's name or shape, a MAP on that arrow names its inputs and outputs; nothing else is annotated.
 
-A SCR is written as its nested elements, the way a rough wireframe is sketched: groups, rows and columns hold headings, labels, text boxes, dropdowns, date pickers, check boxes, tables and buttons, top to bottom and left to right. A button that issues a COM or opens another SCR names it with →. Each element carries only its kind, its property and value.
+A SCR is written as its nested elements, the way a rough wireframe is sketched: groups, rows and columns hold headings, labels, text boxes, dropdowns, date pickers, check boxes, tables and buttons, top to bottom and left to right. A button that issues a COM or opens another SCR names it with →. Sketch only what the person sees — not technical join keys (those stay on the COM / EVT / RMO lines). **Visible chrome is UX copy, not schema names:** never put the catalog property name on the wire as the caption (`title`, `message`, `dailyRate`, `attendeeId`, …). Either omit the caption when the value is self-evident (a conference name, an error sentence), or write a normal UI label (`Name`, `Email`, `Daily rate`). Put the schema property in parentheses after the kind so the board can still trace with `data-prop` — e.g. `label (title) = Adaptech Unconference 2026`, `text box Name (name) = Pat Lee`, `label (message) = Name is required`, `text box Daily rate (dailyRate) = 25.00`, table `columns: Topic (title) | Kind (kind) | …`.
 
 A MAP is written as `MAP <name>: <inputs> → <outputs>, on <tail> → <head>`. It carries property names only. No values are written on it, since the reader sees the example data on the items at either end of the arrow, and no calculation, formula or transformation is written, since the EMD describes behaviour, not implementation.
 
@@ -229,7 +230,7 @@ Bike rental shop.
   - from: PRO Customer Registrar
   - to: EVT Customer Registered
 - COM Rent Bike
-  - properties: bikeId, customerId, startDate, days, rentalId
+  - properties: bikeId, customerId, email, startDate, days, rentalId
   - from: SCR Rent Bike Form
   - to: EVT Bike Rented
   - fails: ERR Unknown Customer → SCR Rent Bike Form
@@ -315,7 +316,7 @@ Bike rental shop.
 **MAPs:**
 - MAP Full Name: firstName, lastName → name, on COM Register Customer → EVT Customer Registered (SLC9)
 - MAP Rental End: startDate, days → endDate, on COM Rent Bike → EVT Bike Rented (SLC13)
-- MAP Bike Label: bikeId, model → bike, on EVT Bike Rented, EVT Bike Listed → RMO Rental Confirmation (SLC14)
+- MAP Bike Label: model → bike, on EVT Bike Listed → RMO Rental Confirmation (SLC14)
 - MAP Rental Total: days, dailyRate → total, on EVT Bike Rented, EVT Bike Listed → RMO Rental Confirmation (SLC14) and EVT Bike Rented, EVT Bike Listed → RMO Receipts TODO (SLC16)
 
 **ERRs:**
@@ -348,7 +349,7 @@ Bike rental shop.
 - EVT Application Submitted (SLC6) → RMO Customer Names TODO (SLC8)
 - EVT Bike Received (SLC1) → RMO Bike Catalog (SLC10)
 - EVT Bike Registered (SLC3) → RMO Bike Catalog (SLC10)
-- EVT Bike Rented (SLC13) → MAP Bike Label, MAP Rental Total → RMO Rental Confirmation (SLC14)
+- EVT Bike Rented (SLC13) → MAP Rental Total → RMO Rental Confirmation (SLC14)
 - EVT Bike Listed (SLC5) → MAP Bike Label, MAP Rental Total → RMO Rental Confirmation (SLC14)
 - EVT Customer Registered (SLC9) → RMO Rental Confirmation (SLC14)
 - EVT Bike Returned (SLC15) → RMO Receipts TODO (SLC16)
@@ -365,9 +366,9 @@ Bike rental shop.
 - SCR Receive Bike Form (Sam):
   - heading Receive Bike
   - column
-    - text box serialNumber = SN-48213
-    - text box model = Trailblazer 29
-    - dropdown type = Mountain
+    - text box Serial number (serialNumber) = SN-48213
+    - text box Model (model) = Trailblazer 29
+    - dropdown Type (type) = Mountain
   - row, right-aligned
     - button Receive → COM Receive Bike
 - COM Receive Bike: serialNumber = SN-48213, model = Trailblazer 29, type = Mountain, bikeId = B-101
@@ -381,8 +382,9 @@ Bike rental shop.
 - SCR Unregistered Bikes (Sam):
   - heading Unregistered Bikes
   - table, one row per row of RMO Unregistered Bikes
-    - columns: bikeId | serialNumber | model | type | button Register → SCR Register Bike Form
-    - row: B-101 | SN-48213 | Trailblazer 29 | Mountain | Register
+    - columns: Serial number (serialNumber) | Model (model) | Type (type) | button Register → SCR Register Bike Form
+    - row: SN-48213 | Trailblazer 29 | Mountain | Register
+    - (bikeId stays on the RMO / session for the COM — not on the wire)
 - GWT timeline (describes RMO Unregistered Bikes):
   - RMO Unregistered Bikes (Fleet): (empty)
   - EVT Bike Received (SLC1): bikeId = B-101, serialNumber = SN-48213, model = Trailblazer 29, type = Mountain
@@ -392,12 +394,13 @@ Bike rental shop.
 - SCR Register Bike Form (Sam):
   - heading Register Bike
   - group Bike (read only)
-    - row: label bikeId = B-101 | label model = Trailblazer 29 | label type = Mountain
+    - row: label (serialNumber) = SN-48213 | label (model) = Trailblazer 29 | label (type) = Mountain
   - group Rate
-    - text box dailyRate = 25.00
+    - text box Daily rate (dailyRate) = 25.00
   - row, right-aligned
     - button Register → COM Register Bike
 - COM Register Bike: bikeId = B-101, dailyRate = 25.00
+  - (bikeId from the selected Unregistered Bikes row — session, not drawn on the SCR)
 - EVT Bike Registered (Fleet): bikeId = B-101, dailyRate = 25.00
 
 **SLC4 (RMO slice)**
@@ -415,8 +418,8 @@ Bike rental shop.
 - SCR Customer Application Form (Jim):
   - heading Apply
   - group Name
-    - row: text box firstName = Jim | text box lastName = Harper
-  - text box email = jim@example.com
+    - row: text box First name (firstName) = Jim | text box Last name (lastName) = Harper
+  - text box Email (email) = jim@example.com
   - row, right-aligned
     - button Submit → COM Submit Application
 - COM Submit Application: firstName = Jim, lastName = Harper, email = jim@example.com, customerId = C-7
@@ -427,9 +430,9 @@ Bike rental shop.
 - SCR Application Confirmation (Jim):
   - heading Application Received
   - column
-    - label customerId = C-7
-    - row: label firstName = Jim | label lastName = Harper
-    - label email = jim@example.com
+    - row: label (firstName) = Jim | label (lastName) = Harper
+    - label (email) = jim@example.com
+    - (customerId stays on the RMO / COM path — not a field Jim reads on this screen)
 
 **SLC8 (RMO slice)**
 - RMO Customer Names TODO (Customer), one task per application not yet registered: customerId = C-7, firstName = Jim, lastName = Harper, email = jim@example.com
@@ -448,38 +451,40 @@ Bike rental shop.
 - SCR Bike Catalog (Jim):
   - heading Bikes
   - table, one row per row of RMO Bike Catalog
-    - columns: bikeId | model | type | dailyRate | button Rent → SCR Rent Bike Form
-    - row: B-101 | Trailblazer 29 | Mountain | 25.00 | Rent
+    - columns: Model (model) | Type (type) | Daily rate (dailyRate) | button Rent → SCR Rent Bike Form
+    - row: Trailblazer 29 | Mountain | 25.00 | Rent
+    - (bikeId from the selected catalog row — session for the COM)
 
 **SLC11 (COM slice, ERR)**
 - SCR Rent Bike Form (Jim):
   - heading Rent Bike
   - group Bike (read only)
-    - row: label bikeId = B-101 | label model = Trailblazer 29 | label dailyRate = 25.00
+    - row: label (model) = Trailblazer 29 | label Daily rate (dailyRate) = 25.00
   - group Customer
-    - text box customerId = C-8 (mistyped)
+    - text box Email (email) = wrong@example.com (mistyped)
   - group Dates
-    - row: date picker startDate = 2026-10-22 | text box days = 3
+    - row: date picker Start (startDate) = 2026-10-22 | text box Days (days) = 3
   - row, right-aligned
     - button Rent → COM Rent Bike
-- COM Rent Bike: bikeId = B-101, customerId = C-8, startDate = 2026-10-22, days = 3
-- ERR Unknown Customer (Rental), no EVT Customer Registered with customerId = C-8: customerId = C-8, message = "Customer C-8 is not registered" → SCR Rent Bike Form (SLC12)
+- COM Rent Bike: bikeId = B-101, email = wrong@example.com, startDate = 2026-10-22, days = 3
+  - (bikeId from catalog selection; email is what Jim typed — no matching EVT Customer Registered)
+- ERR Unknown Customer (Rental), no EVT Customer Registered with email = wrong@example.com: email = wrong@example.com, message = "No customer registered with that email" → SCR Rent Bike Form (SLC12)
 - GWT timeline (one GWT for COM Rent Bike; Then is the ERR):
-  - (no EVT Customer Registered with customerId = C-8)
-  - COM Rent Bike: bikeId = B-101, customerId = C-8, startDate = 2026-10-22, days = 3
-  - ERR Unknown Customer (Rental): customerId = C-8, message = "Customer C-8 is not registered"
+  - (no EVT Customer Registered with email = wrong@example.com)
+  - COM Rent Bike: bikeId = B-101, email = wrong@example.com, startDate = 2026-10-22, days = 3
+  - ERR Unknown Customer (Rental): email = wrong@example.com, message = "No customer registered with that email"
 
 
 **SLC12 (NAV slice)**
 - SCR Rent Bike Form (Jim):
   - heading Rent Bike
   - group Bike (read only)
-    - row: label bikeId = B-101 | label model = Trailblazer 29 | label dailyRate = 25.00
+    - row: label (model) = Trailblazer 29 | label Daily rate (dailyRate) = 25.00
   - group Customer
-    - text box customerId = C-8 (mistyped)
-    - label message = "Customer C-8 is not registered"
+    - text box Email (email) = wrong@example.com (mistyped)
+    - label (message) = No customer registered with that email
   - group Dates
-    - row: date picker startDate = 2026-10-22 | text box days = 3
+    - row: date picker Start (startDate) = 2026-10-22 | text box Days (days) = 3
   - row, right-aligned
     - button Rent → COM Rent Bike
 - (no COM, no RMO)
@@ -488,43 +493,45 @@ Bike rental shop.
 - SCR Rent Bike Form (Jim):
   - heading Rent Bike
   - group Bike (read only)
-    - row: label bikeId = B-101 | label model = Trailblazer 29 | label dailyRate = 25.00
+    - row: label (model) = Trailblazer 29 | label Daily rate (dailyRate) = 25.00
   - group Customer
-    - text box customerId = C-7 (corrected)
+    - text box Email (email) = jim@example.com (corrected)
   - group Dates
-    - row: date picker startDate = 2026-10-22 | text box days = 3
+    - row: date picker Start (startDate) = 2026-10-22 | text box Days (days) = 3
   - row, right-aligned
     - button Rent → COM Rent Bike
-- COM Rent Bike: bikeId = B-101, customerId = C-7, startDate = 2026-10-22, days = 3, rentalId = R-1
+- COM Rent Bike: bikeId = B-101, customerId = C-7, email = jim@example.com, startDate = 2026-10-22, days = 3, rentalId = R-1
+  - (customerId looked up from email against EVT Customer Registered; not drawn on the SCR)
 - MAP Rental End: startDate, days → endDate, on COM Rent Bike → EVT Bike Rented
 - EVT Bike Rented (Rental): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, days = 3, endDate = 2026-10-25
 - GWT timeline (two GWTs for COM Rent Bike on one timeline; next When's Given = previous COM's Given EVTs + Then EVTs):
   - EVT Customer Registered (SLC9): customerId = C-7, email = jim@example.com, name = Jim Harper
-  - COM Rent Bike: bikeId = B-101, customerId = C-7, startDate = 2026-10-22, days = 3, rentalId = R-1
+  - COM Rent Bike: bikeId = B-101, customerId = C-7, email = jim@example.com, startDate = 2026-10-22, days = 3, rentalId = R-1
   - EVT Bike Rented (Rental): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, days = 3, endDate = 2026-10-25
-  - COM Rent Bike: bikeId = B-101, customerId = C-7, startDate = 2026-11-01, days = 2, rentalId = R-2
+  - COM Rent Bike: bikeId = B-101, customerId = C-7, email = jim@example.com, startDate = 2026-11-01, days = 2, rentalId = R-2
   - EVT Bike Rented (Rental): rentalId = R-2, bikeId = B-101, customerId = C-7, startDate = 2026-11-01, days = 2, endDate = 2026-11-03
 
 **SLC14 (RMO slice)**
-- MAP Bike Label: bikeId, model → bike, on EVT Bike Rented, EVT Bike Listed → RMO Rental Confirmation
+- MAP Bike Label: model → bike, on EVT Bike Listed → RMO Rental Confirmation
 - MAP Rental Total: days, dailyRate → total, on EVT Bike Rented, EVT Bike Listed → RMO Rental Confirmation
-- RMO Rental Confirmation (Rental): rentalId = R-1, bike = B-101 Trailblazer 29, name = Jim Harper, startDate = 2026-10-22, endDate = 2026-10-25, days = 3, total = 75.00
+- RMO Rental Confirmation (Rental): rentalId = R-1, bike = Trailblazer 29, name = Jim Harper, startDate = 2026-10-22, endDate = 2026-10-25, days = 3, total = 75.00
 - SCR Rental Confirmation (Jim):
   - heading Rental Confirmed
   - column
-    - label rentalId = R-1
-    - label bike = B-101 Trailblazer 29
-    - label name = Jim Harper
-    - row: label startDate = 2026-10-22 | label endDate = 2026-10-25 | label days = 3
-    - label total = 75.00, right-aligned
+    - label Confirmation (rentalId) = R-1
+      - (confirmation number Jim quotes — user-facing, not a hidden join key)
+    - label (bike) = Trailblazer 29
+    - label (name) = Jim Harper
+    - row: label Start (startDate) = 2026-10-22 | label End (endDate) = 2026-10-25 | label Days (days) = 3
+    - label Total (total) = 75.00, right-aligned
 - GWT timeline (describes RMO Rental Confirmation):
   - RMO Rental Confirmation (Rental): (empty)
   - EVT Bike Rented (SLC13): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, days = 3, endDate = 2026-10-25
   - RMO Rental Confirmation (Rental): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, endDate = 2026-10-25, days = 3
   - EVT Bike Listed (SLC5): bikeId = B-101, model = Trailblazer 29, dailyRate = 25.00
-  - RMO Rental Confirmation (Rental): rentalId = R-1, bike = B-101 Trailblazer 29, customerId = C-7, startDate = 2026-10-22, endDate = 2026-10-25, days = 3, total = 75.00
+  - RMO Rental Confirmation (Rental): rentalId = R-1, bike = Trailblazer 29, customerId = C-7, startDate = 2026-10-22, endDate = 2026-10-25, days = 3, total = 75.00
   - EVT Customer Registered (SLC9): customerId = C-7, email = jim@example.com, name = Jim Harper
-  - RMO Rental Confirmation (Rental): rentalId = R-1, bike = B-101 Trailblazer 29, name = Jim Harper, startDate = 2026-10-22, endDate = 2026-10-25, days = 3, total = 75.00
+  - RMO Rental Confirmation (Rental): rentalId = R-1, bike = Trailblazer 29, name = Jim Harper, startDate = 2026-10-22, endDate = 2026-10-25, days = 3, total = 75.00
 
 **WFL4 Return a bike and send the receipt (SLC15–SLC17)**
 
@@ -532,8 +539,8 @@ Bike rental shop.
 - SCR Return Desk (Sam):
   - heading Return Bike
   - row
-    - text box rentalId = R-1
-    - date picker returnDate = 2026-10-25
+    - text box Confirmation (rentalId) = R-1
+    - date picker Return date (returnDate) = 2026-10-25
   - row, right-aligned
     - button Return → COM Return Bike
 - COM Return Bike: rentalId = R-1, returnDate = 2026-10-25
@@ -607,7 +614,7 @@ An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tre
 - **LBA** — events (**EVT**, orange) the system recorded, or an error (**ERR**, red) when a command failed instead; empty in RMO and NAV slices.
 - **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id).
 - **Arrows** — data flow: screen → command → event (or error), event → read model → screen, and a read model → a **later** screen when that view first loads (upper connector band above commands/read models). Several events into the same read model stay on consecutive connector rows (bundled, not merged). Later screens that show the same values again do so by session or query convention — no second arrow. A **MAP** on an arrow names inputs → outputs when data changes shape.
-- **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name), and the button that issues the COM is light blue too; on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). Never paint labels, headers, or an empty RMO area. An SPA keeps one screen layout and paints those highlights on the live fields (and the live COM button) in that slice.
+- **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value, not the property name), and the button that issues the COM is light blue too; on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). Never paint labels, headers, or an empty RMO area. Screens show what people see (titles, names, invoice numbers, …), not technical join keys. An SPA keeps one screen layout and paints those highlights on the live fields (and the live COM button) in that slice.
 - **Interaction** — hover a **card**, **connector piece** (JS tile/shaft or CSS shaft/arrow tile — not empty slice/gap space), or **property value** to keep that path lit and fade the rest; a property value (`dl.props` row, collection cell, or SCR field with `data-prop`) isolates **that example value** through its sources and destinations — same property name **and** same value (so one row in a multi-row RMO does not light sibling rows); MAP renames still follow the mapped outputs; a value a later SCR shows from session or query state (same name and value on an earlier SCR) is linked the same way even when it is not a COM field. Matching connectors stay lit and everything else fades. Empty column gaps are not hover targets (avoids path-focus while scrolling). **Click** the hovered value, card, or MAP to **lock** that highlight so you can scroll and inspect it; release only with the **Unlock highlight** control (top right) or **Escape** — other clicks do not clear a lock. Click a connector to scroll any end that is partly out of view into the viewport (connectors never lock a highlight). Use the gear to tune scale, fade, connector tile size, **hover delay** (0–5s; 0 is immediate), and **Highlight on hover** for connectors, values, and cards (each on by default).
 
 When you change how an EMD is read (new slice type, GWT shape, card kinds), update both the terms/construction above and this help list (and the matching HTML in `settings.js`).
@@ -876,7 +883,7 @@ A screen, a shaft under it, and empty MBA and LBA. No COM, RMO, EVT, or ERR in t
 <div class="cell lba foot" data-slc="12" data-lane="rental"></div>
 ```
 
-The ERR message is a `p.label` on this screen. The ERR card stays in the previous slice. Add `err-…:scr-…` to `data-joins` (lower band).
+The ERR message is a `p.label` on this screen whose visible text is only the message (no `message` caption); keep `data-prop="message"` on the value so property hover links to the ERR card. The ERR card stays in the previous slice. Add `err-…:scr-…` to `data-joins` (lower band).
 
 **RMO title-view** (first read of an earlier RMO before a later COM) — same screen layout as the later COM SCR (same fields and buttons). Values the RMO feeds get `rmo-data` + `data-prop`; other controls are present but empty and **not** `com-data` / `rmo-data` (no blue/green). List `rmo-…:scr-…-title` in `data-joins` (upper band). Later COM screens that show the same RMO values again keep `data-prop` (and may keep `rmo-data` for the green paint) but **omit** another join to the RMO:
 
@@ -888,8 +895,8 @@ The ERR message is a `p.label` on this screen. The ERR card stays in the previou
     <div class="wire">
       <div class="col">
         <p class="heading">Sign Up</p>
-        <p class="label">title <span class="rmo-data" data-prop="title">Adaptech Unconference 2026</span></p>
-        <label class="text">name <input data-prop="name" value="" readonly></label>
+        <p class="label"><span class="rmo-data" data-prop="title">Adaptech Unconference 2026</span></p>
+        <label class="text">Name <input data-prop="name" value="" readonly></label>
         <div class="row end"><button type="button">Sign up</button></div>
       </div>
     </div>
@@ -1008,8 +1015,8 @@ The COM slice then continues like any COM slice (arrow into the COM, arrow into 
 <article class="err" id="err-unknown-customer">
   <h2>Unknown Customer</h2>
   <dl class="props">
-    <div><dt>customerId</dt><dd>C-8</dd></div>
-    <div><dt>message</dt><dd>Customer C-8 is not registered</dd></div>
+    <div><dt>email</dt><dd>wrong@example.com</dd></div>
+    <div><dt>message</dt><dd>No customer registered with that email</dd></div>
   </dl>
 </article>
 
@@ -1021,6 +1028,8 @@ One `div` per property, name in `dt`, example value in `dd`. When an RMO holds m
 ### Screen
 
 A SCR is `article.scr` plus one `.wire`. Build the wire from the EMD's nested sketch, top to bottom. `readonly` and `disabled` keep it from being a working form. A button's text is only the word the person sees; leave off `→` and the COM or SCR it names.
+
+**What belongs on the wire.** Only values the person reads or types, with captions written the way a product UI would phrase them. Do **not** draw technical join keys (`attendeeId`, `topicId`, `eventId`, opaque tokens) as labels or table columns on the SCR — those stay on the COM / EVT / RMO cards. Do **not** print schema property names as captions either (`title`, `message`, `dailyRate`, `signupUrl`, …): show the value alone when it is self-evident, or a UX label (`Name`, `Email`, `Daily rate`, `Signup link`). Schema names stay only on `data-prop` (and on COM / EVT / RMO cards). If the COM needs a technical id, session or query state supplies it; the wire still shows the human wording (topic title text, not `topicId`). Exception: an identifier people use as themselves (invoice / order / confirmation number).
 
 An SPA is still one SCR per slice: same screen name and the same areas in every column, with only the example values (and highlights below) changing. Put each region of that page in an `area` so Add / Open / Done (or similar) stay visible as one layout left to right.
 
@@ -1044,18 +1053,19 @@ Named value fields **always** carry `data-prop`. Add `com-data` or `rmo-data` wh
 | area Add | `<fieldset class="area"><legend>Add</legend>…</fieldset>` |
 | group Bike | `<fieldset class="group"><legend>Bike</legend>…</fieldset>` |
 | group Bike (read only) | the same fieldset; children are `p.label` / value `span`s, not inputs |
-| label bikeId = B-101 (display) | `<p class="label">bikeId <span data-prop="bikeId">B-101</span></p>` |
-| text box name = Pat Lee | `<label class="text">name <input data-prop="name" value="Pat Lee" readonly></label>` |
-| text box name = (empty) | `<label class="text">name <input data-prop="name" value="" readonly></label>` |
-| dropdown kind = presentation | `<label class="dropdown">kind <select data-prop="kind" disabled><option>presentation</option></select></label>` |
-| date picker startDate = 2026-10-22 | `<label class="date">startDate <input data-prop="startDate" value="2026-10-22" readonly></label>` |
-| check box agree = yes | `<label class="check">agree <input type="checkbox" data-prop="agree" checked disabled></label>` |
-| table | one `table`; header cells are the column names; one `tr` per example row; each body `td` that is a named property gets `data-prop` |
+| label (model) = Trailblazer 29 (self-evident) | `<p class="label"><span data-prop="model">Trailblazer 29</span></p>` |
+| label Model (model) = Trailblazer 29 | `<p class="label">Model <span data-prop="model">Trailblazer 29</span></p>` |
+| text box Name (name) = Pat Lee | `<label class="text">Name <input data-prop="name" value="Pat Lee" readonly></label>` |
+| text box Name (name) = (empty) | `<label class="text">Name <input data-prop="name" value="" readonly></label>` |
+| dropdown Kind (kind) = presentation | `<label class="dropdown">Kind <select data-prop="kind" disabled><option>presentation</option></select></label>` |
+| date picker Start (startDate) = 2026-10-22 | `<label class="date">Start <input data-prop="startDate" value="2026-10-22" readonly></label>` |
+| check box I agree (agree) = yes | `<label class="check">I agree <input type="checkbox" data-prop="agree" checked disabled></label>` |
+| table | one `table`; header cells are UX column titles (not schema names or join keys); one `tr` per example row; each body `td` that is a named property gets `data-prop` |
 | button Rent → COM Rent Bike | `<button type="button" class="com-data">Rent</button>` on a COM slice |
 | button Register → SCR Register Bike Form | `<button type="button">Register</button>` (navigation — no `com-data`) |
 | COM takes title from the SCR | also `com-data` on the value: `<input class="com-data" data-prop="title" value="Buy milk" readonly>` |
 | RMO fills a table cell | also `rmo-data` on the cell: `<td class="rmo-data" data-prop="title">Buy milk</td>` |
-| COM takes a label value | wrap the value: `<p class="label">bikeId <span class="com-data" data-prop="bikeId">B-101</span></p>` |
+| COM takes a label value | wrap the value: `<p class="label">Model <span class="com-data" data-prop="model">Trailblazer 29</span></p>` |
 
 COM-slice form (values the COM takes are light blue):
 
@@ -1067,18 +1077,17 @@ COM-slice form (values the COM takes are light blue):
       <p class="heading">Rent Bike</p>
       <fieldset class="group"><legend>Bike</legend>
         <div class="row">
-          <p class="label">bikeId <span class="com-data" data-prop="bikeId">B-101</span></p>
-          <p class="label">model <span data-prop="model">Trailblazer 29</span></p>
-          <p class="label">dailyRate <span data-prop="dailyRate">25.00</span></p>
+          <p class="label"><span class="com-data" data-prop="model">Trailblazer 29</span></p>
+          <p class="label">Daily rate <span data-prop="dailyRate">25.00</span></p>
         </div>
       </fieldset>
       <fieldset class="group"><legend>Customer</legend>
-        <label class="text">customerId <input class="com-data" data-prop="customerId" value="C-7" readonly></label>
+        <label class="text">Email <input class="com-data" data-prop="email" value="jim@example.com" readonly></label>
       </fieldset>
       <fieldset class="group"><legend>Dates</legend>
         <div class="row">
-          <label class="date">startDate <input class="com-data" data-prop="startDate" value="2026-10-22" readonly></label>
-          <label class="text">days <input class="com-data" data-prop="days" value="3" readonly></label>
+          <label class="date">Start <input class="com-data" data-prop="startDate" value="2026-10-22" readonly></label>
+          <label class="text">Days <input class="com-data" data-prop="days" value="3" readonly></label>
         </div>
       </fieldset>
       <div class="row end">
@@ -1098,10 +1107,9 @@ RMO-slice table (values from the RMO are light green). The button column has an 
     <div class="col">
       <p class="heading">Bikes</p>
       <table>
-        <thead><tr><th>bikeId</th><th>model</th><th>type</th><th>dailyRate</th><th></th></tr></thead>
+        <thead><tr><th>Model</th><th>Type</th><th>Daily rate</th><th></th></tr></thead>
         <tbody>
           <tr>
-            <td class="rmo-data" data-prop="bikeId">B-101</td>
             <td class="rmo-data" data-prop="model">Trailblazer 29</td>
             <td class="rmo-data" data-prop="type">Mountain</td>
             <td class="rmo-data" data-prop="dailyRate">25.00</td>
@@ -1114,11 +1122,11 @@ RMO-slice table (values from the RMO are light green). The button column has an 
 </article>
 ```
 
-A NAV screen shows the ERR message as a label under the field that failed (no `com-data` / `rmo-data`):
+A NAV screen shows the ERR message under the field that failed — value only (self-evident), with `data-prop="message"` so hover links to the ERR card (no `com-data` / `rmo-data`):
 
 ```html
-<label class="text">customerId <input data-prop="customerId" value="C-8" readonly></label>
-<p class="label">message <span data-prop="message">Customer C-8 is not registered</span></p>
+<label class="text">Email <input data-prop="email" value="wrong@example.com" readonly></label>
+<p class="label"><span data-prop="message">No customer registered with that email</span></p>
 ```
 
 An SPA: one screen, several `area`s. Repeat the same layout in every slice; only values and highlights change. COM slice — light blue on what the command takes. RMO slice — light green on what the read model shows.
@@ -1130,7 +1138,7 @@ An SPA: one screen, several `area`s. Repeat the same layout in every slice; only
   <div class="wire">
     <div class="col">
       <fieldset class="area"><legend>Add</legend>
-        <label class="text">title <input class="com-data" data-prop="title" value="Buy milk" readonly></label>
+        <label class="text">Title <input class="com-data" data-prop="title" value="Buy milk" readonly></label>
         <div class="row end"><button type="button" class="com-data">Add</button></div>
       </fieldset>
       <fieldset class="area"><legend>Open</legend>
