@@ -12,7 +12,7 @@
   const HOVER_DELAY_KEY = 'emd-hover-delay';
   const FADE_DEFAULT = 0.2;
   const TILE_DEFAULT = 16;
-  const TILE_MIN = 8;
+  const TILE_MIN = 4;
   const TILE_MAX = 32;
   const SCALE_DEFAULT = 1;
   const SCALE_MIN = 0.2;
