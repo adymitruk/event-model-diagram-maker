@@ -68,6 +68,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
    - A NAV slice has a SCR (or PRO) in the UBA and nothing in the MBA or LBA. Use it when the step is only navigation or showing feedback — for example the screen after a failed COM, with the ERR message on the form and no new command or read model.
    - Also use a NAV slice when a later SCR first **reads** an earlier RMO (e.g. open Signup Form with the conference title from RMO Signup QR before the person fills the signup COM). Keep the **same screen layout** as the later COM SCR; put `rmo-data` only on the RMO-fed fields, and leave the other controls empty without `com-data`. Draw an **RMO → SCR** arrow between SLCs (upper connector band on the board). Later SCRs that show the same values again do so by session or query convention — do **not** draw another arrow back to the RMO.
    - Do not put a COM, RMO, EVT or ERR in a NAV slice. The ERR of the failed COM stays in that earlier COM slice's LBA; the NAV slice only shows its message on the SCR.
+   - On the board, shafts match the NAV kind (see **NAV slice** HTML): wizard Next/Finish = SCR only; error feedback = shaft under SCR (+ pass-throughs below); title-view = `arrow-up` + shaft (+ pass-throughs below). Never leave pass-through shafts in a wizard NAV column.
 
 6. **Fill RMO slices**
    - Add an RMO to the MBA when a SCR or PRO needs data from the system without changing it. Its data is projected only from EVTs in **earlier** SLCs (to the left). If a later COM records new EVTs that should appear on that view, either place another RMO slice **after** those EVTs, or let later SCRs carry the new values by session/query until a later RMO projects them — do not draw an arrow from a future EVT back into this RMO.
@@ -590,7 +591,7 @@ Read the `EMD.md` straight into the templates below:
 For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the EMD contains.
 
 1. **Page shell** — copy **Page**. Set `<title>`, `--slices` to the SLC count, and `data-joins` to every **forward-in-time** EVT→RMO, RMO→later SCR, and ERR→SCR edge (ids from step 4). For each pair, the source card's `data-slc` must be **less than** the destination's (timeline rule — same as the EMD). Omit any reverse-time edge even if an RMO catalog line wrongly listed a later EVT. When several EVTs feed one RMO, list **each** pair and put the earliest EVT first for that RMO (bundled connector rows — see **Ids and joins**). Link `../../diagram/diagram.css`, then at the bottom `connectors.js` and `settings.js` (in that order). Those shared scripts already include the scroll guard (`.is-scrolling`, freeze hover while flinging, soft `emd:retile-check`); do not paste local scroll/hover CSS into the board. After changing `diagram/` CSS or JS, sync `app/renderer/diagram/` and bump `?v=` on the board links.
-2. **Board skeleton** — emit **Board rows** in order: workflow, each UBA, **connector-upper**, MBA, **connector** (lower), each LBA, GWT. Every row is lane cell + one cell per SLC. Empty cells are empty `div`s with the right class and `data-slc` / `data-lane`.
+2. **Board skeleton** — emit **Board rows** in order: workflow, each UBA, **connector-upper**, MBA, **connector** (lower), each LBA, GWT. Every row is lane cell + one cell per SLC. Truly idle cells (no corridor through them) are empty `div`s with the right class and `data-slc` / `data-lane`. When a **vertical corridor** runs through the slice (COM SCR→COM, RMO SCR↔RMO, title-view NAV with `arrow-up`, error NAV with a shaft for ERR→SCR), empty UBA cells **below** that SCR/PRO need a shaft-only gap per **Vertical shafts** — bare `div`s break the line. Pure wizard NAV (Next/Finish only, no MBA card and no within-slice arrow) must **not** get those pass-through shafts; they would hang unconnected.
 3. **WFLs** — one `.wfl` per workflow with `data-slc` = first slice and `data-span` = slice count; goal text in the inner `span`.
 4. **Ids** — every SCR, PRO, COM, RMO, EVT, ERR gets an `id` per **Ids and joins**. Reuse those ids in `data-joins`. Name cards from the **COMs** / **EVTs** / **RMOs** catalogs.
 5. **Fill each SLC** — COM → **COM slice** (+ **Processor pair** when a PRO); RMO → **RMO slice**; NAV → **NAV slice**. Vertical shafts per **Vertical shafts**. Put MAP notes under the COM or RMO per **Cards**. Use catalog property names on every `dt` / `data-prop`; take example values from slice **Properties**.
@@ -602,7 +603,7 @@ For **any** EMD, produce `<name>.emd.html` in this order. Skip nothing that the 
 7. **Cards** — COM, RMO, EVT, ERR as in **Cards** (`dl.props` with one `div` per property for single objects; multi-row RMOs use `table.collection` blocks — caption the RMO name + other collection names only when there is more than one table). PRO as in **Processor card**.
 8. **GWTs** — for each SLC that has timelines, fill `.cell.gwt` per **GWT**; otherwise leave the cell empty.
 9. **Connectors** — leave every `.cell.connector` and `.cell.connector.connector-upper` empty. Do not hand-draw rails.
-10. **Check** — `--slices` matches column count; every `data-joins` id exists; every `fromId:toId` has source `data-slc` strictly less than destination `data-slc` (no future→past wires); every COM-bound and RMO-fed SCR value has `data-prop` and the right highlight class; shafts unbroken through empty UBA/LBA cells; scripts present.
+10. **Check** — `--slices` matches column count; every `data-joins` id exists; every `fromId:toId` has source `data-slc` strictly less than destination `data-slc` (no future→past wires); every COM-bound and RMO-fed SCR value has `data-prop` and the right highlight class; shafts unbroken through empty UBA/LBA cells on corridor slices; wizard NAV columns have **no** orphan pass-through shafts; scripts present.
 
 An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tree).
 
@@ -775,7 +776,11 @@ A same-slice vertical is HTML. A cross-slice join is not.
 - Under an RMO: an empty `.gap`. JS draws `arrow-up` there.
 - Under a SCR that reads an RMO in the same slice: `arrow-up`, then shaft.
 - Through an empty UBA cell below that SCR (or PRO), and through an empty LBA cell above that EVT or ERR: shaft only, so the line does not break. Cells above the actor, and service rows below the event, stay empty.
-- A NAV slice has `arrow-up` + shaft under its SCR and nothing in the MBA or LBA. Empty UBA cells **below** that SCR (other actor lanes) get a shaft only, same as any vertical corridor. Cross-slice RMO→SCR is JS only inside the upper connector row — do not also draw that join through the UBA gap (the CSS shaft already covers it).
+- **NAV corridors** (full markup under **NAV slice**):
+  - **Title-view** (RMO→later SCR): `arrow-up` + shaft under the SCR; shaft-only pass-throughs in empty UBA cells **below** that SCR.
+  - **Error feedback** (ERR→SCR): shaft under the SCR; shaft-only pass-throughs below if other actor lanes sit under that SCR.
+  - **Wizard** (Next/Finish only, no MBA card): SCR alone — **no** shaft under it and **no** pass-throughs in other lanes (orphans hang unconnected).
+  - Cross-slice RMO→SCR is JS only inside the upper connector row — do not also draw that join through the UBA gap (the CSS shaft already covers it).
 
 Every MBA cell that holds a card has a `.gap` above the card and a `.gap` below it, so COM and RMO tops line up. The upper gap stays compact; the lower gap takes the spare height.
 
@@ -868,13 +873,45 @@ List every EVT that feeds this RMO in `data-joins` (one `evt-…:rmo-…` per so
 
 ### NAV slice
 
-A screen, a shaft under it, and empty MBA and LBA. No COM, RMO, EVT, or ERR in this column. Emit empty upper and lower connector cells for the slice like every other column.
+A screen and empty MBA and LBA. No COM, RMO, EVT, or ERR in this column. Emit empty upper and lower connector cells for the slice like every other column. Shafts follow the corridor (or lack of one) — three shapes:
 
-**Error feedback** (after a failed COM) — message only, no `rmo-data` / `com-data`:
+| Kind | Shaft under SCR | Empty UBA cells below SCR | Typical join |
+|---|---|---|---|
+| **Wizard** (Next / Finish / area change) | none | bare empty `div`s (no pass-through) | none within-slice |
+| **Error feedback** | shaft only | shaft-only pass-through if lanes sit under that SCR | `err-…:scr-…` (lower band) |
+| **RMO title-view** | `arrow-up` then shaft | shaft-only pass-through below | `rmo-…:scr-…-title` (upper band) |
+
+**Wizard** (SPA / setup step — Next or Finish only). No MBA card, no within-slice arrow. Do **not** put a shaft under the SCR or pass-through shafts in other actor lanes; they hang with nothing to join and look broken.
+
+```html
+<!-- SLC4 NAV — Setup Wizard after rooms; Next only (no COM) -->
+<div class="cell uba" data-slc="4" data-lane="alex">
+  <article class="scr" id="scr-setup-wizard-rooms-next">
+    <!-- wire: Dates/Rooms done, Add+Next idle (no com-data) -->
+  </article>
+  <!-- no .gap / .shaft under this SCR -->
+</div>
+<!-- other actors: bare empty cells — no pass-through -->
+<div class="cell uba" data-slc="4" data-lane="pat"></div>
+<div class="cell uba" data-slc="4" data-lane="riley"></div>
+<div class="cell uba" data-slc="4" data-lane="jordan"></div>
+<div class="cell connector connector-upper" data-slc="4"></div>
+<div class="cell mba" data-slc="4"></div>
+<div class="cell connector" data-slc="4"></div>
+<div class="cell lba foot" data-slc="4" data-lane="unconference"></div>
+```
+
+**Error feedback** (after a failed COM) — message only, no `rmo-data` / `com-data`. Shaft under the SCR; if the SCR is not on the bottom actor row, empty lanes below get shaft-only pass-throughs.
 
 ```html
 <div class="cell uba" data-slc="12" data-lane="jim">
   <article class="scr" id="scr-rent-bike-form">…</article>
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+<!-- if another USR row sits below jim in this slice: -->
+<div class="cell uba" data-slc="12" data-lane="sam">
   <div class="gap">
     <div class="arr v"><div class="shaft"></div></div>
   </div>
@@ -887,11 +924,12 @@ A screen, a shaft under it, and empty MBA and LBA. No COM, RMO, EVT, or ERR in t
 
 The ERR message is a `p.label` on this screen whose visible text is only the message (no `message` caption); keep `data-prop="message"` on the value so property hover links to the ERR card. The ERR card stays in the previous slice. Add `err-…:scr-…` to `data-joins` (lower band).
 
-**RMO title-view** (first read of an earlier RMO before a later COM) — same screen layout as the later COM SCR (same fields and buttons). Values the RMO feeds get `rmo-data` + `data-prop`; other controls are present but empty and **not** `com-data` / `rmo-data` (no blue/green). List `rmo-…:scr-…-title` in `data-joins` (upper band). Later COM screens that show the same RMO values again keep `data-prop` (and may keep `rmo-data` for the green paint) but **omit** another join to the RMO:
+**RMO title-view** (first read of an earlier RMO before a later COM) — same screen layout as the later COM SCR (same fields and buttons). Values the RMO feeds get `rmo-data` + `data-prop`; other controls are present but empty and **not** `com-data` / `rmo-data` (no blue/green). List `rmo-…:scr-…-title` in `data-joins` (upper band). Later COM screens that show the same RMO values again keep `data-prop` (and may keep `rmo-data` for the green paint) but **omit** another join to the RMO. Under the SCR: `arrow-up` then shaft; empty actor lanes **below** that SCR get shaft-only pass-throughs (same rule as COM SCR→COM).
 
 ```html
-<!-- SLC3 NAV — same Signup Form chrome as the COM slice; only title is RMO-fed -->
-<div class="cell uba" data-slc="3" data-lane="pat">
+<!-- SLC11 NAV — same Signup Form chrome as the COM slice; only title is RMO-fed -->
+<div class="cell uba" data-slc="11" data-lane="alex"></div>
+<div class="cell uba" data-slc="11" data-lane="pat">
   <article class="scr" id="scr-signup-form-pat-title">
     <h2>Signup Form</h2>
     <div class="wire">
@@ -910,10 +948,21 @@ The ERR message is a `p.label` on this screen whose visible text is only the mes
     </div>
   </div>
 </div>
-<div class="cell connector connector-upper" data-slc="3"></div>
-<div class="cell mba" data-slc="3"></div>
-<div class="cell connector" data-slc="3"></div>
-<div class="cell lba foot" data-slc="3" data-lane="unconference"></div>
+<!-- empty lanes below Pat: shaft only so the RMO→SCR corridor does not break -->
+<div class="cell uba" data-slc="11" data-lane="riley">
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+<div class="cell uba" data-slc="11" data-lane="jordan">
+  <div class="gap">
+    <div class="arr v"><div class="shaft"></div></div>
+  </div>
+</div>
+<div class="cell connector connector-upper" data-slc="11"></div>
+<div class="cell mba" data-slc="11"></div>
+<div class="cell connector" data-slc="11"></div>
+<div class="cell lba foot" data-slc="11" data-lane="unconference"></div>
 ```
 
 ```html
