@@ -570,7 +570,7 @@
         if (name) sites.push({ name, el });
       });
       if (sites.length) return sites;
-      scr.querySelectorAll('label.text, label.date, label.dropdown').forEach((lab) => {
+      scr.querySelectorAll('label.text, label.date, label.dropdown, label.check, label.radio').forEach((lab) => {
         const control = lab.querySelector('input, select');
         if (!control) return;
         const name = lab.childNodes[0] && lab.childNodes[0].textContent

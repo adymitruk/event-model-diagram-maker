@@ -305,7 +305,7 @@ When you add a later slice, bump `--slices` and add one empty `.cell.connector.c
 All cross-slice projections use `diagram/connectors.js` (same router as `diagram/tiling-example.html`). Never CSS `.rail` / `.joins-2`.
 
 1. Give every EVT, RMO, and cross-slice destination SCR card an `id`.
-2. On `<main class="emd">` set `data-joins="evt-a:rmo-x,rmo-y:scr-z,…"`. Include **every** EVT→RMO edge (lower band), every **RMO → later SCR** edge (upper band), and ERR→SCR. Same-slice `SCR ↔ RMO` / `SCR ↔ COM` omit from `data-joins` — CSS shafts plus the upper-band local vertical (like COM→EVT on the lower band).
+2. On `<main class="emd">` set `data-joins="evt-a:rmo-x,rmo-y:scr-z,…"`. Include **every forward-in-time** EVT→RMO edge (lower band), every **RMO → later SCR** edge (upper band), and ERR→SCR. **Timeline rule:** for each `fromId:toId`, the source card's slice must be strictly left of the destination. Never list a later EVT into an earlier RMO, or an RMO into an earlier SCR — `connectors.js` paints the pairs you give and will draw reverse-time hops if you emit them. Same-slice `SCR ↔ RMO` / `SCR ↔ COM` omit from `data-joins` — CSS shafts plus the upper-band local vertical (like COM→EVT on the lower band). Full wording is in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**Connect All SLCs**, **Ids and joins**).
 3. Include `<script src="…/diagram/connectors.js"></script>` and `<script src="…/diagram/settings.js"></script>`.
 4. The sticky corner lane (`.board > .lane:first-child`) hosts gear + `?` from `diagram/settings.js`. Gear opens settings: **Scale items** (`--scale` → slice `--col` + UBA/MBA/LBA type only; WFL labels and lane chrome unchanged), **Fade opacity** (`--focus-fade`), **Connector tiles** (`--tile`), and **Highlight on hover** checkboxes for connectors, values, and cards (each on by default; stored as `emd-hover-*` in `localStorage`, reflected on `document.documentElement.dataset`). Scale/tile fire `emd:retile`; hover prefs fire `emd:hover-prefs` and clear any active path focus. `?` explains the board. Values persist in `localStorage`.
 5. Leave every `.cell.connector` and `.cell.connector.connector-upper` empty. Leave RMO mba lower gaps empty (no CSS `arrow-up` on the lower join).
@@ -313,7 +313,7 @@ All cross-slice projections use `diagram/connectors.js` (same router as `diagram
 
 ### Several EVTs → one RMO (bundled bands)
 
-When more than one EVT projects into the same RMO, list **each** edge in `data-joins`. Put the **earliest** source EVT first for that RMO, then the later ones (story / slice order). Do not collapse them into one pair.
+When more than one EVT projects into the same RMO, list **each** edge in `data-joins` (only EVTs in columns left of that RMO). Put the **earliest** source EVT first for that RMO, then the later ones (story / slice order). Do not collapse them into one pair.
 
 ```html
 <main

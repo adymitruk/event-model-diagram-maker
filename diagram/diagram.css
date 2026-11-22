@@ -711,7 +711,7 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 .wire .group { margin: 0; border: 2px solid #222; border-radius: 2px; padding: 0.35em 0.45em 0.45em; }
 .wire .group legend { padding: 0 0.25em; }
 .wire button,
-.wire input:not([type="checkbox"]),
+.wire input:not([type="checkbox"]):not([type="radio"]),
 .wire select {
   appearance: none;
   font: inherit;
@@ -722,6 +722,19 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 }
 .wire button { border-radius: 10px; padding: 0.15em 0.7em; width: fit-content; white-space: nowrap; }
 .wire input, .wire select { border-radius: 2px; padding: 0.1em 0.35em; width: 100%; box-sizing: border-box; }
+.wire label.check,
+.wire label.radio {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  margin: 0;
+}
+.wire label.check input,
+.wire label.radio input {
+  width: auto;
+  margin: 0;
+  accent-color: #222;
+}
 .wire select {
   background-image: linear-gradient(45deg, transparent 50%, #222 50%), linear-gradient(135deg, #222 50%, transparent 50%);
   background-position: calc(100% - 12px) 55%, calc(100% - 7px) 55%;
