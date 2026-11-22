@@ -339,6 +339,8 @@
      * When delay > 0 and a hover has already painted: leave does not clear right away
      * (clear is deferred by the same delay); moving to another hover target in that
      * window paints immediately (delay treated as 0).
+     * Scroll drops pointer-events on hoverables, so leave may not fire — after scroll
+     * settles, clear if the pointer is no longer over a hover target.
      */
     let hoverShowTimer = null;
     let hoverClearTimer = null;
@@ -353,7 +355,11 @@
     /** Hover path-focus is up, or a deferred clear is still holding the last paint. */
     function hoverSessionActive() {
       if (focusLock()) return false;
-      return emd.classList.contains('path-focus') || hoverClearTimer != null;
+      return (
+        emd.classList.contains('path-focus') ||
+        hoverClearTimer != null ||
+        !!emd._hoverClearPending
+      );
     }
 
     function cancelHoverShow() {
@@ -368,6 +374,47 @@
       hoverClearTimer = null;
     }
 
+    function pointerOverHoverTarget() {
+      const pt = emd._hoverPointer;
+      if (!pt) return false;
+      const el = document.elementFromPoint(pt.x, pt.y);
+      if (!el || !emd.contains(el)) return false;
+      if (
+        el.closest(
+          'article.scr, article.com, article.rmo, article.evt, article.err, .mba > .map'
+        )
+      ) {
+        return true;
+      }
+      if (el.closest('[data-join-ids]')) return true;
+      return false;
+    }
+
+    function scheduleDeferredClear() {
+      cancelHoverClear();
+      const ms = hoverShowMs();
+      emd._hoverClearPending = true;
+      if (ms <= 0) {
+        emd._hoverClearPending = false;
+        clearConnectionHighlight();
+        return;
+      }
+      hoverClearTimer = setTimeout(() => {
+        hoverClearTimer = null;
+        if (focusLock()) {
+          emd._hoverClearPending = false;
+          return;
+        }
+        if (emd._scrolling) {
+          // Keep pending — scroll settle will finish the clear.
+          return;
+        }
+        emd._hoverClearPending = false;
+        if (pointerOverHoverTarget()) return;
+        clearConnectionHighlight();
+      }, ms);
+    }
+
     function scheduleHoverHighlight(fn) {
       cancelHoverShow();
       // Content slides under the pointer while scrolling — skip work until idle.
@@ -376,6 +423,7 @@
       // After a hover has painted (or leave deferred a clear), switch targets now.
       if (ms > 0 && hoverSessionActive()) ms = 0;
       cancelHoverClear();
+      emd._hoverClearPending = false;
       if (ms <= 0) {
         if (focusLock()) return;
         fn();
@@ -392,22 +440,58 @@
       cancelHoverShow();
       if (focusLock()) return;
       // Content slides under the pointer (and pointer-events drop) while
-      // scrolling — freezing paint avoids a whole-board opacity flash.
-      if (emd._scrolling) return;
+      // scrolling — remember to clear after scroll settles.
+      if (emd._scrolling) {
+        if (emd.classList.contains('path-focus')) emd._hoverClearPending = true;
+        return;
+      }
       const ms = hoverShowMs();
       // Delay > 0 and highlight already showing: defer clear so leave does not
       // flash off; entering another target cancels this and paints with delay 0.
       if (ms > 0 && emd.classList.contains('path-focus')) {
-        cancelHoverClear();
-        hoverClearTimer = setTimeout(() => {
-          hoverClearTimer = null;
-          if (focusLock() || emd._scrolling) return;
-          clearConnectionHighlight();
-        }, ms);
+        scheduleDeferredClear();
         return;
       }
       cancelHoverClear();
+      emd._hoverClearPending = false;
       clearConnectionHighlight();
+    }
+
+    /** After fling: drop sticky hover if the pointer is no longer on a target. */
+    function settleHoverAfterScroll() {
+      if (focusLock()) return;
+      if (!emd.classList.contains('path-focus') && !emd._hoverClearPending) return;
+      if (pointerOverHoverTarget()) {
+        cancelHoverClear();
+        emd._hoverClearPending = false;
+        return;
+      }
+      cancelHoverClear();
+      emd._hoverClearPending = false;
+      clearConnectionHighlight();
+    }
+
+    // Latest paint owns these so the one-shot scroll guard can call current logic.
+    emd._hoverScrollBegin = () => {
+      cancelHoverShow();
+      if (hoverClearTimer != null || emd._hoverClearPending) {
+        cancelHoverClear();
+        emd._hoverClearPending = true;
+      }
+    };
+    emd._hoverScrollSettle = settleHoverAfterScroll;
+
+    if (!emd._hoverPointerBound) {
+      emd._hoverPointerBound = true;
+      emd._hoverPointer = { x: 0, y: 0 };
+      document.addEventListener(
+        'pointermove',
+        (e) => {
+          emd._hoverPointer.x = e.clientX;
+          emd._hoverPointer.y = e.clientY;
+        },
+        { passive: true }
+      );
     }
 
     // One scroll guard per board: cancel pending hover paint; flag idle for retile;
@@ -422,12 +506,12 @@
           if (!emd.classList.contains('is-scrolling')) {
             emd.classList.add('is-scrolling');
           }
-          cancelHoverShow();
-          cancelHoverClear();
+          if (typeof emd._hoverScrollBegin === 'function') emd._hoverScrollBegin();
           clearTimeout(scrollIdle);
           scrollIdle = setTimeout(() => {
             emd._scrolling = false;
             emd.classList.remove('is-scrolling');
+            if (typeof emd._hoverScrollSettle === 'function') emd._hoverScrollSettle();
             if (emd._retileAfterScroll) {
               emd._retileAfterScroll = false;
               // Soft check only — forced retile wiped every connector tile
@@ -459,6 +543,7 @@
     function unlockFocus() {
       cancelHoverShow();
       cancelHoverClear();
+      emd._hoverClearPending = false;
       emd._focusLock = null;
       emd.classList.remove('focus-locked');
       const btn = document.querySelector('.emd-unlock-focus');
