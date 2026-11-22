@@ -335,9 +335,13 @@
 
     /**
      * Settle delay before painting hover — stops flicker while the pointer moves.
-     * Gear → Hover delay (0–5s); 0 paints immediately. Default 200ms until settings mount.
+     * Gear → Hover delay (0–5s); 0 paints/clears immediately. Default 200ms until settings mount.
+     * When delay > 0 and a hover has already painted: leave does not clear right away
+     * (clear is deferred by the same delay); moving to another hover target in that
+     * window paints immediately (delay treated as 0).
      */
     let hoverShowTimer = null;
+    let hoverClearTimer = null;
 
     function hoverShowMs() {
       const raw = document.documentElement.dataset.emdHoverDelayMs;
@@ -346,17 +350,32 @@
       return Number.isFinite(n) && n >= 0 ? n : 200;
     }
 
+    /** Hover path-focus is up, or a deferred clear is still holding the last paint. */
+    function hoverSessionActive() {
+      if (focusLock()) return false;
+      return emd.classList.contains('path-focus') || hoverClearTimer != null;
+    }
+
     function cancelHoverShow() {
       if (hoverShowTimer == null) return;
       clearTimeout(hoverShowTimer);
       hoverShowTimer = null;
     }
 
+    function cancelHoverClear() {
+      if (hoverClearTimer == null) return;
+      clearTimeout(hoverClearTimer);
+      hoverClearTimer = null;
+    }
+
     function scheduleHoverHighlight(fn) {
       cancelHoverShow();
       // Content slides under the pointer while scrolling — skip work until idle.
       if (emd._scrolling) return;
-      const ms = hoverShowMs();
+      let ms = hoverShowMs();
+      // After a hover has painted (or leave deferred a clear), switch targets now.
+      if (ms > 0 && hoverSessionActive()) ms = 0;
+      cancelHoverClear();
       if (ms <= 0) {
         if (focusLock()) return;
         fn();
@@ -375,6 +394,19 @@
       // Content slides under the pointer (and pointer-events drop) while
       // scrolling — freezing paint avoids a whole-board opacity flash.
       if (emd._scrolling) return;
+      const ms = hoverShowMs();
+      // Delay > 0 and highlight already showing: defer clear so leave does not
+      // flash off; entering another target cancels this and paints with delay 0.
+      if (ms > 0 && emd.classList.contains('path-focus')) {
+        cancelHoverClear();
+        hoverClearTimer = setTimeout(() => {
+          hoverClearTimer = null;
+          if (focusLock() || emd._scrolling) return;
+          clearConnectionHighlight();
+        }, ms);
+        return;
+      }
+      cancelHoverClear();
       clearConnectionHighlight();
     }
 
@@ -391,6 +423,7 @@
             emd.classList.add('is-scrolling');
           }
           cancelHoverShow();
+          cancelHoverClear();
           clearTimeout(scrollIdle);
           scrollIdle = setTimeout(() => {
             emd._scrolling = false;
@@ -425,6 +458,7 @@
 
     function unlockFocus() {
       cancelHoverShow();
+      cancelHoverClear();
       emd._focusLock = null;
       emd.classList.remove('focus-locked');
       const btn = document.querySelector('.emd-unlock-focus');
