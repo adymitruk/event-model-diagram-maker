@@ -622,7 +622,7 @@ An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tre
 - **Hover** — a **card**, **connector piece** (JS tile/shaft or CSS shaft/arrow — not empty gap space), or **property value** keeps that path lit and fades the rest. A property value isolates **that example** (same name **and** value) through COM / EVT / RMO / SCR, including carried-forward SCR fields; MAP renames still follow. Matching connectors stay lit.
 - **Lock** — **click** the hovered value, card, or MAP to pin the highlight. A top-right **padlock** bar shows what is locked; **‹ ›** center the previous/next instance (same-title cards, value-trace cards, or MAP endpoints) without changing the lock label. Release with the padlock, by **clicking elsewhere** on the board, or **Escape**. Connectors never lock — click only scrolls clipped ends into view.
 - **RMO scrubber** — hover an MBA **RMO** for a **clock**; click it for a floating strip beside the card (prefer left, flip + reverse pin when needed; scales with board settings; wheel/drag free-scrolls the tape with momentum — no per-EVT snap or hover highlight; click or Arrow Up/Down seeks; Start + subscribed feeds only; same-title EMD GWTs chain; footprint = final projection). Clock again, click outside, or Escape closes.
-- **Settings (gear)** — scale, fade, connector tile size, **hover delay** (0–5s), and **Highlight on hover** for connectors / values / cards (each on by default).
+- **Settings (gear)** — scale (cards + RMO history strip), fade, connector tile size, **hover delay** (0–5s), and **Highlight on hover** for connectors / values / cards (each on by default).
 
 When you change how an EMD is read (new slice type, GWT shape, card kinds), update both the terms/construction above and this help list (and the matching HTML in `settings.js`).
 
@@ -1008,7 +1008,7 @@ The COM slice then continues like any COM slice (arrow into the COM, arrow into 
 
 ### Cards
 
-MBA **RMO** cards carry `data-emd-gwt` matching **that card's** EMD GWT timeline id (see **EMD GWT**). When the same title appears twice, each card points at its **own** timeline id — never both at one shared full timeline. COM cards do not need it.
+MBA **RMO** cards carry `data-emd-gwt` matching **that card's** EMD GWT timeline id (see **EMD GWT**). When the same title appears twice, each card points at its **own** timeline id — never both at one shared full timeline. COM cards do not need it. The history-walker clock is injected into the RMO `h2` by `connectors.js` — leave the title as a plain `h2`.
 
 ```html
 <article class="com" id="com-receive-bike">
@@ -1018,6 +1018,23 @@ MBA **RMO** cards carry `data-emd-gwt` matching **that card's** EMD GWT timeline
     <div><dt>serialNumber</dt><dd>SN-48213</dd></div>
   </dl>
 </article>
+
+<!-- MBA cell: upper + lower gaps; RMO id + data-emd-gwt (clock is JS) -->
+<div class="cell mba" data-slc="2">
+  <div class="gap"><div class="arr v"><div class="shaft"></div></div></div>
+  <article class="rmo" id="rmo-unregistered-bikes" data-emd-gwt="emd-gwt-rmo-unregistered-bikes">
+    <h2>Unregistered Bikes</h2>
+    <div class="props">
+      <table class="collection">
+        <thead><tr><th>bikeId</th><th>serialNumber</th></tr></thead>
+        <tbody>
+          <tr><td data-prop="bikeId">B-101</td><td data-prop="serialNumber">SN-48213</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+  <div class="gap"></div>
+</div>
 
 <!-- first appearance: points at this phase's EMD GWT -->
 <article class="rmo" id="rmo-agenda-builder" data-emd-gwt="emd-gwt-rmo-agenda-builder">
@@ -1308,7 +1325,7 @@ In the EMD markdown, name each block `EMD GWT timeline (RMO …):` on that SLC (
 3. The later EMD GWT **starts from the prior footprint** (final RMO snapshot of the earlier phase), then interleaves **only those new** EVTs. Do **not** replay earlier EVTs on that timeline, and do **not** point both MBA cards at one shared full timeline — either mistake makes the history walker show the same EVT twice.
 4. Catalog / arrows: note that the later slice projects only the new EVTs on top of the prior state.
 
-**Scrubber strip (runtime):** Start + **only the EVTs that RMO family subscribes to** (each instance's EMD GWT / `data-joins`). Unrelated LBA EVTs never appear. Same-title EMD GWTs are chained so you can walk past this column; this instance's feeds stay lit, other subscribed rows are dimmed, and the card footprint is the family's **final** projection. GWT EVT cards used for matching must carry the same identifying prop values as the board EVTs (e.g. the real `attendeeId` on each Topic Suggested). `diagram/connectors.js` also skips a board EVT id already taken from an earlier family GWT (safety net — still author delta GWTs correctly).
+**Scrubber strip (runtime):** Start + **only the EVTs that RMO family subscribes to** (each instance's EMD GWT / `data-joins`). Unrelated LBA EVTs never appear. Same-title EMD GWTs are chained so you can walk past this column; this instance's feeds stay lit, other subscribed rows are dimmed, and the card footprint is the family's **final** projection. GWT EVT cards used for matching must carry the same identifying prop values as the board EVTs (e.g. the real `attendeeId` on each Topic Suggested). `diagram/connectors.js` also skips a board EVT id already taken from an earlier family GWT (safety net — still author delta GWTs correctly). Overlay UX (pin flip, `--scale`, momentum scroll, no tape hover chrome) is under **Scrubber UX** below and in [`html-css.md`](html-css.md) (**RMO history scrubber**).
 
 ```html
 <!-- single appearance: full story -->
@@ -1516,9 +1533,9 @@ Do not reimplement these in the `.emd.html` file — only include the two script
 
 | Script | Behaviour |
 |---|---|
-| `diagram/connectors.js` | Fills empty `.cell.connector.connector-upper` (RMO→later SCR) and `.cell.connector` (EVT→RMO, ERR→SCR, COM→EVT / COM→ERR) cells; hover on cards / connectors / property values fades the rest (SCR wire values included on value lock); click a value, card, or MAP to lock (padlock bar + ‹ › instance nav, click elsewhere, or Escape); click a connector to scroll clipped ends into view; RMO clock scrubber; respects **Highlight on hover** prefs; **scroll guard** / soft `emd:retile-check` |
-| `diagram/settings.js` | Floating Settings/? chip + `.lane-label` chips; sizes `--lane` / `--lane-label-clearance` / `--lane-label-top`; scale, fade, tile, hover delay, Highlight on hover; About-this-board help (keep in sync with **Board help**); scale/tile fire `emd:retile` |
+| `diagram/connectors.js` | Fills empty `.cell.connector.connector-upper` (RMO→later SCR) and `.cell.connector` (EVT→RMO, ERR→SCR, COM→EVT / COM→ERR) cells; hover on cards / connectors / property values fades the rest (SCR wire values included on value lock); click a value, card, or MAP to lock (padlock bar + ‹ › instance nav, click elsewhere, or Escape); click a connector to scroll clipped ends into view; RMO history scrubber (scaled overlay, pin flip, wheel/drag momentum, seek on click/arrows); respects **Highlight on hover** prefs; **scroll guard** / soft `emd:retile-check` |
+| `diagram/settings.js` | Floating Settings/? chip + `.lane-label` chips; sizes `--lane` / `--lane-label-clearance` / `--lane-label-top`; scale (cards + scrub strip), fade, tile, hover delay, Highlight on hover; About-this-board help (keep in sync with **Board help**); scale/tile fire `emd:retile` |
 
-Tile files, sticky-row measurements, corridor continuity, and the **Scroll performance** CSS/JS samples are in [`html-css.md`](html-css.md). That file is a stylesheet lookup — **this HTML board section is the source of truth for markup**.
+Tile files, sticky-row measurements, corridor continuity, **RMO history scrubber** overlay classes, and the **Scroll performance** CSS/JS samples are in [`html-css.md`](html-css.md). That file is a stylesheet lookup — **this HTML board section is the source of truth for markup**.
 
 For more on event modeling itself, see: [eventmodeling.org](https://eventmodeling.org).

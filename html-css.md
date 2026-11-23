@@ -196,16 +196,44 @@ When a read-model slice has a processor and the next slice is that same processo
 
 ## Read model
 
-Show the example row. Do not write what the read model is matched on.
+Show the example row. Do not write what the read model is matched on. Every MBA **RMO** needs a stable `id`, `data-emd-gwt` pointing at **that card's** `.timeline.emd-gwt`, and forward-only EVT→RMO edges in `data-joins`. The clock / history strip is injected by `connectors.js` — do not put scrubber markup in the board. Authoring rules and dual-instance samples are in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**EMD GWT**, **Cards**).
 
 ```html
-<article class="rmo">
+<!-- MBA card: data-emd-gwt matches this column's EMD GWT timeline id -->
+<article class="rmo" id="rmo-bike-catalog" data-emd-gwt="emd-gwt-rmo-bike-catalog">
   <h2>Bike Catalog</h2>
   <dl class="props">
     <div><dt>bikeId</dt><dd>B-101</dd></div>
     <div><dt>model</dt><dd>Trailblazer 29</dd></div>
   </dl>
 </article>
+
+<!-- same column's GWT cell — EMD GWT drives the history walker -->
+<div class="cell gwt" data-slc="3">
+  <div class="emd-gwt-label">EMD GWT</div>
+  <div class="timeline emd-gwt" id="emd-gwt-rmo-bike-catalog">
+    <article class="rmo"><h2>Bike Catalog</h2>
+      <dl class="props">
+        <div><dt>bikeId</dt><dd></dd></div>
+        <div><dt>model</dt><dd></dd></div>
+      </dl>
+    </article>
+    <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+    <article class="evt"><h2>Bike Received</h2>
+      <dl class="props">
+        <div><dt>bikeId</dt><dd>B-101</dd></div>
+        <div><dt>model</dt><dd>Trailblazer 29</dd></div>
+      </dl>
+    </article>
+    <div class="arr v"><div class="shaft"></div><div class="tile arrow-down"></div></div>
+    <article class="rmo"><h2>Bike Catalog</h2>
+      <dl class="props">
+        <div><dt>bikeId</dt><dd>B-101</dd></div>
+        <div><dt>model</dt><dd>Trailblazer 29</dd></div>
+      </dl>
+    </article>
+  </div>
+</div>
 ```
 
 ## Event and error
@@ -307,9 +335,33 @@ All cross-slice projections use `diagram/connectors.js` (same router as `diagram
 1. Give every EVT, RMO, and cross-slice destination SCR card an `id`.
 2. On `<main class="emd">` set `data-joins="evt-a:rmo-x,rmo-y:scr-z,…"`. Include **every forward-in-time** EVT→RMO edge (lower band), every **RMO → later SCR** edge (upper band), and ERR→SCR. **Timeline rule:** for each `fromId:toId`, the source card's slice must be strictly left of the destination. Never list a later EVT into an earlier RMO, or an RMO into an earlier SCR — `connectors.js` paints the pairs you give and will draw reverse-time hops if you emit them. Same-slice `SCR ↔ RMO` / `SCR ↔ COM` omit from `data-joins` — CSS shafts plus the upper-band local vertical (like COM→EVT on the lower band). Full wording is in [`event-modeling-instructions.md`](event-modeling-instructions.md) (**Connect All SLCs**, **Ids and joins**).
 3. Include `<script src="…/diagram/connectors.js"></script>` and `<script src="…/diagram/settings.js"></script>`.
-4. The sticky corner lane (`.board > .lane:first-child`) hosts gear + `?` from `diagram/settings.js`. Gear opens settings: **Scale items** (`--scale` → slice `--col` + UBA/MBA/LBA type only; WFL labels and lane chrome unchanged), **Fade opacity** (`--focus-fade`), **Connector tiles** (`--tile`), and **Highlight on hover** checkboxes for connectors, values, and cards (each on by default; stored as `emd-hover-*` in `localStorage`, reflected on `document.documentElement.dataset`). Scale/tile fire `emd:retile`; hover prefs fire `emd:hover-prefs` and clear any active path focus. `?` explains the board. Values persist in `localStorage`.
+4. The sticky corner lane (`.board > .lane:first-child`) hosts gear + `?` from `diagram/settings.js`. Gear opens settings: **Scale items** (`--scale` → slice `--col` + UBA/MBA/LBA type **and** the RMO history strip; WFL labels and lane chrome unchanged), **Fade opacity** (`--focus-fade`), **Connector tiles** (`--tile`), and **Highlight on hover** checkboxes for connectors, values, and cards (each on by default; stored as `emd-hover-*` in `localStorage`, reflected on `document.documentElement.dataset`). Scale/tile fire `emd:retile`; hover prefs fire `emd:hover-prefs` and clear any active path focus. `?` explains the board. Values persist in `localStorage`.
 5. Leave every `.cell.connector` and `.cell.connector.connector-upper` empty. Leave RMO mba lower gaps empty (no CSS `arrow-up` on the lower join).
 6. Same-slice corridors: COM→EVT uses the lower connector middle; SCR↔COM / SCR↔RMO use the upper connector middle. Leave gap shafts in HTML; leave both connector rows empty for JS.
+
+### RMO history scrubber (runtime overlay)
+
+Author the MBA card + EMD GWT only (see **Read model** above). `connectors.js` builds the walker at runtime:
+
+1. Hover the MBA RMO → clock button in the `h2` (`.emd-rmo-clock`).
+2. Click opens `.emd-rmo-scrub` on `document.body` (not in the board grid): EVT tape + pin arrow share that fixed overlay.
+3. Pin stays beside **that** RMO (`getBoundingClientRect`). Prefer the left; add `.is-flipped` (and reverse the pin) when there is no room.
+4. Wheel / drag free-scrolls the tape under the pin with momentum — no per-EVT snap, no hover chrome on tape steps. The active RMO layer updates when the next step’s top reaches the pin. Click a step or Arrow Up/Down seeks; open / scale / `emd:retile` jumps without easing.
+5. Strip type size follows `--scale` (`font-size: calc(14px * var(--scale))` on `.emd-rmo-scrub`).
+6. Close: clock again, click outside, or Escape. Inbound shafts re-aim after grow / restore.
+
+Do not hand-author these nodes. CSS lives in `diagram/diagram.css`:
+
+| Class | Role |
+|---|---|
+| `.emd-rmo-scrub` | Fixed overlay shell (scaled type) |
+| `.emd-rmo-scrub.is-flipped` | Strip on the card’s right; pin points back at the RMO |
+| `.emd-rmo-scrub.is-seeking` | Short ease for click / arrow seeks only |
+| `.emd-rmo-scrub.is-dragging` | Grab cursor while dragging the tape |
+| `.emd-rmo-scrub-slide` / `.emd-rmo-scrub-col` | Tape column (`transform: translateY`) |
+| `.emd-rmo-scrub-arrow` | Fixed pin between tape and RMO |
+| `.emd-rmo-scrub-step` | Start / EVT row (progress vs context opacity; no `:hover` fill) |
+| `.rmo.is-scrubbing > .emd-rmo-scrub-stack` | Projection layers on the MBA card while open |
 
 ### Several EVTs → one RMO (bundled bands)
 
@@ -797,8 +849,10 @@ The live stylesheet is [`diagram/diagram.css`](diagram/diagram.css). Keep this f
 
 - `--tile: 16px` on `:root` (connector elbows, arrowheads, and mid-band packing)
 - `--col: 16rem` is the slice **minimum**; board columns are `minmax(var(--col), max-content)`. `.uba > .scr` / `.wire` use `width: max-content` so wide screens widen their slice. COM / RMO / EVT stay `width: fit-content; align-self: center` so a wide SCR does not stretch them
+- `--scale` — UBA/MBA/LBA card type **and** `.emd-rmo-scrub` (history strip); WFL / lane chrome stay fixed
 - `.emd` — only scrollport; `will-change: scroll-position`; see **Scroll performance**
 - `.cell.connector.connector-upper` — upper band (UBA↔MBA) for RMO→later SCR; see **RMO → later SCR (upper band)**
+- `.emd-rmo-scrub` / `.emd-rmo-scrub-arrow` / `.emd-rmo-scrub-step` — RMO history overlay; see **RMO history scrubber**
 - Connector / card highlight transitions are **opacity only** — never `filter` on tiles
 - `.emd.is-scrolling` — `transition: none`, `pointer-events: none` on connectors/cards, flat article shadow while flinging
 - `uba`, `mba`, `lba`, `connector` are flex columns with **zero** vertical padding so shafts stay continuous
