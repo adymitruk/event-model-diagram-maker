@@ -340,10 +340,23 @@
     }
 
     /**
-     * MBA RMO time scrubber — clock in the title opens a feeding-EVT column
-     * (plus Blank); hover/scroll selects a step and swaps the RMO body.
+     * MBA RMO time scrubber — clock opens Start + EVTs this RMO family
+     * subscribes to (EMD GWT feeds). Same-title instances chain so later feeds
+     * (past this column) stay in the strip and update the card; footprint is
+     * the final projection. Own feeds stay lit; other subscribed rows are dim.
      */
     // Scrub session on emd so retile / one-shot listeners share one state.
+
+    function rmoCardTitle(el) {
+      return (el?.querySelector(':scope > h2')?.textContent || '').trim();
+    }
+
+    function sliceOf(el) {
+      const cell = el?.closest?.('[data-slc]');
+      if (!cell) return 0;
+      const n = parseInt(cell.getAttribute('data-slc'), 10);
+      return Number.isFinite(n) ? n : 0;
+    }
 
     /** EMD GWT timeline on the last SLC that features this RMO (`id` = data-emd-gwt). */
     function rmoEmdGwtTimeline(el) {
@@ -356,14 +369,15 @@
       return node.querySelector('.timeline.emd-gwt, .timeline');
     }
 
-    function parseRmoScrubSteps(timelineSrc) {
+    /** Parse EMD GWT into Start + progress EVT → RMO snapshot pairs (cloned cards). */
+    function parseRmoGwtProgress(timelineSrc) {
       if (!timelineSrc) return null;
       const timeline = timelineSrc.cloneNode(true);
       const cards = [...timeline.children].filter((el) =>
         el.matches('article.rmo, article.evt')
       );
       if (!cards.length || !cards[0].classList.contains('rmo')) return null;
-      const steps = [{ kind: 'blank', rmo: cards[0], evt: null }];
+      const progress = [];
       let i = 1;
       while (i < cards.length) {
         const evt = cards[i];
@@ -371,17 +385,144 @@
         if (!evt || !evt.classList.contains('evt') || !rmo || !rmo.classList.contains('rmo')) {
           break;
         }
-        steps.push({ kind: 'evt', rmo, evt });
+        progress.push({ evt, rmo });
         i += 2;
       }
-      return steps.length ? steps : null;
+      return { startRmo: cards[0], progress };
+    }
+
+    /** Every LBA EVT left→right (story order), including those after this RMO. */
+    function allLbaEvts() {
+      return [...emd.querySelectorAll('.cell.lba article.evt')];
+    }
+
+    /** MBA RMOs with the same title, story order (e.g. Agenda Builder ×2). */
+    function sameTitleRmos(rmoEl) {
+      const title = rmoCardTitle(rmoEl);
+      return [...emd.querySelectorAll('.cell.mba article.rmo[data-emd-gwt]')]
+        .filter((el) => rmoCardTitle(el) === title)
+        .sort((a, b) => sliceOf(a) - sliceOf(b));
+    }
+
+    /**
+     * Chain every same-title EMD GWT. Snapshots from later instances let you walk
+     * past this column; footprint uses the final snapshot of the family.
+     */
+    function collectFamilyScrubStory(rmoEl) {
+      const family = sameTitleRmos(rmoEl);
+      const familyIds = new Set(family.map((el) => el.id).filter(Boolean));
+      let startRmo = null;
+      const familyHits = [];
+      const ownProgressIds = new Set();
+      // Same timeline id on two MBA cards (or overlapping GWTs) must not
+      // replay a board EVT twice — e.g. Pat Registered joined to both
+      // Registrations instances while both pointed at one full EMD GWT.
+      const seenBoardEvtIds = new Set();
+      const seenTimelines = new Set();
+      family.forEach((member) => {
+        const timeline = rmoEmdGwtTimeline(member);
+        if (!timeline || seenTimelines.has(timeline)) return;
+        seenTimelines.add(timeline);
+        const gwt = parseRmoGwtProgress(timeline);
+        if (!gwt) return;
+        if (!startRmo) startRmo = gwt.startRmo;
+        gwt.progress.forEach((p) => {
+          // Match against whichever family member actually subscribes to the EVT.
+          let boardEvt = null;
+          let matchRmo = null;
+          for (const m of family) {
+            boardEvt = matchBoardEvtForScrub(p.evt, m);
+            if (boardEvt) {
+              matchRmo = m;
+              break;
+            }
+          }
+          if (!boardEvt) return;
+          if (boardEvt.id && seenBoardEvtIds.has(boardEvt.id)) return;
+          if (boardEvt.id) seenBoardEvtIds.add(boardEvt.id);
+          familyHits.push({
+            boardEvt,
+            rmo: p.rmo,
+            scrubEvt: p.evt,
+            matchRmo,
+          });
+        });
+      });
+      // Own feeds = EVTs this card's data-joins subscribe to (not "first matcher").
+      familyHits.forEach((hit) => {
+        if (hit.boardEvt?.id && matchBoardEvtForScrub(hit.scrubEvt, rmoEl)) {
+          ownProgressIds.add(hit.boardEvt.id);
+        }
+      });
+      const endRmo = familyHits.length
+        ? familyHits[familyHits.length - 1].rmo
+        : startRmo;
+      return { startRmo, endRmo, familyHits, familyIds, ownProgressIds, family };
+    }
+
+    /**
+     * Scrub strip: Start + only EVTs this RMO family subscribes to (EMD GWT).
+     * That includes later same-title feeds past this column (walk forward); it
+     * never includes unrelated LBA EVTs. Own feeds stay lit; other subscribed
+     * rows (pre-previous instance / later instance) are dimmed but still update.
+     */
+    function buildRmoScrubSteps(rmoEl) {
+      const story = collectFamilyScrubStory(rmoEl);
+      if (!story.startRmo) return null;
+      const thisSlice = sliceOf(rmoEl);
+      let snap = story.startRmo;
+      let openIndex = 0;
+      const steps = [
+        {
+          kind: 'blank',
+          rmo: story.startRmo,
+          evt: null,
+          boardEvt: null,
+          progress: false,
+          matchRmo: null,
+          affects: false,
+        },
+      ];
+      // Story order of subscribed feeds only (familyHits already left→right).
+      story.familyHits.forEach((hit) => {
+        const boardEvt = hit.boardEvt;
+        snap = hit.rmo;
+        const progress = !!(boardEvt.id && story.ownProgressIds.has(boardEvt.id));
+        steps.push({
+          kind: 'evt',
+          rmo: snap,
+          evt: boardEvt,
+          boardEvt,
+          scrubEvt: hit.scrubEvt,
+          progress,
+          matchRmo: hit.matchRmo,
+          affects: true,
+        });
+        if (progress && sliceOf(boardEvt) <= thisSlice) {
+          openIndex = steps.length - 1;
+        }
+      });
+      if (openIndex === 0) {
+        for (let i = steps.length - 1; i >= 0; i--) {
+          if (steps[i].progress) {
+            openIndex = i;
+            break;
+          }
+        }
+      }
+      return {
+        steps,
+        openIndex,
+        endRmo: story.endRmo,
+        familyIds: story.familyIds,
+      };
     }
 
     function rmoBodyNodes(rmoArticle) {
       return [...rmoArticle.children].filter((ch) => ch.tagName !== 'H2');
     }
 
-    /** Pin collection table columns (and dl label widths) to the default RMO. */
+    /** Pin collection table columns (and dl label widths) to the end-state sizer. */
     function lockRmoScrubColumnWidths(stack) {
       const sizer = stack.querySelector(':scope > .emd-rmo-scrub-sizer');
       if (!sizer) return;
@@ -439,18 +580,23 @@
     }
 
     /**
-     * Prefetch snapshots as absolute layers. An invisible sizer keeps the
-     * original body in flow so the card's box never changes (no scrollbar).
+     * Prefetch snapshots as absolute layers. Invisible sizer uses the family's
+     * final RMO body so the card keeps the end footprint while scrubbing.
      */
-    function mountRmoScrubStack(rmoEl, steps) {
+    function mountRmoScrubStack(rmoEl, steps, endRmo) {
       const h2 = rmoEl.querySelector(':scope > h2');
       if (!h2) return [];
+      // Drop the MBA body (caller saved clones); footprint comes from the end.
+      rmoBodyNodes(rmoEl).forEach((ch) => ch.remove());
       const stack = document.createElement('div');
       stack.className = 'emd-rmo-scrub-stack';
       const sizer = document.createElement('div');
       sizer.className = 'emd-rmo-scrub-sizer';
       sizer.setAttribute('aria-hidden', 'true');
-      rmoBodyNodes(rmoEl).forEach((ch) => sizer.appendChild(ch));
+      const footprint = endRmo || steps[steps.length - 1]?.rmo;
+      if (footprint) {
+        rmoBodyNodes(footprint).forEach((ch) => sizer.appendChild(ch.cloneNode(true)));
+      }
       stack.appendChild(sizer);
       const layers = steps.map((step) => {
         const layer = document.createElement('div');
@@ -522,54 +668,148 @@
     emd._restoreScrubHighlight = restoreScrubHighlight;
 
     /**
-     * Light every feeding EVT → this RMO from Blank through the selected step
-     * (connectors accumulate as you move forward in time). Never touch SCRs.
-     * Join ids come from emd._joins so a retile cannot leave scrub on stale ids.
+     * Light EVT → same-title RMO joins for every family hit through the selected
+     * step (including future instances you walked into). Never touch SCRs.
      */
     function highlightScrubStep(i) {
       if (!emd._rmoScrub) return;
-      const { rmo, steps } = emd._rmoScrub;
+      const { rmo, steps, familyIds } = emd._rmoScrub;
       clearConnectionHighlight();
       const liveJoins = emd._joins || joins;
+      const targets = familyIds?.size ? familyIds : new Set(rmo.id ? [rmo.id] : []);
       const idSet = new Set();
       for (let s = 0; s <= i; s++) {
         const step = steps[s];
-        if (!step || step.kind === 'blank' || !step.evt) continue;
-        const boardEvt = matchBoardEvtForScrub(step.evt, rmo);
-        if (!boardEvt?.id) continue;
+        if (!step || !step.affects || !step.boardEvt?.id) continue;
         liveJoins
-          .filter((j) => j.fromId === boardEvt.id && j.toId === rmo.id)
+          .filter((j) => j.fromId === step.boardEvt.id && targets.has(j.toId))
           .forEach((j) => idSet.add(String(j.id)));
       }
       if (idSet.size) {
         applyJoinHighlight(idSet, { skipScr: true });
+        markEndpoint(rmo); // keep the card being scrubbed lit even when joins target a later same-title RMO
         return;
       }
       emd.classList.add('path-focus');
       markEndpoint(rmo);
     }
 
-    /** Whole history strip slides so the selected step’s top meets the fixed arrow. */
+    /**
+     * Expand this MBA card to at least the last same-title instance’s box
+     * before mounting scrub layers (width especially — a narrow early card
+     * wraps the end-state last column and bumps height).
+     */
+    function sizeRmoToFamilyFootprint(rmoEl) {
+      const family = sameTitleRmos(rmoEl);
+      const last = family.length ? family[family.length - 1] : rmoEl;
+      const r = (last || rmoEl).getBoundingClientRect();
+      const w = Math.ceil(r.width);
+      const h = Math.ceil(r.height);
+      rmoEl.style.boxSizing = 'border-box';
+      rmoEl.style.width = `${w}px`;
+      rmoEl.style.minWidth = `${w}px`;
+      rmoEl.style.minHeight = `${h}px`;
+      rmoEl.style.maxHeight = '';
+      rmoEl.style.overflow = '';
+    }
+
+    /**
+     * After layers mount, grow further if any scrub snapshot is taller/wider
+     * than the last MBA card (e.g. Agenda Builder with 10 unassigned rows vs
+     * a later card that moved most into schedule). Avoids scroll-off clipping.
+     */
+    function fitRmoToScrubLayers(rmoEl) {
+      const stack = rmoEl.querySelector(':scope > .emd-rmo-scrub-stack');
+      if (!stack) return;
+      const h2 = rmoEl.querySelector(':scope > h2');
+      const h2h = h2 ? h2.getBoundingClientRect().height : 0;
+      const sizer = stack.querySelector(':scope > .emd-rmo-scrub-sizer');
+      let bodyH = sizer ? sizer.scrollHeight : 0;
+      let bodyW = sizer ? sizer.scrollWidth : 0;
+      stack.querySelectorAll(':scope > .emd-rmo-scrub-layer').forEach((layer) => {
+        // Absolute layers report the stack box, not content — probe statically.
+        const css = layer.style.cssText;
+        layer.style.position = 'static';
+        layer.style.visibility = 'hidden';
+        layer.style.inset = 'auto';
+        layer.style.width = '100%';
+        layer.style.height = 'auto';
+        layer.style.overflow = 'visible';
+        bodyH = Math.max(bodyH, layer.scrollHeight);
+        bodyW = Math.max(bodyW, layer.scrollWidth);
+        layer.style.cssText = css;
+      });
+      const pad = 10;
+      const needBody = Math.ceil(bodyH);
+      const needH = Math.ceil(h2h + needBody + pad);
+      const needW = Math.ceil(bodyW + 16);
+      // Grow the in-flow sizer so absolute layers (inset:0) get that tall a box.
+      if (sizer && needBody > sizer.offsetHeight) {
+        sizer.style.minHeight = `${needBody}px`;
+      }
+      stack.style.minHeight = `${needBody}px`;
+      const curH = parseFloat(rmoEl.style.minHeight) || 0;
+      const curW = parseFloat(rmoEl.style.width) || 0;
+      if (needH > curH) rmoEl.style.minHeight = `${needH}px`;
+      if (needW > curW) {
+        rmoEl.style.width = `${needW}px`;
+        rmoEl.style.minWidth = `${needW}px`;
+      }
+    }
+
+    function unlockRmoScrubLayout(rmoEl) {
+      rmoEl.style.boxSizing = '';
+      rmoEl.style.width = '';
+      rmoEl.style.minWidth = '';
+      rmoEl.style.minHeight = '';
+      rmoEl.style.maxHeight = '';
+      rmoEl.style.overflow = '';
+    }
+
+    function retileConnectors() {
+      window.dispatchEvent(new Event('emd:retile'));
+    }
+
+    /** Immediate retile (no 40ms debounce) — scrub resize must re-aim shafts now. */
+    function retileConnectorsSync() {
+      window.dispatchEvent(new Event('emd:retile-sync'));
+    }
+
+    /**
+     * After the scrub card’s final box is known, wait for layout then re-aim
+     * lower/upper band shafts at the RMO (growth is absorbed by the MBA bottom
+     * flex gap, so the connector row does not move — tips must be redrawn).
+     */
+    function afterScrubLayout(fn) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          retileConnectorsSync();
+          if (typeof fn === 'function') fn();
+        });
+      });
+    }
+
+    /** Whole history strip slides so the selected step’s top meets the overlay pin. */
     function slideScrubToStep(i) {
       if (!emd._rmoScrub || i < 0) return;
-      const { col, stepEls, arrow } = emd._rmoScrub;
+      const { col, stepEls } = emd._rmoScrub;
       const row = stepEls[i];
-      if (!row || !arrow) return;
-      const y = arrow.offsetTop - row.offsetTop;
-      col.style.transform = `translateY(${y}px)`;
+      if (!row) return;
+      // Arrow is position:absolute at top:0 on the overlay — pin in overlay space.
+      col.style.transform = `translateY(${-row.offsetTop}px)`;
     }
 
     function positionScrubOverlay() {
       if (!emd._rmoScrub) return;
-      const { shell, rmo, arrow } = emd._rmoScrub;
+      const { shell, slide, rmo } = emd._rmoScrub;
       const r = rmo.getBoundingClientRect();
       const gap = 10;
-      const w = shell.offsetWidth || 220;
-      let left = r.left - w - gap;
+      const arrowSpace = 14; // room for absolute pin between tape and RMO
+      const w = (slide && slide.offsetWidth) || shell.offsetWidth || 220;
+      let left = r.left - w - arrowSpace - gap;
       if (left < 8) left = Math.min(r.right + gap, window.innerWidth - w - 8);
-      const arrowTop = arrow ? arrow.offsetTop : 0;
       shell.style.left = `${Math.round(left)}px`;
-      shell.style.top = `${Math.round(r.top - arrowTop)}px`;
+      shell.style.top = `${Math.round(r.top)}px`;
       if (emd._rmoScrub.index >= 0) slideScrubToStep(emd._rmoScrub.index);
     }
 
@@ -626,11 +866,13 @@
       while (h2 && h2.nextSibling) h2.nextSibling.remove();
       savedBody.forEach((node) => rmo.appendChild(node));
       shell.remove();
+      unlockRmoScrubLayout(rmo);
       rmo.classList.remove('is-scrubbing');
       emd.classList.remove('is-rmo-scrubbing');
       clearConnectionHighlight();
       emd._rmoScrub = null;
       setRmoClockVisible(rmo, rmo.matches(':hover'));
+      afterScrubLayout();
     }
 
     function selectRmoScrubStep(index) {
@@ -658,16 +900,23 @@
     }
 
     function openRmoScrub(rmoEl) {
-      const timeline = rmoEmdGwtTimeline(rmoEl);
-      if (!timeline) return;
-      const steps = parseRmoScrubSteps(timeline);
-      if (!steps) return;
+      if (!rmoEmdGwtTimeline(rmoEl)) return;
+      const built = buildRmoScrubSteps(rmoEl);
+      if (!built?.steps?.length) return;
+      const { steps, openIndex, endRmo, familyIds } = built;
       if (emd._rmoScrub) closeRmoScrub();
 
       beginRmoScrubSession();
 
       const savedBody = rmoBodyNodes(rmoEl).map((n) => n.cloneNode(true));
-      const layers = mountRmoScrubStack(rmoEl, steps);
+      // Grow to last same-title RMO, mount layers, pin columns, then fit height.
+      // Column lock can change wrap/height — fit must run after it, and connectors
+      // retile only once the final box is laid out (see afterScrubLayout below).
+      sizeRmoToFamilyFootprint(rmoEl);
+      const layers = mountRmoScrubStack(rmoEl, steps, endRmo);
+      const stack = rmoEl.querySelector(':scope > .emd-rmo-scrub-stack');
+      if (stack) lockRmoScrubColumnWidths(stack);
+      fitRmoToScrubLayers(rmoEl);
 
       const shell = document.createElement('div');
       shell.className = 'emd-rmo-scrub';
@@ -688,7 +937,11 @@
           row.classList.add('emd-rmo-scrub-blank');
           row.innerHTML = '<span class="emd-rmo-scrub-blank-label">Start</span>';
         } else {
-          row.appendChild(step.evt.cloneNode(true));
+          row.classList.add(step.progress ? 'is-progress' : 'is-context');
+          const clone = step.evt.cloneNode(true);
+          clone.removeAttribute('id');
+          clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+          row.appendChild(clone);
         }
         row.addEventListener('mouseenter', () => {
           if (emd._rmoScrub && emd._rmoScrub.ignoreHover) return;
@@ -714,7 +967,7 @@
       arrow.setAttribute('aria-hidden', 'true');
       shell.appendChild(slide);
       shell.appendChild(arrow);
-      // Overlay above the EMD — does not insert into the slice / shift the RMO.
+      // Overlay on body: tape + pin share this layer (not the board / connector band).
       document.body.appendChild(shell);
 
       rmoEl.classList.add('is-scrubbing');
@@ -730,6 +983,8 @@
       emd._rmoScrub = {
         rmo: rmoEl,
         steps,
+        openIndex,
+        familyIds,
         index: -1,
         savedBody,
         shell,
@@ -742,7 +997,6 @@
         onReposition,
         onOutside,
       };
-      positionScrubOverlay();
       emd.addEventListener('scroll', onReposition, { passive: true });
       window.addEventListener('scroll', onReposition, { passive: true, capture: true });
       window.addEventListener('resize', onReposition);
@@ -750,8 +1004,9 @@
       requestAnimationFrame(() => {
         document.addEventListener('pointerdown', onOutside, true);
       });
-      // Start on final (current) state; Start is index 0.
-      selectRmoScrubStep(steps.length - 1);
+      // Open step first (active layer), then retile shafts to the final RMO box.
+      selectRmoScrubStep(openIndex);
+      afterScrubLayout(() => positionScrubOverlay());
       col.focus({ preventScroll: true });
     }
 
@@ -2211,10 +2466,14 @@
       }
     }
 
-    requestAnimationFrame(() => {
+    const paintBands = () => {
       if (lowerCells.length) paintBandLayout(lowerLayout, crossLower, 'lower');
       if (upperCells.length) paintBandLayout(upperLayout, crossUpper, 'upper');
-    });
+    };
+    // Scrub open/close needs shafts aimed at the post-resize RMO in the same
+    // turn — a deferred rAF left tips short while the card had already grown.
+    if (emd._scrubSyncPaint) paintBands();
+    else requestAnimationFrame(paintBands);
   }
 
   function boot() {
@@ -2254,6 +2513,20 @@
       window.addEventListener('resize', () => run(true));
       window.addEventListener('emd:retile', () => run(true));
       window.addEventListener('emd:retile-check', () => run(false));
+      // Scrub open/close: redraw shafts immediately at the post-resize RMO box
+      // (syncPaint so tips land in this turn, not the next animation frame).
+      window.addEventListener('emd:retile-sync', () => {
+        clearTimeout(timer);
+        const el = board();
+        lastW = el.clientWidth;
+        lastH = el.clientHeight;
+        emd._scrubSyncPaint = true;
+        try {
+          drawJoins(emd);
+        } finally {
+          emd._scrubSyncPaint = false;
+        }
+      });
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => run(true));
       }

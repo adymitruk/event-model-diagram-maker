@@ -694,15 +694,13 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   background: rgba(0, 0, 0, 0.08);
   outline: none;
 }
-/* Full history strip slides past a fixed arrow (no scroll tile / no scrollbar). */
+/* History strip + pin arrow live on a fixed overlay (body) — never in the board
+   grid, so they cannot reflow MBA cells or break connector tiles. */
 .emd-rmo-scrub {
   position: fixed;
   z-index: 1000;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 0.35rem;
+  display: block;
   width: max-content;
   max-width: min(18rem, 44vw);
   overflow: visible;
@@ -712,11 +710,8 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   box-shadow: none;
   pointer-events: none;
 }
-.emd-rmo-scrub-slide,
-.emd-rmo-scrub-arrow {
-  pointer-events: auto;
-}
 .emd-rmo-scrub-slide {
+  pointer-events: auto;
   overflow: visible;
 }
 .emd-rmo-scrub-col {
@@ -732,22 +727,27 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   box-shadow: 0 8px 24px rgba(28, 28, 28, 0.18);
   will-change: transform;
 }
+/* Pin sits on the overlay layer beside the tape — absolute, out of flow. */
 .emd-rmo-scrub-arrow {
-  flex: 0 0 auto;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 0.35rem;
   width: 0;
   height: 0;
-  margin-top: 0.15rem;
   border-top: 0.55rem solid transparent;
   border-bottom: 0.55rem solid transparent;
   border-right: 0.85rem solid #6a9e7c;
   filter: drop-shadow(0 1px 2px rgba(28, 28, 28, 0.2));
+  pointer-events: none;
 }
 /* Prefetched bodies over an invisible sizer — same box as the default RMO, no scrollbars. */
 .rmo.is-scrubbing > .emd-rmo-scrub-stack {
   position: relative;
   display: block;
   width: 100%;
-  overflow: hidden;
+  /* Sized by the invisible end-footprint sizer; do not clip mid-scrub tables. */
+  overflow: visible;
 }
 .emd-rmo-scrub-sizer {
   visibility: hidden;
@@ -757,7 +757,7 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   position: absolute;
   inset: 0;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   visibility: hidden;
   pointer-events: none;
 }
@@ -786,11 +786,23 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   border: 1px solid transparent;
   opacity: 0.72;
 }
+/* EVTs this RMO projects (EMD GWT) — lit; context/future stay readable but quiet. */
+.emd-rmo-scrub-step.is-progress {
+  opacity: 0.92;
+}
+.emd-rmo-scrub-step.is-context {
+  opacity: 0.38;
+}
 .emd-rmo-scrub-step:hover,
 .emd-rmo-scrub-step.is-selected {
   opacity: 1;
   border-color: #6a9e7c;
   background: rgba(141, 206, 164, 0.25);
+}
+.emd-rmo-scrub-step.is-context:hover,
+.emd-rmo-scrub-step.is-context.is-selected {
+  border-color: #b0b0b0;
+  background: rgba(120, 120, 120, 0.12);
 }
 .emd-rmo-scrub-step > article.evt {
   margin: 0;
