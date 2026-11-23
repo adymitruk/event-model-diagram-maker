@@ -493,6 +493,7 @@ article { border: 0; border-radius: 1.14em; padding: 0.85em 1em 0.95em; backgrou
 }
 .mba > .com,
 .mba > .rmo,
+.mba > .emd-rmo-scrub-host,
 .lba > .evt,
 .lba > .err {
   width: fit-content;
@@ -501,6 +502,16 @@ article { border: 0; border-radius: 1.14em; padding: 0.85em 1em 0.95em; backgrou
 }
 article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 .props { margin: 0; display: flex; flex-direction: column; gap: 0.35em; min-width: 0; }
+/* COM / EVT flat props — tighter rows to save vertical space. */
+.com > .props,
+.evt > .props {
+  gap: 0.08em;
+  line-height: 1.2;
+}
+.com > .props > div,
+.evt > .props > div {
+  padding: 0 0.2em;
+}
 /* Flat property row (single-object COM / EVT / RMO / ERR). */
 .props > div {
   display: flex;
@@ -639,6 +650,166 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   min-height: calc(var(--tile) * 2);
   width: var(--tile);
 }
+/* EMD GWT — full RMO projection timeline on the last SLC that features that RMO. */
+.emd-gwt-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5a7a64;
+  margin: 0 0 0.45rem;
+}
+.gwt > .timeline.emd-gwt {
+  outline: 1px dashed #a8c9b4;
+  outline-offset: 0.35rem;
+  padding: 0.35rem 0.15rem;
+  border-radius: 4px;
+}
+/* MBA RMO title + clock (visible on hover / while scrubbing). */
+.rmo > h2.emd-rmo-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+}
+.emd-rmo-clock {
+  display: none;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.15em;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #1a1a1a;
+  font-size: 1em;
+  line-height: 0;
+  cursor: pointer;
+}
+.emd-rmo-clock.is-visible,
+.rmo.is-scrubbing > h2 .emd-rmo-clock {
+  display: inline-flex;
+}
+.emd-rmo-clock:hover,
+.emd-rmo-clock:focus-visible {
+  background: rgba(0, 0, 0, 0.08);
+  outline: none;
+}
+/* Full history strip slides past a fixed arrow (no scroll tile / no scrollbar). */
+.emd-rmo-scrub {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.35rem;
+  width: max-content;
+  max-width: min(18rem, 44vw);
+  overflow: visible;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+.emd-rmo-scrub-slide,
+.emd-rmo-scrub-arrow {
+  pointer-events: auto;
+}
+.emd-rmo-scrub-slide {
+  overflow: visible;
+}
+.emd-rmo-scrub-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  outline: none;
+  padding: 0.35rem;
+  background: #fff;
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(28, 28, 28, 0.18);
+  will-change: transform;
+}
+.emd-rmo-scrub-arrow {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  margin-top: 0.15rem;
+  border-top: 0.55rem solid transparent;
+  border-bottom: 0.55rem solid transparent;
+  border-right: 0.85rem solid #6a9e7c;
+  filter: drop-shadow(0 1px 2px rgba(28, 28, 28, 0.2));
+}
+/* Prefetched bodies over an invisible sizer — same box as the default RMO, no scrollbars. */
+.rmo.is-scrubbing > .emd-rmo-scrub-stack {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+.emd-rmo-scrub-sizer {
+  visibility: hidden;
+  pointer-events: none;
+}
+.emd-rmo-scrub-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+.emd-rmo-scrub-layer.is-active {
+  visibility: visible;
+  pointer-events: auto;
+}
+/* Simulator owns the board: no hover/click except the clock to close. */
+.emd.is-rmo-scrubbing .board {
+  pointer-events: none;
+}
+.emd.is-rmo-scrubbing .rmo.is-scrubbing > h2 .emd-rmo-clock {
+  pointer-events: auto;
+}
+/* While scrubbing, keep the RMO fully visible (overlay lives on body, above the board). */
+.emd.is-rmo-scrubbing .rmo.is-scrubbing {
+  opacity: 1;
+}
+.emd.is-rmo-scrubbing .emd-rmo-scrub-layer {
+  pointer-events: none;
+}
+.emd-rmo-scrub-step {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0.15rem;
+  border: 1px solid transparent;
+  opacity: 0.72;
+}
+.emd-rmo-scrub-step:hover,
+.emd-rmo-scrub-step.is-selected {
+  opacity: 1;
+  border-color: #6a9e7c;
+  background: rgba(141, 206, 164, 0.25);
+}
+.emd-rmo-scrub-step > article.evt {
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  font-size: 0.85em;
+}
+.emd-rmo-scrub-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4rem;
+  background: #f3f6f4;
+}
+.emd-rmo-scrub-blank-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
 .pro {
   display: flex;
   flex-direction: column;
@@ -711,7 +882,7 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 .wire .group { margin: 0; border: 2px solid #222; border-radius: 2px; padding: 0.35em 0.45em 0.45em; }
 .wire .group legend { padding: 0 0.25em; }
 .wire button,
-.wire input:not([type="checkbox"]),
+.wire input:not([type="checkbox"]):not([type="radio"]),
 .wire select {
   appearance: none;
   font: inherit;
@@ -722,6 +893,26 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 }
 .wire button { border-radius: 10px; padding: 0.15em 0.7em; width: fit-content; white-space: nowrap; }
 .wire input, .wire select { border-radius: 2px; padding: 0.1em 0.35em; width: 100%; box-sizing: border-box; }
+.wire label.check,
+.wire label.radio {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  margin: 0;
+}
+.wire label.check input,
+.wire label.radio input {
+  width: auto;
+  margin: 0;
+  accent-color: #222;
+}
+/* Selected radios stay blue (including disabled wireframe controls). */
+.wire input[type="radio"]:checked,
+.wire label.radio input[type="radio"]:checked {
+  accent-color: #2f7fd1;
+  opacity: 1;
+  filter: none;
+}
 .wire select {
   background-image: linear-gradient(45deg, transparent 50%, #222 50%), linear-gradient(135deg, #222 50%, transparent 50%);
   background-position: calc(100% - 12px) 55%, calc(100% - 7px) 55%;

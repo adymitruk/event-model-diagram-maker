@@ -167,6 +167,12 @@
 
     const cross = crossLower.concat(crossUpper);
     const joins = local.concat(localUpper).concat(cross);
+    // Shared across drawJoins re-entries (scrub / one-shot listeners).
+    emd._joins = joins;
+    if (emd._rmoScrub && emd._rmoScrub.index >= 0 && typeof emd._restoreScrubHighlight === 'function') {
+      // Join ids were renumbered — repaint connectors for the current scrub step.
+      queueMicrotask(() => emd._restoreScrubHighlight());
+    }
 
     // --- Leftness band assignment (tiling-example), per connector band ---
     const leftnessOf = (j) => j.from.si + j.to.si;
@@ -334,6 +340,449 @@
     }
 
     /**
+     * MBA RMO time scrubber — clock in the title opens a feeding-EVT column
+     * (plus Blank); hover/scroll selects a step and swaps the RMO body.
+     */
+    // Scrub session on emd so retile / one-shot listeners share one state.
+
+    /** EMD GWT timeline on the last SLC that features this RMO (`id` = data-emd-gwt). */
+    function rmoEmdGwtTimeline(el) {
+      if (!el || !el.classList.contains('rmo') || !el.closest('.cell.mba')) return null;
+      const id = el.getAttribute('data-emd-gwt');
+      if (!id) return null;
+      const node = document.getElementById(id);
+      if (!node) return null;
+      if (node.classList.contains('timeline')) return node;
+      return node.querySelector('.timeline.emd-gwt, .timeline');
+    }
+
+    function parseRmoScrubSteps(timelineSrc) {
+      if (!timelineSrc) return null;
+      const timeline = timelineSrc.cloneNode(true);
+      const cards = [...timeline.children].filter((el) =>
+        el.matches('article.rmo, article.evt')
+      );
+      if (!cards.length || !cards[0].classList.contains('rmo')) return null;
+      const steps = [{ kind: 'blank', rmo: cards[0], evt: null }];
+      let i = 1;
+      while (i < cards.length) {
+        const evt = cards[i];
+        const rmo = cards[i + 1];
+        if (!evt || !evt.classList.contains('evt') || !rmo || !rmo.classList.contains('rmo')) {
+          break;
+        }
+        steps.push({ kind: 'evt', rmo, evt });
+        i += 2;
+      }
+      return steps.length ? steps : null;
+    }
+
+    function rmoBodyNodes(rmoArticle) {
+      return [...rmoArticle.children].filter((ch) => ch.tagName !== 'H2');
+    }
+
+    /** Pin collection table columns (and dl label widths) to the default RMO. */
+    function lockRmoScrubColumnWidths(stack) {
+      const sizer = stack.querySelector(':scope > .emd-rmo-scrub-sizer');
+      if (!sizer) return;
+      const layers = [...stack.querySelectorAll(':scope > .emd-rmo-scrub-layer')];
+
+      function applyTableWidths(srcTable, destTable) {
+        const headerCells = srcTable.tHead?.rows?.[0]
+          ? [...srcTable.tHead.rows[0].cells]
+          : srcTable.rows[0]
+            ? [...srcTable.rows[0].cells]
+            : [];
+        if (!headerCells.length) return;
+        const widths = headerCells.map((cell) => cell.getBoundingClientRect().width);
+        const tableW = srcTable.getBoundingClientRect().width;
+        destTable.style.tableLayout = 'fixed';
+        if (tableW > 0) destTable.style.width = `${tableW}px`;
+        let colgroup = destTable.querySelector(':scope > colgroup');
+        if (!colgroup) {
+          colgroup = document.createElement('colgroup');
+          destTable.insertBefore(colgroup, destTable.firstChild);
+        }
+        colgroup.replaceChildren();
+        widths.forEach((w) => {
+          const col = document.createElement('col');
+          col.style.width = `${Math.max(0, w)}px`;
+          colgroup.appendChild(col);
+        });
+      }
+
+      const sizerTables = [...sizer.querySelectorAll('table.collection')];
+      sizerTables.forEach((src, ti) => {
+        applyTableWidths(src, src);
+        layers.forEach((layer) => {
+          const dest = layer.querySelectorAll('table.collection')[ti];
+          if (dest) applyTableWidths(src, dest);
+        });
+      });
+
+      // Flat dl rows: freeze dt width so values don't shove the label column.
+      const sizerDts = [...sizer.querySelectorAll('.props > div > dt')];
+      sizerDts.forEach((srcDt, i) => {
+        const w = srcDt.getBoundingClientRect().width;
+        if (w <= 0) return;
+        const applyDt = (dt) => {
+          dt.style.flex = `0 0 ${w}px`;
+          dt.style.width = `${w}px`;
+          dt.style.maxWidth = `${w}px`;
+        };
+        applyDt(srcDt);
+        layers.forEach((layer) => {
+          const dest = layer.querySelectorAll('.props > div > dt')[i];
+          if (dest) applyDt(dest);
+        });
+      });
+    }
+
+    /**
+     * Prefetch snapshots as absolute layers. An invisible sizer keeps the
+     * original body in flow so the card's box never changes (no scrollbar).
+     */
+    function mountRmoScrubStack(rmoEl, steps) {
+      const h2 = rmoEl.querySelector(':scope > h2');
+      if (!h2) return [];
+      const stack = document.createElement('div');
+      stack.className = 'emd-rmo-scrub-stack';
+      const sizer = document.createElement('div');
+      sizer.className = 'emd-rmo-scrub-sizer';
+      sizer.setAttribute('aria-hidden', 'true');
+      rmoBodyNodes(rmoEl).forEach((ch) => sizer.appendChild(ch));
+      stack.appendChild(sizer);
+      const layers = steps.map((step) => {
+        const layer = document.createElement('div');
+        layer.className = 'emd-rmo-scrub-layer';
+        rmoBodyNodes(step.rmo).forEach((ch) => {
+          layer.appendChild(ch.cloneNode(true));
+        });
+        stack.appendChild(layer);
+        return layer;
+      });
+      rmoEl.appendChild(stack);
+      lockRmoScrubColumnWidths(stack);
+      return layers;
+    }
+
+    function evtTitle(evtEl) {
+      return (evtEl?.querySelector(':scope > h2')?.textContent || '').trim();
+    }
+
+    function evtPropMap(evtEl) {
+      const map = new Map();
+      if (!evtEl) return map;
+      evtEl.querySelectorAll('dt').forEach((dt) => {
+        const dd = dt.nextElementSibling;
+        map.set(
+          (dt.textContent || '').trim(),
+          (dd?.textContent || '').trim()
+        );
+      });
+      return map;
+    }
+
+    /**
+     * Match a scrub-timeline EVT to the board EVT that feeds this RMO.
+     * EMD GWT examples may omit props — require title + every scrub prop/value
+     * present on the board card (subset match), prefer the tightest fit.
+     */
+    function matchBoardEvtForScrub(scrubEvt, rmoEl) {
+      if (!scrubEvt || !rmoEl?.id) return null;
+      const title = evtTitle(scrubEvt);
+      const want = evtPropMap(scrubEvt);
+      const liveJoins = emd._joins || joins;
+      const candidates = liveJoins.filter(
+        (j) => j.toId === rmoEl.id && j.fromEl && j.fromEl.classList.contains('evt')
+      );
+      let best = null;
+      let bestScore = -1;
+      candidates.forEach((j) => {
+        if (evtTitle(j.fromEl) !== title) return;
+        const have = evtPropMap(j.fromEl);
+        for (const [k, v] of want) {
+          if (have.get(k) !== v) return;
+        }
+        // More overlapping props + closer prop counts win (disambiguate twins).
+        const score = want.size * 100 - Math.abs(have.size - want.size);
+        if (score > bestScore) {
+          bestScore = score;
+          best = j.fromEl;
+        }
+      });
+      return best;
+    }
+
+    /** Re-paint scrub time highlight after a hover session ends. */
+    function restoreScrubHighlight() {
+      if (!emd._rmoScrub || emd._rmoScrub.index < 0) return;
+      highlightScrubStep(emd._rmoScrub.index);
+    }
+    emd._restoreScrubHighlight = restoreScrubHighlight;
+
+    /**
+     * Light every feeding EVT → this RMO from Blank through the selected step
+     * (connectors accumulate as you move forward in time). Never touch SCRs.
+     * Join ids come from emd._joins so a retile cannot leave scrub on stale ids.
+     */
+    function highlightScrubStep(i) {
+      if (!emd._rmoScrub) return;
+      const { rmo, steps } = emd._rmoScrub;
+      clearConnectionHighlight();
+      const liveJoins = emd._joins || joins;
+      const idSet = new Set();
+      for (let s = 0; s <= i; s++) {
+        const step = steps[s];
+        if (!step || step.kind === 'blank' || !step.evt) continue;
+        const boardEvt = matchBoardEvtForScrub(step.evt, rmo);
+        if (!boardEvt?.id) continue;
+        liveJoins
+          .filter((j) => j.fromId === boardEvt.id && j.toId === rmo.id)
+          .forEach((j) => idSet.add(String(j.id)));
+      }
+      if (idSet.size) {
+        applyJoinHighlight(idSet, { skipScr: true });
+        return;
+      }
+      emd.classList.add('path-focus');
+      markEndpoint(rmo);
+    }
+
+    /** Whole history strip slides so the selected step’s top meets the fixed arrow. */
+    function slideScrubToStep(i) {
+      if (!emd._rmoScrub || i < 0) return;
+      const { col, stepEls, arrow } = emd._rmoScrub;
+      const row = stepEls[i];
+      if (!row || !arrow) return;
+      const y = arrow.offsetTop - row.offsetTop;
+      col.style.transform = `translateY(${y}px)`;
+    }
+
+    function positionScrubOverlay() {
+      if (!emd._rmoScrub) return;
+      const { shell, rmo, arrow } = emd._rmoScrub;
+      const r = rmo.getBoundingClientRect();
+      const gap = 10;
+      const w = shell.offsetWidth || 220;
+      let left = r.left - w - gap;
+      if (left < 8) left = Math.min(r.right + gap, window.innerWidth - w - 8);
+      const arrowTop = arrow ? arrow.offsetTop : 0;
+      shell.style.left = `${Math.round(left)}px`;
+      shell.style.top = `${Math.round(r.top - arrowTop)}px`;
+      if (emd._rmoScrub.index >= 0) slideScrubToStep(emd._rmoScrub.index);
+    }
+
+    function ensureRmoClock(rmoEl) {
+      const h2 = rmoEl.querySelector(':scope > h2');
+      if (!h2) return null;
+      h2.classList.add('emd-rmo-title');
+      let btn = h2.querySelector(':scope > .emd-rmo-clock');
+      if (btn) return btn;
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'emd-rmo-clock';
+      btn.title = 'Scrub read-model over time';
+      btn.setAttribute('aria-label', 'Scrub read-model over time');
+      btn.innerHTML =
+        '<svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>' +
+        '<path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleRmoScrub(rmoEl);
+      });
+      h2.appendChild(btn);
+      return btn;
+    }
+
+    function setRmoClockVisible(rmoEl, on) {
+      const btn = rmoEl.querySelector(':scope > h2 > .emd-rmo-clock');
+      if (!btn) return;
+      btn.classList.toggle('is-visible', !!on);
+    }
+
+    function beginRmoScrubSession() {
+      cancelHoverShow();
+      cancelHoverClear();
+      emd._hoverClearPending = false;
+      emd.classList.add('is-rmo-scrubbing');
+    }
+
+    function closeRmoScrub() {
+      if (!emd._rmoScrub) return;
+      const { rmo, savedBody, shell, onReposition, onOutside } = emd._rmoScrub;
+      if (onReposition) {
+        emd.removeEventListener('scroll', onReposition);
+        window.removeEventListener('scroll', onReposition, true);
+        window.removeEventListener('resize', onReposition);
+      }
+      if (onOutside) {
+        document.removeEventListener('pointerdown', onOutside, true);
+      }
+      const h2 = rmo.querySelector(':scope > h2');
+      while (h2 && h2.nextSibling) h2.nextSibling.remove();
+      savedBody.forEach((node) => rmo.appendChild(node));
+      shell.remove();
+      rmo.classList.remove('is-scrubbing');
+      emd.classList.remove('is-rmo-scrubbing');
+      clearConnectionHighlight();
+      emd._rmoScrub = null;
+      setRmoClockVisible(rmo, rmo.matches(':hover'));
+    }
+
+    function selectRmoScrubStep(index) {
+      if (!emd._rmoScrub) return;
+      const { stepEls, layers } = emd._rmoScrub;
+      const i = Math.max(0, Math.min(index, stepEls.length - 1));
+      if (i === emd._rmoScrub.index) return;
+      const prev = emd._rmoScrub.index;
+      if (prev >= 0) {
+        stepEls[prev].classList.remove('is-selected');
+        if (layers[prev]) layers[prev].classList.remove('is-active');
+      }
+      emd._rmoScrub.index = i;
+      stepEls[i].classList.add('is-selected');
+      if (layers[i]) layers[i].classList.add('is-active');
+      // Strip moves under the pointer — ignore hover re-entry for a frame.
+      emd._rmoScrub.ignoreHover = true;
+      slideScrubToStep(i);
+      highlightScrubStep(i);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (emd._rmoScrub) emd._rmoScrub.ignoreHover = false;
+        });
+      });
+    }
+
+    function openRmoScrub(rmoEl) {
+      const timeline = rmoEmdGwtTimeline(rmoEl);
+      if (!timeline) return;
+      const steps = parseRmoScrubSteps(timeline);
+      if (!steps) return;
+      if (emd._rmoScrub) closeRmoScrub();
+
+      beginRmoScrubSession();
+
+      const savedBody = rmoBodyNodes(rmoEl).map((n) => n.cloneNode(true));
+      const layers = mountRmoScrubStack(rmoEl, steps);
+
+      const shell = document.createElement('div');
+      shell.className = 'emd-rmo-scrub';
+      shell.setAttribute('role', 'dialog');
+      shell.setAttribute('aria-label', 'Read-model history');
+
+      const slide = document.createElement('div');
+      slide.className = 'emd-rmo-scrub-slide';
+      const col = document.createElement('div');
+      col.className = 'emd-rmo-scrub-col';
+      col.tabIndex = 0;
+
+      const stepEls = steps.map((step, idx) => {
+        const row = document.createElement('div');
+        row.className = 'emd-rmo-scrub-step';
+        row.dataset.step = String(idx);
+        if (step.kind === 'blank') {
+          row.classList.add('emd-rmo-scrub-blank');
+          row.innerHTML = '<span class="emd-rmo-scrub-blank-label">Start</span>';
+        } else {
+          row.appendChild(step.evt.cloneNode(true));
+        }
+        row.addEventListener('mouseenter', () => {
+          if (emd._rmoScrub && emd._rmoScrub.ignoreHover) return;
+          selectRmoScrubStep(idx);
+        });
+        col.appendChild(row);
+        return row;
+      });
+
+      const onWheel = (e) => {
+        if (!emd._rmoScrub) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = e.deltaY === 0 ? e.deltaX : e.deltaY;
+        if (delta === 0) return;
+        selectRmoScrubStep(emd._rmoScrub.index + (delta > 0 ? 1 : -1));
+      };
+      shell.addEventListener('wheel', onWheel, { passive: false });
+
+      slide.appendChild(col);
+      const arrow = document.createElement('div');
+      arrow.className = 'emd-rmo-scrub-arrow';
+      arrow.setAttribute('aria-hidden', 'true');
+      shell.appendChild(slide);
+      shell.appendChild(arrow);
+      // Overlay above the EMD — does not insert into the slice / shift the RMO.
+      document.body.appendChild(shell);
+
+      rmoEl.classList.add('is-scrubbing');
+      ensureRmoClock(rmoEl);
+      setRmoClockVisible(rmoEl, true);
+      const onReposition = () => positionScrubOverlay();
+      const onOutside = (e) => {
+        if (!emd._rmoScrub) return;
+        const t = e.target;
+        if (t && t.closest && t.closest('.emd-rmo-scrub, .emd-rmo-clock')) return;
+        closeRmoScrub();
+      };
+      emd._rmoScrub = {
+        rmo: rmoEl,
+        steps,
+        index: -1,
+        savedBody,
+        shell,
+        slide,
+        col,
+        arrow,
+        stepEls,
+        layers,
+        ignoreHover: false,
+        onReposition,
+        onOutside,
+      };
+      positionScrubOverlay();
+      emd.addEventListener('scroll', onReposition, { passive: true });
+      window.addEventListener('scroll', onReposition, { passive: true, capture: true });
+      window.addEventListener('resize', onReposition);
+      // Defer so the opening clock click cannot immediately dismiss.
+      requestAnimationFrame(() => {
+        document.addEventListener('pointerdown', onOutside, true);
+      });
+      // Start on final (current) state; Start is index 0.
+      selectRmoScrubStep(steps.length - 1);
+      col.focus({ preventScroll: true });
+    }
+
+    function toggleRmoScrub(rmoEl) {
+      if (emd._rmoScrub && emd._rmoScrub.rmo === rmoEl) {
+        closeRmoScrub();
+        return;
+      }
+      openRmoScrub(rmoEl);
+    }
+
+    function bindRmoScrubClocks() {
+      emd.querySelectorAll('.cell.mba article.rmo[data-emd-gwt]').forEach((rmoEl) => {
+        if (rmoEl._rmoScrubBound) return;
+        rmoEl._rmoScrubBound = true;
+        ensureRmoClock(rmoEl);
+        rmoEl.addEventListener('mouseenter', () => {
+          if (!rmoEmdGwtTimeline(rmoEl)) return;
+          setRmoClockVisible(rmoEl, true);
+        });
+        rmoEl.addEventListener('mouseleave', (e) => {
+          if (emd._rmoScrub && emd._rmoScrub.rmo === rmoEl) return;
+          const to = e.relatedTarget;
+          if (to && (rmoEl.contains(to) || to.closest?.('.emd-rmo-scrub'))) return;
+          setRmoClockVisible(rmoEl, false);
+        });
+      });
+    }
+    bindRmoScrubClocks();
+
+    /**
      * Settle delay before painting hover — stops flicker while the pointer moves.
      * Gear → Hover delay (0–5s); 0 paints/clears immediately. Default 200ms until settings mount.
      * When delay > 0 and a hover has already painted: leave does not clear right away
@@ -397,6 +846,7 @@
       if (ms <= 0) {
         emd._hoverClearPending = false;
         clearConnectionHighlight();
+        restoreScrubHighlight();
         return;
       }
       hoverClearTimer = setTimeout(() => {
@@ -412,10 +862,13 @@
         emd._hoverClearPending = false;
         if (pointerOverHoverTarget()) return;
         clearConnectionHighlight();
+        restoreScrubHighlight();
       }, ms);
     }
 
     function scheduleHoverHighlight(fn) {
+      // History simulator owns the path — ignore board hover until it closes.
+      if (emd._rmoScrub) return;
       cancelHoverShow();
       // Content slides under the pointer while scrolling — skip work until idle.
       if (emd._scrolling) return;
@@ -438,7 +891,7 @@
 
     function clearHoverHighlight() {
       cancelHoverShow();
-      if (focusLock()) return;
+      if (focusLock() || emd._rmoScrub) return;
       // Content slides under the pointer (and pointer-events drop) while
       // scrolling — remember to clear after scroll settles.
       if (emd._scrolling) {
@@ -469,6 +922,7 @@
       cancelHoverClear();
       emd._hoverClearPending = false;
       clearConnectionHighlight();
+      restoreScrubHighlight();
     }
 
     // Latest paint owns these so the one-shot scroll guard can call current logic.
@@ -549,6 +1003,7 @@
       const btn = document.querySelector('.emd-unlock-focus');
       if (btn) btn.hidden = true;
       clearConnectionHighlight();
+      restoreScrubHighlight();
     }
 
     /** Pin the current highlight; Unlock button or Escape releases it. */
@@ -1026,8 +1481,9 @@
       if (el) el.classList.add('endpoint-hot');
     }
 
-    function applyJoinHighlight(idSet) {
+    function applyJoinHighlight(idSet, opts) {
       if (!idSet.size) return;
+      const skipScr = !!(opts && opts.skipScr);
       emd.classList.add('path-focus');
       emd.querySelectorAll('[data-join-ids]').forEach((el) => {
         if (el.classList.contains('hop')) {
@@ -1046,17 +1502,19 @@
           markEndpoint(j.fromEl);
           markEndpoint(j.toEl);
           // Same-slice write: keep SCR(s) above the COM lit.
-          if (j.cellSi != null) {
+          if (!skipScr && j.cellSi != null) {
             emd
               .querySelectorAll(`.cell.uba[data-slc="${j.cellSi}"] .scr`)
               .forEach(markEndpoint);
           }
-          // Projection into RMO: keep reader SCR(s) + MAP lit.
+          // Projection into RMO: keep reader SCR(s) + MAP lit (SCR optional for scrub).
           if (j.toEl && j.toEl.classList.contains('rmo')) {
-            const si = sliceOf(j.toEl);
-            emd
-              .querySelectorAll(`.cell.uba[data-slc="${si}"] .scr`)
-              .forEach(markEndpoint);
+            if (!skipScr) {
+              const si = sliceOf(j.toEl);
+              emd
+                .querySelectorAll(`.cell.uba[data-slc="${si}"] .scr`)
+                .forEach(markEndpoint);
+            }
             const map = j.toEl.parentElement
               ? j.toEl.parentElement.querySelector(':scope > .map')
               : null;
@@ -1243,11 +1701,12 @@
         el.removeEventListener('click', el._joinHover.click);
       }
       const enter = () => {
-        if (focusLock() || !hoverOn('connectors')) return;
+        if (focusLock() || emd._rmoScrub || !hoverOn('connectors')) return;
         const ids = joinIdsForConnector(el);
         scheduleHoverHighlight(() => highlightByJoinIds(ids));
       };
       const leave = () => {
+        if (emd._rmoScrub) return;
         clearHoverHighlight();
       };
       const click = (e) => {
@@ -1453,7 +1912,8 @@
     // Card / property hover — a property value isolates that example through
     // the system (name + value); otherwise the card's joins stay lit.
     // Click the hovered target to lock the highlight for scrolling; use the
-    // Unlock highlight control or Escape to release.
+    // Unlock highlight control or Escape to release. MBA RMO time scrubbing is
+    // separate (clock on the title — see bindRmoScrubClocks).
     emd
       .querySelectorAll('article.scr, article.com, article.rmo, article.evt, article.err')
       .forEach((el) => {
@@ -1463,7 +1923,7 @@
           el.removeEventListener('click', el._joinHover.click);
         }
         const over = (e) => {
-          if (focusLock()) return;
+          if (focusLock() || emd._rmoScrub) return;
           const propEl = propTargetFromEvent(el, e.target);
           if (propEl && hoverOn('values')) {
             scheduleHoverHighlight(() => highlightPropTrace(propEl));
@@ -1477,9 +1937,12 @@
         };
         const out = (e) => {
           if (el.contains(e.relatedTarget)) return;
+          if (emd._rmoScrub) return;
           clearHoverHighlight();
         };
         const click = (e) => {
+          if (e.target.closest('.emd-rmo-clock, .emd-rmo-scrub')) return;
+          if (emd._rmoScrub) return;
           if (focusLock()) {
             e.stopPropagation();
             return;
@@ -1516,15 +1979,16 @@
         el.removeEventListener('click', el._joinHover.click);
       }
       const enter = () => {
-        if (focusLock() || !hoverOn('values')) return;
+        if (focusLock() || emd._rmoScrub || !hoverOn('values')) return;
         scheduleHoverHighlight(() => highlightMap(el));
       };
       const leave = () => {
+        if (emd._rmoScrub) return;
         clearHoverHighlight();
       };
       const click = (e) => {
         e.stopPropagation();
-        if (focusLock() || !hoverOn('values')) return;
+        if (focusLock() || emd._rmoScrub || !hoverOn('values')) return;
         lockFocus(() => highlightMap(el));
       };
       el._joinHover = { enter, leave, click };
@@ -1541,7 +2005,17 @@
     if (!emd._focusLockEscBound) {
       emd._focusLockEscBound = true;
       window.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape' || !emd._focusLock) return;
+        if (emd._rmoScrub && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+          e.preventDefault();
+          selectRmoScrubStep(emd._rmoScrub.index + (e.key === 'ArrowUp' ? -1 : 1));
+          return;
+        }
+        if (e.key !== 'Escape') return;
+        if (emd._rmoScrub) {
+          closeRmoScrub();
+          return;
+        }
+        if (!emd._focusLock) return;
         unlockFocus();
       });
     }
@@ -1765,6 +2239,8 @@
             if (w !== lastW || h !== lastH) emd._retileAfterScroll = true;
             return;
           }
+          // Scrub stack holds max snapshot size — skip expensive retile while open.
+          if (!force && emd.classList.contains('is-rmo-scrubbing')) return;
           if (!force && w === lastW && h === lastH) return;
           lastW = w;
           lastH = h;
