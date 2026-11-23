@@ -1,6 +1,7 @@
 /**
- * Corner tools in the sticky workflow lane: settings (gear) + board help (?).
- * Controls --focus-fade, --tile, and --scale (slice items / --col only); retile via `emd:retile`.
+ * Board chrome: floating Settings/? chip + SWL `.lane-label` chips; sizes
+ * `--lane`, `--lane-label-clearance`, `--lane-label-top`. Settings control
+ * --focus-fade, --tile, --scale (slice items / --col only); retile via `emd:retile`.
  */
 (function () {
   const FADE_KEY = 'emd-focus-fade';
@@ -116,10 +117,7 @@
     }
   }
 
-  /**
-   * Move SWL names into small floating chips (`.lane-label`). The large `.lane`
-   * cells stay for sticky row alignment but sit behind slices / click-through.
-   */
+  /** Wrap SWL plain text / LBA head labels into floating `.lane-label` chips. */
   function mountLaneLabels() {
     document.querySelectorAll('.board > .lane.open').forEach((lane) => {
       if (lane.classList.contains('emd-corner')) return;
@@ -147,9 +145,8 @@
   }
 
   /**
-   * `--lane` fits the corner tools only (keeps WFL tight). SWL chips float over
-   * the board; `--lane-label-clearance` pads slice 1 so content clears them.
-   * Also parks `--lane-label-top` under the sticky WFL / corner band.
+   * Size lane CSS vars: `--lane` = Settings/? chip; `--lane-label-clearance` =
+   * how far SWL chips overhang into slice 1; `--lane-label-top` under the WFL.
    */
   function sizeLaneColumn() {
     const root = document.documentElement;
@@ -309,8 +306,12 @@
       '<li><strong>LBA</strong> — events (<strong>EVT</strong>, orange) the system recorded, or an error (<strong>ERR</strong>, red) when a command failed instead. Empty in RMO and NAV slices.</li>' +
       '<li><strong>GWT</strong> (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a <strong>COM</strong>: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an <strong>RMO</strong>: read model, then event, then read model, … ending with the read model — so you see how the projection changes as each event arrives (including lookup entries when the read model joins by id). Every read-model snapshot already shows the full shape (table headers or property names); empty means no rows yet, not a bare title. Each MBA <strong>RMO</strong> column carries its <strong>EMD GWT</strong> for the clock scrubber (full story once; when the same title appears again later, that column’s GWT starts from the prior footprint and lists only the new feeding events — do not re-join earlier events or both cards will show duplicates in the history walker). Hover the MBA <strong>RMO</strong> for a clock; click to scrub Start + subscribed feeds only in a floating overlay to the left (EVT tape + pin arrow on that layer, not the board) that slides past a fixed arrow (same-title EMD GWTs chain to the final projection/footprint; feeds for this instance stay lit, other subscribed rows dimmed; board hover is suspended).</li>' +
       '<li>Arrows are the data flow <strong>only left → right in story time</strong>: screen → command → event (or error), event → a <strong>later</strong> read model → screen, and a read model → a <strong>later</strong> screen when that view first loads (connector band above commands/read models). A column only knows itself and columns to its left — never join a later event back into an earlier read model. Several events into the same read model stay on consecutive connector rows (bundled, not merged). Later screens that show the same values again do so by session or query convention — no second arrow. A <strong>MAP</strong> on an arrow names inputs → outputs when data changes shape.</li>' +
-      '<li><strong>SCR highlights</strong> — on a command slice, value fields the command takes are light blue, and the button that issues the command is light blue too; on a read-model slice, value fields the read model fills are light green. Highlight values (and the COM action button) only — not property-name labels, table headers, or an empty read-model area. Screens show what people see — UX captions or self-evident values (names, invoice numbers, …), not schema names or technical join keys (those stay as client-side hidden data for later commands). Shared read-model views appear in every actor swim lane that uses them. A command issued from a read-model view keeps that same screen layout, paints the pressed action button, and omits green read-model highlights when the values already came from the earlier screen in that actor timeline. An SPA keeps one screen layout and paints those live fields in each slice.</li>' +
-      '<li>Hover a <strong>card</strong>, <strong>connector piece</strong> (arrow tile or shaft — not empty slice space), or <strong>property value</strong> to keep that path lit and fade the rest. A property value isolates <strong>that example value</strong> through its sources and destinations — same name and same value (one row in a collection does not light the others); MAP renames still follow; a later screen that shows the same value from session or query state is linked too. Matching connectors stay lit, everything else fades. Hover an MBA <strong>RMO</strong> to show a clock in its title; click the clock to open a floating strip on the <strong>left</strong> that slides past a fixed arrow (Start + subscribed feeds only; same-title GWTs chained — each later instance has its own timeline of new feeds only; footprint = final projection; feeds for this instance lit, other subscribed rows dimmed; RMO stays put); hover, scroll, or Arrow Up/Down to step — connectors into same-title RMOs accumulate through the walk (not the SCR); board hover is suspended; clock again, click outside, or Escape closes. <strong>Click</strong> the hovered value, card, or MAP to <strong>lock</strong> the highlight while you scroll; release with the <strong>padlock</strong> (top right), by <strong>clicking elsewhere</strong> on the board, or <strong>Escape</strong>. Click a connector to scroll clipped ends into view — connectors never lock a highlight. Use the gear to tune scale, fade, connector tile size, hover delay (0–5s; 0 is immediate — with delay &gt; 0, leave keeps the highlight for that delay and the next hover target lights immediately), and which hover highlights are on (connectors, values, cards — all on by default).</li>' +
+      '<li><strong>SCR highlights</strong> — COM-bound values (and the action button / checked radios that feed the COM) are light blue; RMO-bound values are light green. Radios use the same sketch stroke as other controls. Paint values only — not labels or headers. Shared views appear in every actor swim lane that uses them. An SPA keeps one layout and only the live fields change per slice.</li>' +
+      '<li><strong>Lane chrome</strong> — swim-lane names and Settings/? are floating chips on a narrow sticky stub (not a wide solid panel). Slice 1 is padded so cards clear longer names.</li>' +
+      '<li><strong>Hover</strong> a card, connector piece (tile/shaft — not empty gap), or property value to keep that path lit. A value isolates that example (same name and value) across COM / EVT / RMO / SCR, including carried-forward screen fields; MAP renames still follow.</li>' +
+      '<li><strong>Lock</strong> — click the hovered value, card, or MAP. The top-right padlock bar names what is locked; ‹ › centers other instances without changing the label. Release with the padlock, click elsewhere, or Escape. Connectors never lock (click only scrolls clipped ends into view).</li>' +
+      '<li><strong>RMO scrubber</strong> — hover an MBA RMO for a clock; click for a floating strip on the left (Start + subscribed feeds; same-title GWTs chain to the final footprint). Hover, scroll, or Arrow Up/Down to step; clock again, click outside, or Escape closes.</li>' +
+      '<li><strong>Settings (gear)</strong> — scale, fade, connector tile size, hover delay (0–5s), and which hover highlights are on (connectors, values, cards — all on by default).</li>' +
       '</ul>' +
       '</div>';
 
