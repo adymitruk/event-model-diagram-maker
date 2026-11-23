@@ -3,8 +3,9 @@
   --scale: 1;
   /* Narrow sticky stub (fits corner tools); SWL names float in .lane-label. */
   --lane: 4.25rem;
-  /* Keep SWL name chips under the sticky workflow bar. */
-  --lane-label-top: 2.5rem;
+  /* Keep SWL name chips under the sticky workflow / corner tools band.
+     `settings.js` overwrites this from the measured WFL/corner height. */
+  --lane-label-top: 3.75rem;
   /* Slice column floor — grows with --scale; tracks may still widen for SCR content. */
   --col: calc(16rem * var(--scale));
   --tile: 16px;
@@ -605,41 +606,156 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 .emd.focus-locked .endpoint-hot {
   cursor: pointer;
 }
-/* Temporary control — fixed top-right so it stays reachable while scrolling. */
+/* Padlock bar + optional ← → instance nav — fixed top-right while pinned. */
 .emd-unlock-focus {
   position: fixed;
   top: 0.75rem;
   right: 0.75rem;
   z-index: 40;
+  box-sizing: border-box;
+  width: auto;
+  max-width: min(28rem, calc(100vw - 1.5rem));
+  height: 2.25rem;
   margin: 0;
-  padding: 0.45rem 0.75rem;
+  padding: 0.15rem;
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.1rem;
   border: 1px solid #c8c8c8;
   border-radius: 6px;
   background: #fff;
   color: var(--ink, #1c1c1c);
-  font: 600 0.85rem/1.2 system-ui, sans-serif;
   box-shadow: 0 2px 8px rgba(28, 28, 28, 0.12);
+  transform-origin: top right;
+  font: 600 0.8rem/1.2 system-ui, sans-serif;
+}
+.emd-unlock-main {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 0.55rem 0 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
 }
-.emd-unlock-focus:hover {
-  background: #f6f6f6;
+.emd-unlock-main > svg {
+  flex: 0 0 auto;
+}
+.emd-unlock-focus-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.emd-unlock-nav {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: 700 1.15rem/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.emd-unlock-main:hover,
+.emd-unlock-nav:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+.emd-unlock-nav:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .emd-unlock-focus[hidden] {
   display: none !important;
 }
+/* Pop in when a lock is set so the unlock control is hard to miss. */
+@keyframes emd-unlock-appear {
+  0% {
+    transform: scale(0.55);
+    opacity: 0;
+    box-shadow: 0 0 0 0 rgba(0, 85, 255, 0);
+  }
+  45% {
+    transform: scale(1.18);
+    opacity: 1;
+    box-shadow: 0 0 0 8px rgba(0, 85, 255, 0.18);
+  }
+  70% {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(28, 28, 28, 0.12), 0 0 0 3px rgba(0, 85, 255, 0.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(28, 28, 28, 0.12);
+  }
+}
+.emd-unlock-focus.is-appear {
+  animation: emd-unlock-appear 0.6s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .emd-unlock-focus.is-appear {
+    animation: none;
+  }
+}
+/* Dim non-traced SCR chrome. Never fade a td/label that *contains* .prop-hot
+   (opacity on the parent would wash out the hot child). */
 .emd.path-focus:has(.prop-hot) .endpoint-hot .wire input:not(.prop-hot),
 .emd.path-focus:has(.prop-hot) .endpoint-hot .wire select:not(.prop-hot),
-.emd.path-focus:has(.prop-hot) .endpoint-hot .wire td:not(.prop-hot),
-.emd.path-focus:has(.prop-hot) .endpoint-hot .wire span:not(.prop-hot) {
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire button:not(.prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire span:not(.prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire td:not(.prop-hot):not(:has(.prop-hot)),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire label:not(:has(.prop-hot)),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire p.label:not(:has(.prop-hot)) {
   opacity: 0.35;
 }
-.emd.path-focus .wire input.prop-hot,
-.emd.path-focus .wire select.prop-hot,
-.emd.path-focus .wire td.prop-hot,
-.emd.path-focus .wire span.prop-hot {
+/* Locked / traced values — full strength + map paint (beats the fade rule). */
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire input.prop-hot,
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire select.prop-hot,
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire button.prop-hot,
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire td.prop-hot,
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire span.prop-hot,
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire td:has(> .prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire label:has(> .prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire p.label:has(> .prop-hot) {
   opacity: 1;
+}
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire input.prop-hot,
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire select.prop-hot,
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire td.prop-hot,
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire span.prop-hot {
   background: var(--map);
   box-shadow: inset 0 0 0 1px #e8d56a;
+}
+/* Radio/check only — the radial “dot” must not paint text inputs in label.text. */
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire label.radio:has(> input.prop-hot),
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire label.check:has(> input.prop-hot) {
+  opacity: 1;
+}
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire label.radio > input.prop-hot[type="radio"] {
+  background: radial-gradient(circle at center, #1c1c1c 0 38%, var(--map) 42% 100%);
+  box-shadow: none;
+}
+.emd.path-focus:has(.prop-hot) .endpoint-hot .wire label.check > input.prop-hot[type="checkbox"] {
+  background:
+    linear-gradient(45deg, transparent 42%, #1c1c1c 42% 58%, transparent 58%) center / 70% 70% no-repeat,
+    linear-gradient(-45deg, transparent 42%, #1c1c1c 42% 58%, transparent 58%) center / 70% 70% no-repeat,
+    var(--map);
+  box-shadow: none;
 }
 .com { background: var(--com); border-radius: 2px; }
 .rmo { background: var(--rmo); border-radius: 2px; }
@@ -943,18 +1059,88 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   gap: 0.35em;
   margin: 0;
 }
+/* Custom sketch radios/checks — same 2px stroke as inputs/buttons; native
+   disabled styling greys them out, so draw them ourselves. */
 .wire label.check input,
 .wire label.radio input {
-  width: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 1.05em;
+  height: 1.05em;
   margin: 0;
-  accent-color: #222;
-}
-/* Selected radios stay blue (including disabled wireframe controls). */
-.wire input[type="radio"]:checked,
-.wire label.radio input[type="radio"]:checked {
-  accent-color: #2f7fd1;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 2px solid #222;
+  background: #fff;
+  color: #222;
   opacity: 1;
   filter: none;
+  cursor: default;
+  vertical-align: middle;
+}
+.wire label.radio input {
+  border-radius: 50%;
+}
+.wire label.check input {
+  border-radius: 2px;
+}
+.wire label.check input:disabled,
+.wire label.radio input:disabled {
+  opacity: 1;
+  filter: none;
+  border-color: #222;
+  background: #fff;
+  color: #222;
+  -webkit-text-fill-color: #222;
+}
+.wire label.radio input:checked {
+  background: radial-gradient(circle at center, #222 0 38%, #fff 42% 100%);
+}
+.wire label.check input:checked {
+  background:
+    linear-gradient(45deg, transparent 42%, #222 42% 58%, transparent 58%) center / 70% 70% no-repeat,
+    linear-gradient(-45deg, transparent 42%, #222 42% 58%, transparent 58%) center / 70% 70% no-repeat,
+    #fff;
+}
+/* COM / RMO-bound radios — keep the black stroke; fill matches other highlights. */
+.wire label.radio input.com-data,
+.wire label.check input.com-data {
+  background: #c5e8f8;
+}
+.wire label.radio input.com-data:checked {
+  background: radial-gradient(circle at center, #1c1c1c 0 38%, #c5e8f8 42% 100%);
+}
+.wire label.check input.com-data:checked {
+  background:
+    linear-gradient(45deg, transparent 42%, #1c1c1c 42% 58%, transparent 58%) center / 70% 70% no-repeat,
+    linear-gradient(-45deg, transparent 42%, #1c1c1c 42% 58%, transparent 58%) center / 70% 70% no-repeat,
+    #c5e8f8;
+}
+.wire label.radio input.rmo-data,
+.wire label.check input.rmo-data {
+  background: #d8f3df;
+}
+.wire label.radio input.rmo-data:checked {
+  background: radial-gradient(circle at center, #1c1c1c 0 38%, #d8f3df 42% 100%);
+}
+.wire label.check input.rmo-data:checked {
+  background:
+    linear-gradient(45deg, transparent 42%, #1c1c1c 42% 58%, transparent 58%) center / 70% 70% no-repeat,
+    linear-gradient(-45deg, transparent 42%, #1c1c1c 42% 58%, transparent 58%) center / 70% 70% no-repeat,
+    #d8f3df;
+}
+.wire label.radio:has(> input.com-data),
+.wire label.check:has(> input.com-data) {
+  background: #c5e8f8;
+  border-radius: 2px;
+  padding: 0.05em 0.25em;
+}
+.wire label.radio:has(> input.rmo-data),
+.wire label.check:has(> input.rmo-data) {
+  background: #d8f3df;
+  border-radius: 2px;
+  padding: 0.05em 0.25em;
 }
 .wire select {
   background-image: linear-gradient(45deg, transparent 50%, #222 50%), linear-gradient(135deg, #222 50%, transparent 50%);
@@ -979,14 +1165,14 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 }
 .wire .area > legend { padding: 0 0.25em; }
 /* Highlight only the value control / cell / COM action button — never labels, th, legends, or empty tables. */
-.wire input.com-data,
+.wire input.com-data:not([type="radio"]):not([type="checkbox"]),
 .wire select.com-data,
 .wire td.com-data,
 .wire span.com-data,
 .wire button.com-data {
   background: #c5e8f8;
 }
-.wire input.rmo-data,
+.wire input.rmo-data:not([type="radio"]):not([type="checkbox"]),
 .wire select.rmo-data,
 .wire td.rmo-data,
 .wire span.rmo-data {

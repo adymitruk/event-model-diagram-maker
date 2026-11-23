@@ -1239,20 +1239,234 @@
       );
     }
 
+    const UNLOCK_PADLOCK_SVG =
+      '<svg viewBox="0 0 24 24" width="1.1em" height="1.1em" aria-hidden="true">' +
+      '<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+      'stroke-linejoin="round" d="M7 11V8a5 5 0 0 1 9.9-1"/>' +
+      '<rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>' +
+      '<circle cx="12" cy="16" r="1.25" fill="currentColor"/>' +
+      '</svg>';
+
     function ensureUnlockButton() {
-      let btn = document.querySelector('.emd-unlock-focus');
-      if (btn) return btn;
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'emd-unlock-focus';
-      btn.textContent = 'Unlock highlight';
-      btn.hidden = true;
-      btn.addEventListener('click', (e) => {
+      let bar = document.querySelector('.emd-unlock-focus');
+      if (bar) return bar;
+      bar = document.createElement('div');
+      bar.className = 'emd-unlock-focus';
+      bar.hidden = true;
+      bar.innerHTML =
+        '<button type="button" class="emd-unlock-nav emd-unlock-prev" title="Previous instance" aria-label="Previous instance">‹</button>' +
+        '<button type="button" class="emd-unlock-main">' +
+        UNLOCK_PADLOCK_SVG +
+        '<span class="emd-unlock-focus-label"></span>' +
+        '</button>' +
+        '<button type="button" class="emd-unlock-nav emd-unlock-next" title="Next instance" aria-label="Next instance">›</button>';
+      bar.addEventListener('click', (e) => e.stopPropagation());
+      bar.querySelector('.emd-unlock-main').addEventListener('click', (e) => {
         e.stopPropagation();
         unlockFocus();
       });
-      document.body.appendChild(btn);
-      return btn;
+      bar.querySelector('.emd-unlock-prev').addEventListener('click', (e) => {
+        e.stopPropagation();
+        stepFocusInstance(-1);
+      });
+      bar.querySelector('.emd-unlock-next').addEventListener('click', (e) => {
+        e.stopPropagation();
+        stepFocusInstance(1);
+      });
+      document.body.appendChild(bar);
+      return bar;
+    }
+
+    function setUnlockButtonLabel(label) {
+      const bar = ensureUnlockButton();
+      const text = String(label || '').replace(/\s+/g, ' ').trim() || 'highlight';
+      const tip = `Unlock: ${text}`;
+      const main = bar.querySelector('.emd-unlock-main');
+      if (main) {
+        main.title = tip;
+        main.setAttribute('aria-label', tip);
+      }
+      const span = bar.querySelector('.emd-unlock-focus-label');
+      if (span) span.textContent = text;
+      return bar;
+    }
+
+    function syncUnlockNav() {
+      const bar = document.querySelector('.emd-unlock-focus');
+      const lock = focusLock();
+      if (!bar) return;
+      const n = lock?.instances?.length || 0;
+      const multi = n > 1;
+      bar.classList.toggle('has-nav', multi);
+      const prev = bar.querySelector('.emd-unlock-prev');
+      const next = bar.querySelector('.emd-unlock-next');
+      if (prev) {
+        prev.disabled = !multi;
+        prev.hidden = !multi;
+      }
+      if (next) {
+        next.disabled = !multi;
+        next.hidden = !multi;
+      }
+      if (multi && lock) {
+        const i = lock.index + 1;
+        prev.title = `Previous instance (${i}/${n})`;
+        next.title = `Next instance (${i}/${n})`;
+        prev.setAttribute('aria-label', prev.title);
+        next.setAttribute('aria-label', next.title);
+      }
+    }
+
+    function cardTitleOf(el) {
+      if (!el) return '';
+      const h2 = el.querySelector(':scope > h2');
+      if (!h2) return '';
+      // Clone without chrome (clock) so the lock label stays clean.
+      const clone = h2.cloneNode(true);
+      clone.querySelectorAll('.emd-rmo-clock').forEach((n) => n.remove());
+      return clone.textContent.replace(/\s+/g, ' ').trim();
+    }
+
+    function cardKindOf(el) {
+      if (!el) return 'Card';
+      if (el.classList.contains('rmo')) return 'RMO';
+      if (el.classList.contains('com')) return 'COM';
+      if (el.classList.contains('evt')) return 'EVT';
+      if (el.classList.contains('err')) return 'ERR';
+      if (el.classList.contains('scr')) return 'SCR';
+      return 'Card';
+    }
+
+    function cardLockLabel(el) {
+      const kind = cardKindOf(el);
+      const title = cardTitleOf(el);
+      return title ? `${kind}: ${title}` : kind;
+    }
+
+    function propLockLabel(propEl, hostCard) {
+      const start = resolvePropStart(propEl);
+      if (!start?.prop) return 'Value';
+      const detail = start.value
+        ? `${start.prop}: ${start.value}`
+        : start.prop;
+      const host = cardTitleOf(hostCard || start.card);
+      return host ? `${detail} · ${host}` : detail;
+    }
+
+    function mapLockLabel(mapEl) {
+      const raw = String(mapEl?.textContent || '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!raw) return 'MAP';
+      return raw.length > 42 ? `MAP: ${raw.slice(0, 40)}…` : `MAP: ${raw}`;
+    }
+
+    /** Same kind + title, left→right by slice (story order). */
+    function sameTitleInstances(el) {
+      if (!el) return [];
+      const kind = ['rmo', 'com', 'evt', 'err', 'scr'].find((k) =>
+        el.classList.contains(k)
+      );
+      if (!kind) return [el];
+      const title = cardTitleOf(el);
+      const list = [
+        ...emd.querySelectorAll(`article.${kind}`),
+      ].filter((c) => cardTitleOf(c) === title);
+      list.sort((a, b) => {
+        const ds = (sliceOf(a) || 0) - (sliceOf(b) || 0);
+        if (ds) return ds;
+        return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING
+          ? -1
+          : 1;
+      });
+      return list.length ? list : [el];
+    }
+
+    /** Cards on the locked value’s prop graph, story order. */
+    function propTraceInstances(propEl) {
+      const start = resolvePropStart(propEl);
+      if (!start?.prop) return [];
+      const adj = propGraph();
+      const startKey = siteKey(start.card, start.prop, start.value);
+      const seen = new Set([startKey]);
+      const queue = [startKey];
+      const cards = new Set([start.card]);
+      while (queue.length) {
+        const key = queue.shift();
+        (adj.get(key) || []).forEach((edge) => {
+          if (edge.card) cards.add(edge.card);
+          if (!seen.has(edge.key)) {
+            seen.add(edge.key);
+            queue.push(edge.key);
+          }
+        });
+      }
+      const list = [...cards];
+      list.sort((a, b) => {
+        const ds = (sliceOf(a) || 0) - (sliceOf(b) || 0);
+        if (ds) return ds;
+        return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING
+          ? -1
+          : 1;
+      });
+      return list;
+    }
+
+    function mapTraceInstances(mapEl) {
+      const related = joinsForMap(mapEl);
+      const seen = new Set();
+      const list = [];
+      const add = (el) => {
+        if (!el || seen.has(el)) return;
+        seen.add(el);
+        list.push(el);
+      };
+      related.forEach((j) => {
+        add(j.fromEl);
+        add(j.toEl);
+      });
+      add(mapEl);
+      list.sort((a, b) => {
+        const ds = (sliceOf(a) || 0) - (sliceOf(b) || 0);
+        if (ds) return ds;
+        return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING
+          ? -1
+          : 1;
+      });
+      return list.length ? list : [mapEl];
+    }
+
+    /** Center `el` in the board’s effective viewport (sticky chrome excluded). */
+    function centerInEffectiveView(el) {
+      if (!el) return;
+      const er = el.getBoundingClientRect();
+      const v = effectiveViewport();
+      const viewW = v.right - v.left;
+      const viewH = v.bottom - v.top;
+      const elCx = er.left + er.width / 2;
+      const elCy = er.top + er.height / 2;
+      const viewCx = v.left + viewW / 2;
+      const viewCy = v.top + viewH / 2;
+      let dx = elCx - viewCx;
+      let dy = elCy - viewCy;
+      if (Math.abs(dx) < 1) dx = 0;
+      if (Math.abs(dy) < 1) dy = 0;
+      if (dx || dy) {
+        emd.scrollBy({ left: dx, top: dy, behavior: 'smooth' });
+      }
+    }
+
+    function stepFocusInstance(dir) {
+      const lock = focusLock();
+      if (!lock?.instances?.length) return;
+      const n = lock.instances.length;
+      if (n < 2) return;
+      lock.index = (lock.index + dir + n) % n;
+      const el = lock.instances[lock.index];
+      // Keep the original lock label — arrows only move the viewport.
+      syncUnlockNav();
+      if (typeof lock.apply === 'function') lock.apply();
+      centerInEffectiveView(el);
     }
 
     function unlockFocus() {
@@ -1261,18 +1475,43 @@
       emd._hoverClearPending = false;
       emd._focusLock = null;
       emd.classList.remove('focus-locked');
-      const btn = document.querySelector('.emd-unlock-focus');
-      if (btn) btn.hidden = true;
+      const bar = document.querySelector('.emd-unlock-focus');
+      if (bar) bar.hidden = true;
       clearConnectionHighlight();
       restoreScrubHighlight();
     }
 
-    /** Pin the current highlight; Unlock button or Escape releases it. */
-    function lockFocus(apply) {
+    /**
+     * Pin the current highlight; padlock / click elsewhere / Escape releases.
+     * `instances` are story-ordered cards for ← → navigation.
+     */
+    function lockFocus(apply, label, opts) {
       cancelHoverShow();
-      emd._focusLock = { apply };
+      const instances = (opts && opts.instances) || [];
+      const startEl = opts && opts.startEl;
+      let index = 0;
+      if (startEl && instances.length) {
+        const i = instances.indexOf(startEl);
+        if (i >= 0) index = i;
+      }
+      emd._focusLock = {
+        apply,
+        instances,
+        index,
+        kind: (opts && opts.kind) || 'card',
+        propEl: opts && opts.propEl,
+        mapEl: opts && opts.mapEl,
+        startEl,
+        label,
+      };
       emd.classList.add('focus-locked');
-      ensureUnlockButton().hidden = false;
+      const bar = setUnlockButtonLabel(label);
+      syncUnlockNav();
+      bar.hidden = false;
+      // Retrigger appear animation each time a lock is set.
+      bar.classList.remove('is-appear');
+      void bar.offsetWidth;
+      bar.classList.add('is-appear');
       apply();
     }
 
@@ -1376,10 +1615,19 @@
         const matches = [...card.querySelectorAll('[data-prop]')].filter(
           (el) => el.getAttribute('data-prop').trim() === prop
         );
-        const live = matches.filter(
-          (el) => el.classList.contains('com-data') || el.classList.contains('rmo-data')
-        );
-        (live.length ? live : matches).forEach((el) => {
+        // A specific example (hover/lock) must hit every matching site — including
+        // carried-forward spans — even when a live com-data/rmo-data input exists
+        // for the same prop name with a different value. Prefer live fields only
+        // when listing the prop without a value filter.
+        let candidates = matches;
+        if (wantVal == null) {
+          const live = matches.filter(
+            (el) =>
+              el.classList.contains('com-data') || el.classList.contains('rmo-data')
+          );
+          if (live.length) candidates = live;
+        }
+        candidates.forEach((el) => {
           const val = propValueOf(el);
           if (wantVal != null && val !== wantVal) return;
           sites.push({ el, prop, value: val });
@@ -1561,9 +1809,20 @@
         const wantClass = host.classList.contains('com') ? 'com-data' : 'rmo-data';
         emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .scr`).forEach((scr) => {
           const sites = scrPropSites(scr);
-          const live = sites.filter(({ el }) => el.classList.contains(wantClass));
-          (live.length ? live : sites).forEach(({ name, el }) => {
+          // Prefer live fields per property name — do not drop carried-forward
+          // spans for "room" just because this SCR also has live dates/times.
+          const liveByName = new Map();
+          sites.forEach((s) => {
+            if (!s.el.classList.contains(wantClass)) return;
+            if (!liveByName.has(s.name)) liveByName.set(s.name, []);
+            liveByName.get(s.name).push(s);
+          });
+          sites.forEach(({ name, el }) => {
             if (!hostNames.has(name)) return;
+            const liveForName = liveByName.get(name);
+            if (liveForName && liveForName.length && !el.classList.contains(wantClass)) {
+              return;
+            }
             const scrVal = propValueOf(el);
             propSitesOn(host, name, scrVal).forEach((hs) => {
               linkSites(scr, name, scrVal, host, name, hs.value, joinId, null);
@@ -1698,11 +1957,27 @@
       } else {
         emd.classList.add('path-focus');
       }
+      const traced = [];
       cards.forEach((byProp, card) => {
         markEndpoint(card);
         byProp.forEach((values, prop) => {
-          values.forEach((value) => markProps(card, [prop], value));
+          values.forEach((value) => {
+            traced.push({ prop, value });
+            markProps(card, [prop], value);
+          });
         });
+      });
+      // SCR wire sites can miss the graph when only some fields are live — paint
+      // every screen that shows a traced example so values stay readable.
+      emd.querySelectorAll('article.scr').forEach((scr) => {
+        let hit = false;
+        traced.forEach(({ prop, value }) => {
+          propSitesOn(scr, prop, value).forEach((site) => {
+            site.el.classList.add('prop-hot');
+            hit = true;
+          });
+        });
+        if (hit) markEndpoint(scr);
       });
       maps.forEach(markEndpoint);
       if (start.row) start.row.classList.add('prop-hot');
@@ -2172,8 +2447,8 @@
 
     // Card / property hover — a property value isolates that example through
     // the system (name + value); otherwise the card's joins stay lit.
-    // Click the hovered target to lock the highlight for scrolling; use the
-    // Unlock highlight control or Escape to release. MBA RMO time scrubbing is
+    // Click the hovered target to lock the highlight for scrolling; click
+    // elsewhere, the padlock, or Escape to release. MBA RMO time scrubbing is
     // separate (clock on the title — see bindRmoScrubClocks).
     emd
       .querySelectorAll('article.scr, article.com, article.rmo, article.evt, article.err')
@@ -2204,19 +2479,32 @@
         const click = (e) => {
           if (e.target.closest('.emd-rmo-clock, .emd-rmo-scrub')) return;
           if (emd._rmoScrub) return;
+          // Any click while locked clears the pin (empty board uses the
+          // emd listener; cards stop here so we do not re-lock on this click).
           if (focusLock()) {
             e.stopPropagation();
+            unlockFocus();
             return;
           }
           const propEl = propTargetFromEvent(el, e.target);
           if (propEl && hoverOn('values')) {
             e.stopPropagation();
-            lockFocus(() => highlightPropTrace(propEl));
+            const start = resolvePropStart(propEl);
+            lockFocus(() => highlightPropTrace(propEl), propLockLabel(propEl), {
+              kind: 'prop',
+              propEl,
+              startEl: start?.card || el,
+              instances: propTraceInstances(propEl),
+            });
             return;
           }
           if (!hoverOn('cards')) return;
           e.stopPropagation();
-          lockFocus(() => highlightCard(el));
+          lockFocus(() => highlightCard(el), cardLockLabel(el), {
+            kind: 'card',
+            startEl: el,
+            instances: sameTitleInstances(el),
+          });
         };
         el._joinHover = { over, out, click };
         el.addEventListener('mouseover', over);
@@ -2249,8 +2537,17 @@
       };
       const click = (e) => {
         e.stopPropagation();
-        if (focusLock() || emd._rmoScrub || !hoverOn('values')) return;
-        lockFocus(() => highlightMap(el));
+        if (emd._rmoScrub || !hoverOn('values')) return;
+        if (focusLock()) {
+          unlockFocus();
+          return;
+        }
+        lockFocus(() => highlightMap(el), mapLockLabel(el), {
+          kind: 'map',
+          mapEl: el,
+          startEl: el,
+          instances: mapTraceInstances(el),
+        });
       };
       el._joinHover = { enter, leave, click };
       el.style.cursor = 'pointer';
@@ -2262,6 +2559,22 @@
     if (!emd._hoverPrefsBound) {
       emd._hoverPrefsBound = true;
       window.addEventListener('emd:hover-prefs', () => unlockFocus());
+    }
+    // Empty board / chrome click clears a locked highlight (card handlers
+    // stopPropagation when they re-lock, so those clicks stay locked).
+    if (!emd._focusLockClickUnlockBound) {
+      emd._focusLockClickUnlockBound = true;
+      emd.addEventListener('click', (e) => {
+        if (!emd._focusLock) return;
+        if (
+          e.target.closest(
+            '.emd-unlock-focus, .emd-corner-tools, .emd-popover, .emd-rmo-scrub, .emd-rmo-clock'
+          )
+        ) {
+          return;
+        }
+        unlockFocus();
+      });
     }
     if (!emd._focusLockEscBound) {
       emd._focusLockEscBound = true;
