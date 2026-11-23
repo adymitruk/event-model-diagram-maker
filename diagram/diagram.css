@@ -1,7 +1,10 @@
 :root {
   /* Slice-item scale only (cards / wires / --col). Lane chrome and settings stay put. */
   --scale: 1;
-  --lane: 11rem;
+  /* Narrow sticky stub (fits corner tools); SWL names float in .lane-label. */
+  --lane: 4.25rem;
+  /* Keep SWL name chips under the sticky workflow bar. */
+  --lane-label-top: 2.5rem;
   /* Slice column floor — grows with --scale; tracks may still widen for SCR content. */
   --col: calc(16rem * var(--scale));
   --tile: 16px;
@@ -250,25 +253,56 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 .uba > article:first-child { margin-top: 0.4rem; }
 .lba > article:last-child { margin-bottom: 0.4rem; }
 .connector { min-height: calc(var(--tile) * 3); }
-/* Sticky lane column sits above scrolling slice content (cards, lba, etc.). */
+/* Large SWL stub cells: transparent + click-through. Names live in `.lane-label`
+   chips. Open lanes use a high stacking context so chips paint over slice cards;
+   pointer-events:none keeps the cards hittable underneath. */
 .lane {
   position: sticky;
   left: 0;
-  z-index: 5;
-  background: #fafafa;
+  z-index: 0;
+  box-sizing: border-box;
+  background: transparent;
+  border-right: 0;
+  pointer-events: none;
+  overflow: visible;
+  padding: 0;
+}
+.board > .lane.open {
+  z-index: 20;
+}
+/* Compact SWL name — original type size; sticks under the WFL bar and over cards. */
+.lane-label {
+  position: sticky;
+  top: var(--lane-label-top);
+  z-index: 1;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: none;
+  margin: 0.35rem 0 0 0.35rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(28, 28, 28, 0.08);
   font-weight: 600;
-  border-right: var(--line);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink);
+  pointer-events: none;
+  white-space: nowrap;
 }
 /* Workflow lane corner: gear + help, pin top-left with the arrow band. */
 .board > .lane:first-child,
 .board > .lane.emd-corner {
   top: 0;
-  z-index: 6;
+  z-index: 26;
   border-right: 0;
   background: #fff;
   display: flex;
   align-items: center;
   overflow: visible;
+  pointer-events: auto;
+  padding: 0.4rem;
 }
 .emd-corner-tools {
   display: flex;
@@ -402,17 +436,13 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
 }
 .lane.lba-head > .lba-head-label {
   flex: 0 0 auto;
-  box-sizing: border-box;
-  min-height: var(--evt-card-one-prop);
-  display: flex;
-  align-items: flex-start;
 }
-/* Slice body cells stay under the sticky labels while scrolling horizontally.
+/* Slice body cells above the stub lane column; `.lane-label` (z 25) floats over.
    MBA keeps z-index:auto so `.map` (z-index 4) can paint above connector
    overflow (z-index 1) without covering the join arrow-up under the RMO. */
 .uba, .lba, .connector, .slc-no, .gwt {
   position: relative;
-  z-index: 0;
+  z-index: 3;
   background: #fff;
 }
 .mba {
@@ -424,7 +454,8 @@ body { overflow: hidden; background: #fff; color: var(--ink); font: 14px/1.35 sy
   --arrow-bottom: 0.85rem;
   position: sticky;
   top: 0;
-  z-index: 4;
+  /* Above open-lane label chips (20); below corner tools (26). */
+  z-index: 22;
   background-color: #fff;
   font-size: 14px;
   font-weight: 600;

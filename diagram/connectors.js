@@ -967,6 +967,9 @@
       arrow.setAttribute('aria-hidden', 'true');
       shell.appendChild(slide);
       shell.appendChild(arrow);
+      // Hide until left/top are set — fixed + auto insets paint at the viewport
+      // edge for a frame if we wait on afterScrubLayout alone.
+      shell.style.visibility = 'hidden';
       // Overlay on body: tape + pin share this layer (not the board / connector band).
       document.body.appendChild(shell);
 
@@ -1004,8 +1007,11 @@
       requestAnimationFrame(() => {
         document.addEventListener('pointerdown', onOutside, true);
       });
-      // Open step first (active layer), then retile shafts to the final RMO box.
+      // Open step first (active layer), pin beside the RMO before first paint,
+      // then retile shafts to the final RMO box and re-pin if the card shifted.
       selectRmoScrubStep(openIndex);
+      positionScrubOverlay();
+      shell.style.visibility = '';
       afterScrubLayout(() => positionScrubOverlay());
       col.focus({ preventScroll: true });
     }

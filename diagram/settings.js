@@ -116,14 +116,75 @@
     }
   }
 
+  /**
+   * Move SWL names into small floating chips (`.lane-label`). The large `.lane`
+   * cells stay for sticky row alignment but sit behind slices / click-through.
+   */
+  function mountLaneLabels() {
+    document.querySelectorAll('.board > .lane.open').forEach((lane) => {
+      if (lane.classList.contains('emd-corner')) return;
+      if (lane.querySelector(':scope > .lane-label')) return;
+      const head = lane.querySelector(':scope > .lba-head-label');
+      if (head) {
+        head.classList.add('lane-label');
+        return;
+      }
+      const text = [...lane.childNodes]
+        .filter((n) => n.nodeType === Node.TEXT_NODE)
+        .map((n) => n.textContent)
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!text) return;
+      [...lane.childNodes].forEach((n) => {
+        if (n.nodeType === Node.TEXT_NODE) n.remove();
+      });
+      const label = document.createElement('div');
+      label.className = 'lane-label';
+      label.textContent = text;
+      lane.appendChild(label);
+    });
+  }
+
+  /**
+   * Widen `--lane` to the widest SWL chip (+ air) so slice 1 clears the labels.
+   */
+  function sizeLaneColumn() {
+    const board = document.querySelector('.board');
+    if (!board) return;
+    const boardLeft = board.getBoundingClientRect().left;
+    let maxRight = 0;
+    document.querySelectorAll('.board > .lane.open > .lane-label').forEach((el) => {
+      maxRight = Math.max(maxRight, el.getBoundingClientRect().right - boardLeft);
+    });
+    const corner = document.querySelector('.board > .lane:first-child');
+    const tools = corner && corner.querySelector('.emd-corner-tools');
+    if (tools) {
+      maxRight = Math.max(maxRight, tools.getBoundingClientRect().right - boardLeft);
+    }
+    if (maxRight <= 0) return;
+    const pad = 8;
+    const minPx = 68; /* ~4.25rem floor for gear + ? */
+    const px = Math.max(minPx, Math.ceil(maxRight + pad));
+    const next = px + 'px';
+    if (document.documentElement.style.getPropertyValue('--lane') === next) return;
+    document.documentElement.style.setProperty('--lane', next);
+    window.dispatchEvent(new Event('emd:retile'));
+  }
+
   function mount() {
     // Drop abandoned scroll-lerp experiment (fought trackpad momentum).
     try {
       localStorage.removeItem('emd-scroll-lerp');
     } catch (_) {}
 
+    mountLaneLabels();
+
     const corner = document.querySelector('.board > .lane:first-child');
-    if (!corner || corner.querySelector('.emd-corner-tools')) return;
+    if (!corner || corner.querySelector('.emd-corner-tools')) {
+      sizeLaneColumn();
+      return;
+    }
 
     const fade0 = applyFade(readNum(FADE_KEY, FADE_DEFAULT));
     const tile0 = applyTile(readNum(TILE_KEY, TILE_DEFAULT), false);
@@ -296,6 +357,8 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closePanels(corner);
     });
+
+    sizeLaneColumn();
   }
 
   if (document.readyState === 'loading') {
