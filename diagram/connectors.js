@@ -2315,15 +2315,24 @@
         tagCorridorPieces(pieces, [j.id]);
       });
       crossLower.forEach((j) => {
-        const si = j.toSi;
-        const pieces = piecesFromGaps([
-          ...emd.querySelectorAll(`.cell.uba[data-slc="${si}"] .gap`),
-        ]);
-        const mba = emd.querySelector(`.cell.mba[data-slc="${si}"]`);
-        if (mba) {
-          const gaps = [...mba.querySelectorAll(':scope > .gap')];
+        const pieces = [];
+        // Destination: UBA + MBA top corridor into the RMO/SCR.
+        const toSi = j.toSi;
+        pieces.push(
+          ...piecesFromGaps([
+            ...emd.querySelectorAll(`.cell.uba[data-slc="${toSi}"] .gap`),
+          ])
+        );
+        const toMba = emd.querySelector(`.cell.mba[data-slc="${toSi}"]`);
+        if (toMba) {
+          const gaps = [...toMba.querySelectorAll(':scope > .gap')];
           if (gaps[0]) pieces.push(...piecesFromGaps([gaps[0]]));
         }
+        // Source: LBA arrow onto the EVT — same corridor as the local COM→EVT
+        // write shaft. Without this, outbound stubs look "unjoined" from the card.
+        emd.querySelectorAll(`.cell.lba[data-slc="${j.fromSi}"]`).forEach((lba) => {
+          pieces.push(...piecesFromGaps([...lba.querySelectorAll('.gap')]));
+        });
         tagCorridorPieces(pieces, [j.id]);
       });
       // Upper RMO→SCR: only the destination SCR corridor (CSS under the SCR).
@@ -2682,9 +2691,13 @@
         const localJoinIds = localList
           .filter((j) => j.from.si === si || j.to.si === si)
           .map((j) => j.id);
+        // Outbound EVT→RMO joins share the center write shaft + LBA arrow with the
+        // local COM→EVT join; include them so path-focus lights the card corridor.
+        const outJoinIds = outFrom[si].map((j) => j.id);
         const vertJoinIds = [
           ...new Set([
             ...localJoinIds,
+            ...outJoinIds,
             ...((corridorExtra && corridorExtra[si]) || []),
           ]),
         ];
@@ -2713,9 +2726,11 @@
           const ox = outXs[oi];
           const ids = [j.id];
           const hops = new Set(hopYsAt(ox));
+          // Drop straight down to the EVT (no stub-row jog/elbow). Aim a hair
+          // past the card top so the shaft meets the edge.
           const mr = middle.getBoundingClientRect();
-          const fromTop = j.fromEl.getBoundingClientRect().top - mr.top;
-
+          const fromTop =
+            Math.round(j.fromEl.getBoundingClientRect().top - mr.top) + 2;
           if (fromTop > stubY + TILE) {
             placeShaftV(middle, ox, stubY + TILE, fromTop - (stubY + TILE), ids);
           }
@@ -2756,7 +2771,9 @@
           const ids = [j.id];
           const hops = hopYsAt(ax);
           const mr = middle.getBoundingClientRect();
-          const toBottom = j.toEl.getBoundingClientRect().bottom - mr.top;
+          // Overlap the card slightly so the arrow-up tip seats on the edge.
+          const toBottom =
+            Math.round(j.toEl.getBoundingClientRect().bottom - mr.top) - 2;
 
           placeShaftHHopped(
             middle,

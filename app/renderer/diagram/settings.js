@@ -147,25 +147,19 @@
   }
 
   /**
-   * Widen `--lane` to the widest SWL chip (+ air) so slice 1 clears the labels,
-   * and park `--lane-label-top` under the sticky WFL / corner tools band.
+   * `--lane` fits the corner tools only (keeps WFL tight). SWL chips float over
+   * the board; `--lane-label-clearance` pads slice 1 so content clears them.
+   * Also parks `--lane-label-top` under the sticky WFL / corner band.
    */
   function sizeLaneColumn() {
     const root = document.documentElement;
     const board = document.querySelector('.board');
     if (!board) return;
     const boardLeft = board.getBoundingClientRect().left;
-    let maxRight = 0;
-    document.querySelectorAll('.board > .lane.open > .lane-label').forEach((el) => {
-      maxRight = Math.max(maxRight, el.getBoundingClientRect().right - boardLeft);
-    });
     const corner = document.querySelector('.board > .lane:first-child');
     const tools = corner && corner.querySelector('.emd-corner-tools');
-    if (tools) {
-      maxRight = Math.max(maxRight, tools.getBoundingClientRect().right - boardLeft);
-    }
-    // Sticky SWL chips must sit below the workflow row (corner is taller than
-    // the old 2.5rem offset, so labels were clipped under Settings / ?).
+
+    // Sticky SWL chips must sit below the workflow row.
     let labelTop = 0;
     const wfl = board.querySelector(':scope > .wfl');
     if (wfl) labelTop = Math.max(labelTop, wfl.getBoundingClientRect().height);
@@ -175,14 +169,34 @@
     if (root.style.getPropertyValue('--lane-label-top') !== topNext) {
       root.style.setProperty('--lane-label-top', topNext);
     }
-    if (maxRight <= 0) return;
-    const pad = 8;
-    const minPx = 68; /* ~4.25rem floor for gear + ? */
-    const px = Math.max(minPx, Math.ceil(maxRight + pad));
-    const next = px + 'px';
-    if (root.style.getPropertyValue('--lane') === next) return;
-    root.style.setProperty('--lane', next);
-    window.dispatchEvent(new Event('emd:retile'));
+
+    const minPx = 68; /* ~ gear + ? */
+    let lanePx = minPx;
+    if (tools) {
+      const toolsRight = tools.getBoundingClientRect().right - boardLeft;
+      // Corner cell padding is already in the tools box; small air past the ?.
+      lanePx = Math.max(minPx, Math.ceil(toolsRight + 6));
+    }
+    const laneNext = lanePx + 'px';
+
+    let labelRight = 0;
+    document.querySelectorAll('.board > .lane.open > .lane-label').forEach((el) => {
+      labelRight = Math.max(labelRight, el.getBoundingClientRect().right - boardLeft);
+    });
+    const clearPx =
+      labelRight > 0 ? Math.max(0, Math.ceil(labelRight - lanePx + 8)) : 0;
+    const clearNext = clearPx + 'px';
+
+    let changed = false;
+    if (root.style.getPropertyValue('--lane') !== laneNext) {
+      root.style.setProperty('--lane', laneNext);
+      changed = true;
+    }
+    if (root.style.getPropertyValue('--lane-label-clearance') !== clearNext) {
+      root.style.setProperty('--lane-label-clearance', clearNext);
+      changed = true;
+    }
+    if (changed) window.dispatchEvent(new Event('emd:retile'));
   }
 
   function mount() {

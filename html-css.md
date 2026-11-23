@@ -73,7 +73,7 @@ Put a vertical corridor (`.arr.v` with shaft + `arrow-down`) between every conse
 
 An empty cell stays an empty `div`. Do not put a placeholder in it.
 
-Slice cells have no bottom border (including the LBA `foot` row) and no vertical borders between columns. Mark the lane labels in open rows with `open`, and the last service row with `foot` (for layout, not a bottom rule). The workflow row has no horizontal line above or below it. Large `.lane` cells are a transparent stub (behind slices, click-through); SWL names live in small floating `.lane-label` chips (normal type size) that stick over the board. `diagram/settings.js` wraps plain lane text into those chips on load and sets `--lane` to the widest chip (+ air) so slice 1 clears the labels. The corner gear/`?` lane stays opaque and clickable.
+Slice cells have no bottom border (including the LBA `foot` row) and no vertical borders between columns. Mark the lane labels in open rows with `open`, and the last service row with `foot` (for layout, not a bottom rule). The workflow row has no horizontal line above or below it. Large `.lane` cells are a transparent stub (behind slices, click-through); SWL names live in small floating `.lane-label` chips (normal type size) that stick over the board. `diagram/settings.js` wraps plain lane text into those chips on load, sizes `--lane` to the Settings/? chip (same floating chrome as USR labels — not a solid corner panel), and sets `--lane-label-clearance` on slice 1 body cells so cards clear the longer SWL names.
 
 ### Scroll stacking
 
