@@ -789,28 +789,174 @@
       });
     }
 
-    /** Whole history strip slides so the selected step’s top meets the overlay pin. */
-    function slideScrubToStep(i) {
-      if (!emd._rmoScrub || i < 0) return;
-      const { col, stepEls } = emd._rmoScrub;
-      const row = stepEls[i];
-      if (!row) return;
-      // Arrow is position:absolute at top:0 on the overlay — pin in overlay space.
-      col.style.transform = `translateY(${-row.offsetTop}px)`;
+    /** Max tape offset: last step’s top under the pin. */
+    function scrubMaxY() {
+      if (!emd._rmoScrub) return 0;
+      const { stepEls } = emd._rmoScrub;
+      const last = stepEls[stepEls.length - 1];
+      return last ? last.offsetTop : 0;
     }
 
-    function positionScrubOverlay() {
+    /** Step currently under the pin for a given tape offset. */
+    function stepIndexAtY(y) {
+      const { stepEls } = emd._rmoScrub;
+      let i = 0;
+      for (let k = 0; k < stepEls.length; k++) {
+        if (stepEls[k].offsetTop <= y + 0.5) i = k;
+        else break;
+      }
+      return i;
+    }
+
+    /** Sync selected step / RMO layer / path highlight — does not move the tape. */
+    function applyScrubIndex(i) {
       if (!emd._rmoScrub) return;
-      const { shell, slide, rmo } = emd._rmoScrub;
+      const { stepEls, layers } = emd._rmoScrub;
+      const next = Math.max(0, Math.min(i, stepEls.length - 1));
+      const prev = emd._rmoScrub.index;
+      if (next === prev) return;
+      if (prev >= 0) {
+        stepEls[prev].classList.remove('is-selected');
+        if (layers[prev]) layers[prev].classList.remove('is-active');
+      }
+      emd._rmoScrub.index = next;
+      stepEls[next].classList.add('is-selected');
+      if (layers[next]) layers[next].classList.add('is-active');
+      highlightScrubStep(next);
+    }
+
+    function stopScrubMomentum() {
+      const scrub = emd._rmoScrub;
+      if (!scrub) return;
+      if (scrub._momentumRaf) {
+        cancelAnimationFrame(scrub._momentumRaf);
+        scrub._momentumRaf = 0;
+      }
+      scrub.velocity = 0;
+      scrub._momentumLast = 0;
+    }
+
+    /** Coast the tape after a wheel flick or drag release. */
+    function tickScrubMomentum(now) {
+      const scrub = emd._rmoScrub;
+      if (!scrub) return;
+      const last = scrub._momentumLast || now;
+      const dt = Math.min(0.048, Math.max(0.001, (now - last) / 1000));
+      scrub._momentumLast = now;
+      // Exponential friction (~ glide, then settle).
+      scrub.velocity *= Math.exp(-3.2 * dt);
+      if (Math.abs(scrub.velocity) < 8) {
+        scrub.velocity = 0;
+        scrub._momentumRaf = 0;
+        return;
+      }
+      const max = scrubMaxY();
+      let next = scrub.scrollY + scrub.velocity * dt;
+      if (next <= 0) {
+        next = 0;
+        scrub.velocity = 0;
+      } else if (next >= max) {
+        next = max;
+        scrub.velocity = 0;
+      }
+      setScrubScrollY(next, { jump: true });
+      if (scrub.velocity === 0) {
+        scrub._momentumRaf = 0;
+        return;
+      }
+      scrub._momentumRaf = requestAnimationFrame(tickScrubMomentum);
+    }
+
+    function startScrubMomentum() {
+      const scrub = emd._rmoScrub;
+      if (!scrub || Math.abs(scrub.velocity || 0) < 8) {
+        if (scrub) scrub.velocity = 0;
+        return;
+      }
+      if (scrub._momentumRaf) return;
+      scrub._momentumLast = performance.now();
+      scrub._momentumRaf = requestAnimationFrame(tickScrubMomentum);
+    }
+
+    /**
+     * Scroll the tape so offset `y` sits under the pin. Wheel / drag feed
+     * velocity for momentum; click / arrows can `{ seek: true }` for a short ease.
+     */
+    function setScrubScrollY(y, opts) {
+      if (!emd._rmoScrub) return;
+      const { shell, col } = emd._rmoScrub;
+      const max = scrubMaxY();
+      const next = Math.max(0, Math.min(Number(y) || 0, max));
+      // Seek eases to a clicked / arrow target; everything else tracks 1:1.
+      const seek = !!(opts && opts.seek) && !(opts && opts.jump);
+      if (seek) stopScrubMomentum();
+      if (emd._rmoScrub._seekClear) {
+        col.removeEventListener('transitionend', emd._rmoScrub._seekClear);
+        emd._rmoScrub._seekClear = null;
+      }
+      shell.classList.toggle('is-seeking', seek);
+      emd._rmoScrub.scrollY = next;
+      col.style.transform = `translateY(${-next}px)`;
+      applyScrubIndex(stepIndexAtY(next));
+      if (seek) {
+        const clearSeek = (ev) => {
+          if (ev && ev.propertyName && ev.propertyName !== 'transform') return;
+          if (!emd._rmoScrub) return;
+          shell.classList.remove('is-seeking');
+          col.removeEventListener('transitionend', clearSeek);
+          emd._rmoScrub._seekClear = null;
+        };
+        emd._rmoScrub._seekClear = clearSeek;
+        col.addEventListener('transitionend', clearSeek);
+      }
+    }
+
+    /** Align a step’s top with the pin (open / click / arrow). */
+    function selectRmoScrubStep(index, opts) {
+      if (!emd._rmoScrub) return;
+      const { stepEls } = emd._rmoScrub;
+      const i = Math.max(0, Math.min(index, stepEls.length - 1));
+      const row = stepEls[i];
+      if (!row) return;
+      stopScrubMomentum();
+      setScrubScrollY(row.offsetTop, opts);
+    }
+
+    /**
+     * Pin the strip beside the scrubbed RMO card. Prefer the left; flip to the
+     * right (and reverse the arrow) when there is no room — the pin always
+     * points at `rmo`, not away from it.
+     */
+    function positionScrubOverlay(opts) {
+      if (!emd._rmoScrub) return;
+      const { shell, slide, arrow, rmo } = emd._rmoScrub;
       const r = rmo.getBoundingClientRect();
       const gap = 10;
-      const arrowSpace = 14; // room for absolute pin between tape and RMO
+      const arrowSpace = Math.max(
+        14,
+        (arrow && arrow.offsetWidth) || 14
+      );
       const w = (slide && slide.offsetWidth) || shell.offsetWidth || 220;
-      let left = r.left - w - arrowSpace - gap;
-      if (left < 8) left = Math.min(r.right + gap, window.innerWidth - w - 8);
+      const preferLeft = r.left - w - arrowSpace - gap;
+      const flipped = preferLeft < 8;
+      shell.classList.toggle('is-flipped', flipped);
+      let left;
+      if (flipped) {
+        left = Math.min(r.right + gap, window.innerWidth - w - arrowSpace - 8);
+      } else {
+        left = preferLeft;
+      }
+      // Align pin with the RMO title band (card top) — the card beside the arrow.
       shell.style.left = `${Math.round(left)}px`;
       shell.style.top = `${Math.round(r.top)}px`;
-      if (emd._rmoScrub.index >= 0) slideScrubToStep(emd._rmoScrub.index);
+      // Keep continuous tape offset (re-clamp after scale/retile).
+      const y =
+        emd._rmoScrub.scrollY != null
+          ? emd._rmoScrub.scrollY
+          : emd._rmoScrub.index >= 0
+            ? emd._rmoScrub.stepEls[emd._rmoScrub.index]?.offsetTop || 0
+            : 0;
+      setScrubScrollY(y, opts && opts.jump ? { jump: true } : { jump: true });
     }
 
     function ensureRmoClock(rmoEl) {
@@ -853,11 +999,16 @@
 
     function closeRmoScrub() {
       if (!emd._rmoScrub) return;
-      const { rmo, savedBody, shell, onReposition, onOutside } = emd._rmoScrub;
+      stopScrubMomentum();
+      const { rmo, savedBody, shell, onReposition, onOutside, onRetile } =
+        emd._rmoScrub;
       if (onReposition) {
         emd.removeEventListener('scroll', onReposition);
         window.removeEventListener('scroll', onReposition, true);
         window.removeEventListener('resize', onReposition);
+      }
+      if (onRetile) {
+        window.removeEventListener('emd:retile', onRetile);
       }
       if (onOutside) {
         document.removeEventListener('pointerdown', onOutside, true);
@@ -873,30 +1024,6 @@
       emd._rmoScrub = null;
       setRmoClockVisible(rmo, rmo.matches(':hover'));
       afterScrubLayout();
-    }
-
-    function selectRmoScrubStep(index) {
-      if (!emd._rmoScrub) return;
-      const { stepEls, layers } = emd._rmoScrub;
-      const i = Math.max(0, Math.min(index, stepEls.length - 1));
-      if (i === emd._rmoScrub.index) return;
-      const prev = emd._rmoScrub.index;
-      if (prev >= 0) {
-        stepEls[prev].classList.remove('is-selected');
-        if (layers[prev]) layers[prev].classList.remove('is-active');
-      }
-      emd._rmoScrub.index = i;
-      stepEls[i].classList.add('is-selected');
-      if (layers[i]) layers[i].classList.add('is-active');
-      // Strip moves under the pointer — ignore hover re-entry for a frame.
-      emd._rmoScrub.ignoreHover = true;
-      slideScrubToStep(i);
-      highlightScrubStep(i);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (emd._rmoScrub) emd._rmoScrub.ignoreHover = false;
-        });
-      });
     }
 
     function openRmoScrub(rmoEl) {
@@ -943,9 +1070,10 @@
           clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
           row.appendChild(clone);
         }
-        row.addEventListener('mouseenter', () => {
-          if (emd._rmoScrub && emd._rmoScrub.ignoreHover) return;
-          selectRmoScrubStep(idx);
+        // Click seeks (ignored after a drag). Wheel / drag free-scroll with momentum.
+        row.addEventListener('click', () => {
+          if (emd._rmoScrub && emd._rmoScrub._dragMoved) return;
+          selectRmoScrubStep(idx, { seek: true });
         });
         col.appendChild(row);
         return row;
@@ -955,11 +1083,81 @@
         if (!emd._rmoScrub) return;
         e.preventDefault();
         e.stopPropagation();
-        const delta = e.deltaY === 0 ? e.deltaX : e.deltaY;
+        let delta = e.deltaY === 0 ? e.deltaX : e.deltaY;
         if (delta === 0) return;
-        selectRmoScrubStep(emd._rmoScrub.index + (delta > 0 ? 1 : -1));
+        // Normalize line/page deltas to pixels so the tape tracks the wheel.
+        if (e.deltaMode === 1) delta *= 16;
+        else if (e.deltaMode === 2) delta *= 48;
+        const scrub = emd._rmoScrub;
+        if (scrub._seekClear) {
+          scrub.col.removeEventListener('transitionend', scrub._seekClear);
+          scrub._seekClear = null;
+          scrub.shell.classList.remove('is-seeking');
+        }
+        // Impulse + short immediate move; RAF coasts the rest.
+        const impulse = delta * 14;
+        scrub.velocity = (scrub.velocity || 0) * 0.55 + impulse;
+        setScrubScrollY(scrub.scrollY + delta * 0.45, { jump: true });
+        if (!scrub._momentumRaf) {
+          scrub._momentumLast = performance.now();
+          scrub._momentumRaf = requestAnimationFrame(tickScrubMomentum);
+        }
       };
       shell.addEventListener('wheel', onWheel, { passive: false });
+
+      // Drag the tape like a physical strip; release keeps momentum.
+      const onPointerDown = (e) => {
+        if (!emd._rmoScrub || e.button !== 0) return;
+        const scrub = emd._rmoScrub;
+        stopScrubMomentum();
+        if (scrub._seekClear) {
+          scrub.col.removeEventListener('transitionend', scrub._seekClear);
+          scrub._seekClear = null;
+          scrub.shell.classList.remove('is-seeking');
+        }
+        scrub._dragging = true;
+        scrub._dragMoved = false;
+        scrub._dragLastY = e.clientY;
+        scrub._dragLastT = performance.now();
+        scrub.velocity = 0;
+        scrub.shell.classList.add('is-dragging');
+        try {
+          col.setPointerCapture(e.pointerId);
+        } catch (_) {
+          /* ignore */
+        }
+      };
+      const onPointerMove = (e) => {
+        const scrub = emd._rmoScrub;
+        if (!scrub || !scrub._dragging) return;
+        const dy = scrub._dragLastY - e.clientY;
+        const now = performance.now();
+        const dt = Math.max(1, now - scrub._dragLastT);
+        if (Math.abs(dy) > 2) scrub._dragMoved = true;
+        setScrubScrollY(scrub.scrollY + dy, { jump: true });
+        // px/s from this sample (blend so release velocity is stable).
+        const sample = (dy / dt) * 1000;
+        scrub.velocity = scrub.velocity * 0.35 + sample * 0.65;
+        scrub._dragLastY = e.clientY;
+        scrub._dragLastT = now;
+      };
+      const onPointerUp = () => {
+        const scrub = emd._rmoScrub;
+        if (!scrub || !scrub._dragging) return;
+        scrub._dragging = false;
+        scrub.shell.classList.remove('is-dragging');
+        startScrubMomentum();
+        // Keep _dragMoved through the click that follows pointerup.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (emd._rmoScrub) emd._rmoScrub._dragMoved = false;
+          });
+        });
+      };
+      col.addEventListener('pointerdown', onPointerDown);
+      col.addEventListener('pointermove', onPointerMove);
+      col.addEventListener('pointerup', onPointerUp);
+      col.addEventListener('pointercancel', onPointerUp);
 
       slide.appendChild(col);
       const arrow = document.createElement('div');
@@ -983,12 +1181,18 @@
         if (t && t.closest && t.closest('.emd-rmo-scrub, .emd-rmo-clock')) return;
         closeRmoScrub();
       };
+      const onRetile = () => positionScrubOverlay({ jump: true });
       emd._rmoScrub = {
         rmo: rmoEl,
         steps,
         openIndex,
         familyIds,
         index: -1,
+        scrollY: 0,
+        velocity: 0,
+        _momentumRaf: 0,
+        _dragging: false,
+        _dragMoved: false,
         savedBody,
         shell,
         slide,
@@ -996,23 +1200,24 @@
         arrow,
         stepEls,
         layers,
-        ignoreHover: false,
         onReposition,
         onOutside,
+        onRetile,
       };
       emd.addEventListener('scroll', onReposition, { passive: true });
       window.addEventListener('scroll', onReposition, { passive: true, capture: true });
       window.addEventListener('resize', onReposition);
+      window.addEventListener('emd:retile', onRetile);
       // Defer so the opening clock click cannot immediately dismiss.
       requestAnimationFrame(() => {
         document.addEventListener('pointerdown', onOutside, true);
       });
       // Open step first (active layer), pin beside the RMO before first paint,
       // then retile shafts to the final RMO box and re-pin if the card shifted.
-      selectRmoScrubStep(openIndex);
-      positionScrubOverlay();
+      selectRmoScrubStep(openIndex, { jump: true });
+      positionScrubOverlay({ jump: true });
       shell.style.visibility = '';
-      afterScrubLayout(() => positionScrubOverlay());
+      afterScrubLayout(() => positionScrubOverlay({ jump: true }));
       col.focus({ preventScroll: true });
     }
 
@@ -2590,7 +2795,10 @@
       window.addEventListener('keydown', (e) => {
         if (emd._rmoScrub && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
           e.preventDefault();
-          selectRmoScrubStep(emd._rmoScrub.index + (e.key === 'ArrowUp' ? -1 : 1));
+          selectRmoScrubStep(
+            emd._rmoScrub.index + (e.key === 'ArrowUp' ? -1 : 1),
+            { seek: true }
+          );
           return;
         }
         if (e.key !== 'Escape') return;

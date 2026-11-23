@@ -870,20 +870,23 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   outline: none;
 }
 /* History strip + pin arrow live on a fixed overlay (body) — never in the board
-   grid, so they cannot reflow MBA cells or break connector tiles. */
+   grid, so they cannot reflow MBA cells or break connector tiles. Follows
+   --scale like MBA cards (overlay is outside .mba). */
 .emd-rmo-scrub {
   position: fixed;
   z-index: 1000;
   box-sizing: border-box;
   display: block;
   width: max-content;
-  max-width: min(18rem, 44vw);
+  max-width: min(calc(18rem * var(--scale)), 44vw);
   overflow: visible;
   padding: 0;
   background: transparent;
   border: 0;
   box-shadow: none;
   pointer-events: none;
+  font-size: calc(14px * var(--scale));
+  line-height: 1.35;
 }
 .emd-rmo-scrub-slide {
   pointer-events: auto;
@@ -893,28 +896,46 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.4em;
   outline: none;
-  padding: 0.35rem;
+  padding: 0.35em;
   background: #fff;
   border: 1px solid #c8c8c8;
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(28, 28, 28, 0.18);
   will-change: transform;
+  /* Free-scroll by default (wheel tracks 1:1). `.is-seeking` eases click / arrow seeks. */
 }
-/* Pin sits on the overlay layer beside the tape — absolute, out of flow. */
+.emd-rmo-scrub.is-seeking .emd-rmo-scrub-col {
+  transition: transform 0.28s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .emd-rmo-scrub.is-seeking .emd-rmo-scrub-col {
+    transition: none;
+  }
+}
+/* Pin points at the scrubbed RMO — right of the tape by default; flips when the
+   strip sits on the card’s right (`.is-flipped`). */
 .emd-rmo-scrub-arrow {
   position: absolute;
   left: 100%;
   top: 0;
-  margin-left: 0.35rem;
+  margin-left: 0.35em;
   width: 0;
   height: 0;
-  border-top: 0.55rem solid transparent;
-  border-bottom: 0.55rem solid transparent;
-  border-right: 0.85rem solid #6a9e7c;
+  border-top: 0.55em solid transparent;
+  border-bottom: 0.55em solid transparent;
+  border-right: 0.85em solid #6a9e7c;
   filter: drop-shadow(0 1px 2px rgba(28, 28, 28, 0.2));
   pointer-events: none;
+}
+.emd-rmo-scrub.is-flipped .emd-rmo-scrub-arrow {
+  left: auto;
+  right: 100%;
+  margin-left: 0;
+  margin-right: 0.35em;
+  border-right: 0;
+  border-left: 0.85em solid #6a9e7c;
 }
 /* Prefetched bodies over an invisible sizer — same box as the default RMO, no scrollbars. */
 .rmo.is-scrubbing > .emd-rmo-scrub-stack {
@@ -955,11 +976,15 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   pointer-events: none;
 }
 .emd-rmo-scrub-step {
-  cursor: pointer;
+  cursor: grab;
   border-radius: 4px;
-  padding: 0.15rem;
+  padding: 0.15em;
   border: 1px solid transparent;
   opacity: 0.72;
+  /* No hover chrome — the pin marks place; tape is for dragging / wheeling. */
+}
+.emd-rmo-scrub.is-dragging .emd-rmo-scrub-step {
+  cursor: grabbing;
 }
 /* EVTs this RMO projects (EMD GWT) — lit; context/future stay readable but quiet. */
 .emd-rmo-scrub-step.is-progress {
@@ -968,32 +993,28 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
 .emd-rmo-scrub-step.is-context {
   opacity: 0.38;
 }
-.emd-rmo-scrub-step:hover,
+/* Under-pin step: opacity only (no border / fill flash). */
 .emd-rmo-scrub-step.is-selected {
   opacity: 1;
-  border-color: #6a9e7c;
-  background: rgba(141, 206, 164, 0.25);
 }
-.emd-rmo-scrub-step.is-context:hover,
 .emd-rmo-scrub-step.is-context.is-selected {
-  border-color: #b0b0b0;
-  background: rgba(120, 120, 120, 0.12);
+  opacity: 0.55;
 }
 .emd-rmo-scrub-step > article.evt {
   margin: 0;
   width: 100%;
   max-width: none;
-  font-size: 0.85em;
+  font-size: 1em;
 }
 .emd-rmo-scrub-blank {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.4rem;
+  min-height: 2.4em;
   background: #f3f6f4;
 }
 .emd-rmo-scrub-blank-label {
-  font-size: 0.85rem;
+  font-size: 0.85em;
   font-weight: 600;
   color: #444;
 }
