@@ -10,6 +10,7 @@
   const HOVER_CONNECTORS_KEY = 'emd-hover-connectors';
   const HOVER_VALUES_KEY = 'emd-hover-values';
   const HOVER_CARDS_KEY = 'emd-hover-cards';
+  const HOVER_CLIPPED_ENDS_KEY = 'emd-hover-clipped-ends';
   const HOVER_DELAY_KEY = 'emd-hover-delay';
   const FADE_DEFAULT = 0.2;
   const TILE_DEFAULT = 16;
@@ -228,6 +229,11 @@
       'emdHoverCards',
       readBool(HOVER_CARDS_KEY, true)
     );
+    const hoverClippedEnds0 = applyHoverPref(
+      HOVER_CLIPPED_ENDS_KEY,
+      'emdHoverClippedEnds',
+      readBool(HOVER_CLIPPED_ENDS_KEY, true)
+    );
     const hoverDelay0 = applyHoverDelay(
       readNum(HOVER_DELAY_KEY, HOVER_DELAY_DEFAULT)
     );
@@ -287,6 +293,9 @@
       '<label class="emd-settings-check"><input id="emd-hover-cards" type="checkbox"' +
       (hoverCards0 ? ' checked' : '') +
       '> Cards</label>' +
+      '<label class="emd-settings-check"><input id="emd-hover-clipped-ends" type="checkbox"' +
+      (hoverClippedEnds0 ? ' checked' : '') +
+      '> Off-screen ends</label>' +
       '<label class="emd-settings-field">' +
       '<span class="emd-settings-label">Hover delay <output id="emd-hover-delay-out">' +
       delayLabel(hoverDelay0) +
@@ -308,10 +317,10 @@
       '<li>Arrows are the data flow <strong>only left → right in story time</strong>: screen → command → event (or error), event → a <strong>later</strong> read model → screen, and a read model → a <strong>later</strong> screen when that view first loads (connector band above commands/read models). A column only knows itself and columns to its left — never join a later event back into an earlier read model. Several events into the same read model stay on consecutive connector rows (bundled, not merged). Later screens that show the same values again do so by session or query convention — no second arrow. A <strong>MAP</strong> on an arrow names inputs → outputs when data changes shape.</li>' +
       '<li><strong>SCR highlights</strong> — COM-bound values (and the action button / checked radios that feed the COM) are light blue; RMO-bound values are light green. Radios use the same sketch stroke as other controls. Paint values only — not labels or headers. Shared views appear in every actor swim lane that uses them. An SPA keeps one layout and only the live fields change per slice.</li>' +
       '<li><strong>Lane chrome</strong> — swim-lane names and Settings/? are floating chips on a narrow sticky stub (not a wide solid panel). Slice 1 is padded so cards clear longer names.</li>' +
-      '<li><strong>Hover</strong> a card, connector piece (tile/shaft — not empty gap), or property value to keep that path lit. A value isolates that example (same name and value) across COM / EVT / RMO / SCR, including carried-forward screen fields; MAP renames still follow. On a COM slice, lighting the COM→EVT write also lights the SCR↔COM upper shaft in that column (the screen is part of the write path even when the locked value is a later MAP rename that never sat on the form).</li>' +
+      '<li><strong>Hover</strong> a card, connector piece (tile/shaft — not empty gap), or property value to keep that path lit. A value isolates that example (same name and value) across COM / EVT / RMO / SCR, including carried-forward screen fields; MAP renames still follow. On a COM slice, lighting the COM→EVT write also lights the SCR↔COM upper shaft in that column (the screen is part of the write path even when the locked value is a later MAP rename that never sat on the form). On a horizontal connector, if either end is off-screen, a title chip appears left or right of the pointer (toggle with <strong>Off-screen ends</strong> in Settings).</li>' +
       '<li><strong>Lock</strong> — click the hovered value, card, or MAP. The top-right padlock bar names what is locked; ‹ › centers other instances without changing the label. Release with the padlock, click elsewhere, or Escape. Connectors never lock (click only scrolls clipped ends into view).</li>' +
       '<li><strong>RMO replayer</strong> — hover an MBA RMO for a replay control; click opens a floating EVT tape pinned beside that card (prefer left; flip + reverse the pin when there is no room). The strip scales with <strong>Scale items</strong>. Wheel or drag free-scrolls the tape with momentum under a fixed pin (no per-EVT snap, no hover highlight on tape cards); the RMO updates when the next step reaches the pin. Click a step or Arrow Up/Down to seek. Start + subscribed feeds only; same-title EMD GWTs chain to the final footprint. Replay again, click outside, or Escape closes.</li>' +
-      '<li><strong>Settings (gear)</strong> — scale (cards + RMO history strip), fade, connector tile size, hover delay (0–5s), and which hover highlights are on (connectors, values, cards — all on by default).</li>' +
+      '<li><strong>Settings (gear)</strong> — scale (cards + RMO history strip), fade, connector tile size, hover delay (0–5s), and which hover highlights are on (connectors, values, cards, off-screen ends — all on by default).</li>' +
       '</ul>' +
       '</div>';
 
@@ -328,6 +337,7 @@
     const hoverConnectorsInput = corner.querySelector('#emd-hover-connectors');
     const hoverValuesInput = corner.querySelector('#emd-hover-values');
     const hoverCardsInput = corner.querySelector('#emd-hover-cards');
+    const hoverClippedEndsInput = corner.querySelector('#emd-hover-clipped-ends');
     const hoverDelayInput = corner.querySelector('#emd-hover-delay');
     const hoverDelayOut = corner.querySelector('#emd-hover-delay-out');
 
@@ -372,6 +382,13 @@
     });
     hoverCardsInput.addEventListener('change', () => {
       applyHoverPref(HOVER_CARDS_KEY, 'emdHoverCards', hoverCardsInput.checked);
+    });
+    hoverClippedEndsInput.addEventListener('change', () => {
+      applyHoverPref(
+        HOVER_CLIPPED_ENDS_KEY,
+        'emdHoverClippedEnds',
+        hoverClippedEndsInput.checked
+      );
     });
     hoverDelayInput.addEventListener('input', () => {
       hoverDelayOut.textContent = delayLabel(

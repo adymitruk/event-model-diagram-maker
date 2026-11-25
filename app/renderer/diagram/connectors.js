@@ -331,6 +331,7 @@
       });
       emd.querySelectorAll('.endpoint-hot').forEach((el) => el.classList.remove('endpoint-hot'));
       emd.querySelectorAll('.prop-hot').forEach((el) => el.classList.remove('prop-hot'));
+      hideClippedEndCues();
     }
 
     /**
@@ -1388,6 +1389,7 @@
     // Latest paint owns these so the one-shot scroll guard can call current logic.
     emd._hoverScrollBegin = () => {
       cancelHoverShow();
+      hideClippedEndCues();
       if (hoverClearTimer != null || emd._hoverClearPending) {
         cancelHoverClear();
         emd._hoverClearPending = true;
@@ -1403,6 +1405,12 @@
         (e) => {
           emd._hoverPointer.x = e.clientX;
           emd._hoverPointer.y = e.clientY;
+          if (
+            emd._clipCueActive &&
+            typeof emd._updateClippedEndCues === 'function'
+          ) {
+            emd._updateClippedEndCues(e.clientX, e.clientY);
+          }
         },
         { passive: true }
       );
@@ -2450,6 +2458,170 @@
       return el.dataset.joinIds;
     }
 
+    /** Settings: off-screen end chips beside the pointer (default on). */
+    function clippedEndsCueOn() {
+      return document.documentElement.dataset.emdHoverClippedEnds !== '0';
+    }
+
+    /** Horizontal run pieces only — shafts, hops, elbows (not vertical stubs). */
+    function isHorizontalHoverTarget(el) {
+      if (!el) return false;
+      const t = el.dataset.tile || '';
+      if (t === 'shaft-h' || el.classList.contains('shaft-h')) return true;
+      if (t === 'hop' || el.classList.contains('hop')) return true;
+      if (t.indexOf('elbow') === 0) return true;
+      return false;
+    }
+
+    function hideClippedEndCues() {
+      emd._clipCueActive = null;
+      const layer = document.querySelector('.emd-clip-cues');
+      if (!layer) return;
+      layer.hidden = true;
+      layer.replaceChildren();
+    }
+
+    function ensureClipCueLayer() {
+      let layer = document.querySelector('.emd-clip-cues');
+      if (layer) return layer;
+      layer = document.createElement('div');
+      layer.className = 'emd-clip-cues';
+      layer.hidden = true;
+      layer.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(layer);
+      return layer;
+    }
+
+    function cueKindClass(card) {
+      return (
+        ['rmo', 'com', 'evt', 'err', 'scr', 'pro'].find((k) =>
+          card.classList.contains(k)
+        ) || 'card'
+      );
+    }
+
+    /**
+     * While hovering a horizontal connector, show title chips for any end that
+     * is not fully in the scrollport — left of the pointer when the card sits
+     * (or clips) leftward, right when rightward.
+     */
+    function updateClippedEndCues(clientX, clientY) {
+      const state = emd._clipCueActive;
+      if (!state || !clippedEndsCueOn() || emd._scrolling || focusLock()) {
+        if (!state) return;
+        hideClippedEndCues();
+        return;
+      }
+      const ends = endsForReveal(state.related, state.originEl);
+      const clipped = ends.filter((card) => card && !isFullyInScroller(card));
+      if (!clipped.length) {
+        const layer = document.querySelector('.emd-clip-cues');
+        if (layer) {
+          layer.hidden = true;
+          layer.replaceChildren();
+        }
+        return;
+      }
+
+      const x =
+        clientX != null
+          ? clientX
+          : emd._hoverPointer
+            ? emd._hoverPointer.x
+            : 0;
+      const y =
+        clientY != null
+          ? clientY
+          : emd._hoverPointer
+            ? emd._hoverPointer.y
+            : 0;
+      const v = effectiveViewport();
+      const left = [];
+      const right = [];
+      clipped.forEach((card) => {
+        const er = card.getBoundingClientRect();
+        const mid = (er.left + er.right) / 2;
+        if (er.right < v.left + 1) left.push(card);
+        else if (er.left > v.right - 1) right.push(card);
+        else if (mid < x) left.push(card);
+        else right.push(card);
+      });
+
+      const layer = ensureClipCueLayer();
+      layer.hidden = false;
+      layer.replaceChildren();
+
+      const GAP = 14;
+      const STACK = 6;
+      const placeSide = (cards, side) => {
+        const cues = cards.map((card) => {
+          const cue = document.createElement('div');
+          cue.className =
+            'emd-clip-cue emd-clip-cue--' + side + ' ' + cueKindClass(card);
+          const title = cardTitleOf(card) || cardKindOf(card);
+          cue.textContent = side === 'left' ? '‹ ' + title : title + ' ›';
+          cue.title = cardLockLabel(card);
+          layer.appendChild(cue);
+          return cue;
+        });
+        // Measure after append; stack vertically centered on the pointer.
+        let totalH = 0;
+        const heights = cues.map((cue) => {
+          const h = cue.offsetHeight || 28;
+          totalH += h;
+          return h;
+        });
+        totalH += Math.max(0, cues.length - 1) * STACK;
+        let top = y - totalH / 2;
+        cues.forEach((cue, i) => {
+          const h = heights[i];
+          const w = cue.offsetWidth || 120;
+          let leftPx =
+            side === 'left' ? x - GAP - w : x + GAP;
+          // Keep chips inside the window.
+          leftPx = Math.max(8, Math.min(leftPx, window.innerWidth - w - 8));
+          top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
+          cue.style.left = Math.round(leftPx) + 'px';
+          cue.style.top = Math.round(top) + 'px';
+          top += h + STACK;
+        });
+      };
+
+      placeSide(left, 'left');
+      placeSide(right, 'right');
+    }
+
+    function armClippedEndCues(originEl, joinIdsCsv) {
+      if (
+        !clippedEndsCueOn() ||
+        !isHorizontalHoverTarget(originEl) ||
+        focusLock() ||
+        emd._rmoReplay
+      ) {
+        hideClippedEndCues();
+        return;
+      }
+      const idSet = new Set(
+        String(joinIdsCsv || '')
+          .split(',')
+          .filter(Boolean)
+      );
+      const related = joins.filter((j) => idSet.has(String(j.id)));
+      if (!related.length) {
+        hideClippedEndCues();
+        return;
+      }
+      emd._clipCueActive = { originEl, related };
+      updateClippedEndCues(
+        emd._hoverPointer ? emd._hoverPointer.x : 0,
+        emd._hoverPointer ? emd._hoverPointer.y : 0
+      );
+    }
+
+    // Retile recreates these closures — one-shot listeners call through emd.
+    emd._hideClippedEndCues = hideClippedEndCues;
+    emd._updateClippedEndCues = updateClippedEndCues;
+
     function bindConnectorHover(el) {
       if (!el.dataset.joinIds) return;
       if (el._joinHover) {
@@ -2460,9 +2632,10 @@
       const enter = () => {
         if (focusLock() || emd._rmoReplay || !hoverOn('connectors')) return;
         const ids = joinIdsForConnector(el);
-        scheduleHoverHighlight(() =>
-          highlightByJoinIds(ids, { connectorHover: true })
-        );
+        scheduleHoverHighlight(() => {
+          highlightByJoinIds(ids, { connectorHover: true });
+          armClippedEndCues(el, ids);
+        });
       };
       const leave = () => {
         if (emd._rmoReplay) return;
@@ -2780,7 +2953,12 @@
 
     if (!emd._hoverPrefsBound) {
       emd._hoverPrefsBound = true;
-      window.addEventListener('emd:hover-prefs', () => unlockFocus());
+      window.addEventListener('emd:hover-prefs', () => {
+        unlockFocus();
+        if (typeof emd._hideClippedEndCues === 'function') {
+          emd._hideClippedEndCues();
+        }
+      });
     }
     // Empty board / chrome click clears a locked highlight (card handlers
     // stopPropagation when they re-lock, so those clicks stay locked).
