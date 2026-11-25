@@ -553,7 +553,7 @@ article { border: 0; border-radius: 1.14em; padding: 0.85em 1em 0.95em; backgrou
 }
 .mba > .com,
 .mba > .rmo,
-.mba > .emd-rmo-scrub-host,
+.mba > .emd-rmo-replay-host,
 .lba > .evt,
 .lba > .err {
   width: fit-content;
@@ -840,14 +840,14 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   padding: 0.35rem 0.15rem;
   border-radius: 4px;
 }
-/* MBA RMO title + clock (visible on hover / while scrubbing). */
+/* MBA RMO title + replay control (visible on hover / while replaying). */
 .rmo > h2.emd-rmo-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5em;
 }
-.emd-rmo-clock {
+.emd-rmo-replay-btn {
   display: none;
   flex: 0 0 auto;
   margin: 0;
@@ -860,19 +860,19 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   line-height: 0;
   cursor: pointer;
 }
-.emd-rmo-clock.is-visible,
-.rmo.is-scrubbing > h2 .emd-rmo-clock {
+.emd-rmo-replay-btn.is-visible,
+.rmo.is-replaying > h2 .emd-rmo-replay-btn {
   display: inline-flex;
 }
-.emd-rmo-clock:hover,
-.emd-rmo-clock:focus-visible {
+.emd-rmo-replay-btn:hover,
+.emd-rmo-replay-btn:focus-visible {
   background: rgba(0, 0, 0, 0.08);
   outline: none;
 }
 /* History strip + pin arrow live on a fixed overlay (body) — never in the board
    grid, so they cannot reflow MBA cells or break connector tiles. Follows
    --scale like MBA cards (overlay is outside .mba). */
-.emd-rmo-scrub {
+.emd-rmo-replay {
   position: fixed;
   z-index: 1000;
   box-sizing: border-box;
@@ -888,11 +888,11 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   font-size: calc(14px * var(--scale));
   line-height: 1.35;
 }
-.emd-rmo-scrub-slide {
+.emd-rmo-replay-slide {
   pointer-events: auto;
   overflow: visible;
 }
-.emd-rmo-scrub-col {
+.emd-rmo-replay-col {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -906,17 +906,17 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   will-change: transform;
   /* Free-scroll by default (wheel tracks 1:1). `.is-seeking` eases click / arrow seeks. */
 }
-.emd-rmo-scrub.is-seeking .emd-rmo-scrub-col {
+.emd-rmo-replay.is-seeking .emd-rmo-replay-col {
   transition: transform 0.28s ease;
 }
 @media (prefers-reduced-motion: reduce) {
-  .emd-rmo-scrub.is-seeking .emd-rmo-scrub-col {
+  .emd-rmo-replay.is-seeking .emd-rmo-replay-col {
     transition: none;
   }
 }
-/* Pin points at the scrubbed RMO — right of the tape by default; flips when the
+/* Pin points at the replayed RMO — right of the tape by default; flips when the
    strip sits on the card’s right (`.is-flipped`). */
-.emd-rmo-scrub-arrow {
+.emd-rmo-replay-arrow {
   position: absolute;
   left: 100%;
   top: 0;
@@ -929,7 +929,7 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   filter: drop-shadow(0 1px 2px rgba(28, 28, 28, 0.2));
   pointer-events: none;
 }
-.emd-rmo-scrub.is-flipped .emd-rmo-scrub-arrow {
+.emd-rmo-replay.is-flipped .emd-rmo-replay-arrow {
   left: auto;
   right: 100%;
   margin-left: 0;
@@ -938,18 +938,18 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   border-left: 0.85em solid #6a9e7c;
 }
 /* Prefetched bodies over an invisible sizer — same box as the default RMO, no scrollbars. */
-.rmo.is-scrubbing > .emd-rmo-scrub-stack {
+.rmo.is-replaying > .emd-rmo-replay-stack {
   position: relative;
   display: block;
   width: 100%;
-  /* Sized by the invisible end-footprint sizer; do not clip mid-scrub tables. */
+  /* Sized by the invisible end-footprint sizer; do not clip mid-replay tables. */
   overflow: visible;
 }
-.emd-rmo-scrub-sizer {
+.emd-rmo-replay-sizer {
   visibility: hidden;
   pointer-events: none;
 }
-.emd-rmo-scrub-layer {
+.emd-rmo-replay-layer {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -957,25 +957,25 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   visibility: hidden;
   pointer-events: none;
 }
-.emd-rmo-scrub-layer.is-active {
+.emd-rmo-replay-layer.is-active {
   visibility: visible;
   pointer-events: auto;
 }
-/* Simulator owns the board: no hover/click except the clock to close. */
-.emd.is-rmo-scrubbing .board {
+/* Replayer owns the board: no hover/click except the replay control to close. */
+.emd.is-rmo-replaying .board {
   pointer-events: none;
 }
-.emd.is-rmo-scrubbing .rmo.is-scrubbing > h2 .emd-rmo-clock {
+.emd.is-rmo-replaying .rmo.is-replaying > h2 .emd-rmo-replay-btn {
   pointer-events: auto;
 }
-/* While scrubbing, keep the RMO fully visible (overlay lives on body, above the board). */
-.emd.is-rmo-scrubbing .rmo.is-scrubbing {
+/* While replaying, keep the RMO fully visible (overlay lives on body, above the board). */
+.emd.is-rmo-replaying .rmo.is-replaying {
   opacity: 1;
 }
-.emd.is-rmo-scrubbing .emd-rmo-scrub-layer {
+.emd.is-rmo-replaying .emd-rmo-replay-layer {
   pointer-events: none;
 }
-.emd-rmo-scrub-step {
+.emd-rmo-replay-step {
   cursor: grab;
   border-radius: 4px;
   padding: 0.15em;
@@ -983,37 +983,37 @@ article h2 { margin: 0 0 0.65em; font-size: 1.14em; font-weight: 700; }
   opacity: 0.72;
   /* No hover chrome — the pin marks place; tape is for dragging / wheeling. */
 }
-.emd-rmo-scrub.is-dragging .emd-rmo-scrub-step {
+.emd-rmo-replay.is-dragging .emd-rmo-replay-step {
   cursor: grabbing;
 }
 /* EVTs this RMO projects (EMD GWT) — lit; context/future stay readable but quiet. */
-.emd-rmo-scrub-step.is-progress {
+.emd-rmo-replay-step.is-progress {
   opacity: 0.92;
 }
-.emd-rmo-scrub-step.is-context {
+.emd-rmo-replay-step.is-context {
   opacity: 0.38;
 }
 /* Under-pin step: opacity only (no border / fill flash). */
-.emd-rmo-scrub-step.is-selected {
+.emd-rmo-replay-step.is-selected {
   opacity: 1;
 }
-.emd-rmo-scrub-step.is-context.is-selected {
+.emd-rmo-replay-step.is-context.is-selected {
   opacity: 0.55;
 }
-.emd-rmo-scrub-step > article.evt {
+.emd-rmo-replay-step > article.evt {
   margin: 0;
   width: 100%;
   max-width: none;
   font-size: 1em;
 }
-.emd-rmo-scrub-blank {
+.emd-rmo-replay-blank {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 2.4em;
   background: #f3f6f4;
 }
-.emd-rmo-scrub-blank-label {
+.emd-rmo-replay-blank-label {
   font-size: 0.85em;
   font-weight: 600;
   color: #444;

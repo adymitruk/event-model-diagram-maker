@@ -167,11 +167,11 @@
 
     const cross = crossLower.concat(crossUpper);
     const joins = local.concat(localUpper).concat(cross);
-    // Shared across drawJoins re-entries (scrub / one-shot listeners).
+    // Shared across drawJoins re-entries (replay / one-shot listeners).
     emd._joins = joins;
-    if (emd._rmoScrub && emd._rmoScrub.index >= 0 && typeof emd._restoreScrubHighlight === 'function') {
-      // Join ids were renumbered — repaint connectors for the current scrub step.
-      queueMicrotask(() => emd._restoreScrubHighlight());
+    if (emd._rmoReplay && emd._rmoReplay.index >= 0 && typeof emd._restoreReplayHighlight === 'function') {
+      // Join ids were renumbered — repaint connectors for the current replay step.
+      queueMicrotask(() => emd._restoreReplayHighlight());
     }
 
     // --- Leftness band assignment (tiling-example), per connector band ---
@@ -305,16 +305,10 @@
       localUpper,
       verticalUpper
     );
-    // EVT→RMO (lower) may share the destination column’s SCR↔RMO corridor for
-    // path-hot. Do NOT attach RMO→later SCR ids here — those leave on an offset
-    // spur; sharing them lit the same-slice vertical when hovering the horizontals.
-    const upperCorridorExtra = Array.from({ length: sliceCount }, () => []);
-    crossLower.forEach((j) => {
-      const idx = sliceIndex[j.toSi];
-      if (idx == null || verticalUpper[idx] == null) return;
-      upperCorridorExtra[idx].push(j.id);
-    });
-    upperLayout.corridorExtra = upperCorridorExtra;
+    // Connector hover lights one join + its two ends only. Do not hang EVT→RMO
+    // ids on the destination SCR↔RMO upper vertical — that pulled the write
+    // corridor into projection hover (and the reverse).
+    upperLayout.corridorExtra = Array.from({ length: sliceCount }, () => []);
 
     function tagJoins(el, joinIds) {
       if (!joinIds || !joinIds.length) return;
@@ -340,12 +334,12 @@
     }
 
     /**
-     * MBA RMO time scrubber — clock opens Start + EVTs this RMO family
+     * MBA RMO history replayer — control opens Start + EVTs this RMO family
      * subscribes to (EMD GWT feeds). Same-title instances chain so later feeds
      * (past this column) stay in the strip and update the card; footprint is
      * the final projection. Own feeds stay lit; other subscribed rows are dim.
      */
-    // Scrub session on emd so retile / one-shot listeners share one state.
+    // Replay session on emd so retile / one-shot listeners share one state.
 
     function rmoCardTitle(el) {
       return (el?.querySelector(':scope > h2')?.textContent || '').trim();
@@ -408,7 +402,7 @@
      * Chain every same-title EMD GWT. Snapshots from later instances let you walk
      * past this column; footprint uses the final snapshot of the family.
      */
-    function collectFamilyScrubStory(rmoEl) {
+    function collectFamilyReplayStory(rmoEl) {
       const family = sameTitleRmos(rmoEl);
       const familyIds = new Set(family.map((el) => el.id).filter(Boolean));
       let startRmo = null;
@@ -431,7 +425,7 @@
           let boardEvt = null;
           let matchRmo = null;
           for (const m of family) {
-            boardEvt = matchBoardEvtForScrub(p.evt, m);
+            boardEvt = matchBoardEvtForReplay(p.evt, m);
             if (boardEvt) {
               matchRmo = m;
               break;
@@ -443,14 +437,14 @@
           familyHits.push({
             boardEvt,
             rmo: p.rmo,
-            scrubEvt: p.evt,
+            replayEvt: p.evt,
             matchRmo,
           });
         });
       });
       // Own feeds = EVTs this card's data-joins subscribe to (not "first matcher").
       familyHits.forEach((hit) => {
-        if (hit.boardEvt?.id && matchBoardEvtForScrub(hit.scrubEvt, rmoEl)) {
+        if (hit.boardEvt?.id && matchBoardEvtForReplay(hit.replayEvt, rmoEl)) {
           ownProgressIds.add(hit.boardEvt.id);
         }
       });
@@ -461,13 +455,13 @@
     }
 
     /**
-     * Scrub strip: Start + only EVTs this RMO family subscribes to (EMD GWT).
+     * Replay strip: Start + only EVTs this RMO family subscribes to (EMD GWT).
      * That includes later same-title feeds past this column (walk forward); it
      * never includes unrelated LBA EVTs. Own feeds stay lit; other subscribed
      * rows (pre-previous instance / later instance) are dimmed but still update.
      */
-    function buildRmoScrubSteps(rmoEl) {
-      const story = collectFamilyScrubStory(rmoEl);
+    function buildRmoReplaySteps(rmoEl) {
+      const story = collectFamilyReplayStory(rmoEl);
       if (!story.startRmo) return null;
       const thisSlice = sliceOf(rmoEl);
       let snap = story.startRmo;
@@ -493,7 +487,7 @@
           rmo: snap,
           evt: boardEvt,
           boardEvt,
-          scrubEvt: hit.scrubEvt,
+          replayEvt: hit.replayEvt,
           progress,
           matchRmo: hit.matchRmo,
           affects: true,
@@ -523,10 +517,10 @@
     }
 
     /** Pin collection table columns (and dl label widths) to the end-state sizer. */
-    function lockRmoScrubColumnWidths(stack) {
-      const sizer = stack.querySelector(':scope > .emd-rmo-scrub-sizer');
+    function lockRmoReplayColumnWidths(stack) {
+      const sizer = stack.querySelector(':scope > .emd-rmo-replay-sizer');
       if (!sizer) return;
-      const layers = [...stack.querySelectorAll(':scope > .emd-rmo-scrub-layer')];
+      const layers = [...stack.querySelectorAll(':scope > .emd-rmo-replay-layer')];
 
       function applyTableWidths(srcTable, destTable) {
         const headerCells = srcTable.tHead?.rows?.[0]
@@ -581,17 +575,17 @@
 
     /**
      * Prefetch snapshots as absolute layers. Invisible sizer uses the family's
-     * final RMO body so the card keeps the end footprint while scrubbing.
+     * final RMO body so the card keeps the end footprint while replaying.
      */
-    function mountRmoScrubStack(rmoEl, steps, endRmo) {
+    function mountRmoReplayStack(rmoEl, steps, endRmo) {
       const h2 = rmoEl.querySelector(':scope > h2');
       if (!h2) return [];
       // Drop the MBA body (caller saved clones); footprint comes from the end.
       rmoBodyNodes(rmoEl).forEach((ch) => ch.remove());
       const stack = document.createElement('div');
-      stack.className = 'emd-rmo-scrub-stack';
+      stack.className = 'emd-rmo-replay-stack';
       const sizer = document.createElement('div');
-      sizer.className = 'emd-rmo-scrub-sizer';
+      sizer.className = 'emd-rmo-replay-sizer';
       sizer.setAttribute('aria-hidden', 'true');
       const footprint = endRmo || steps[steps.length - 1]?.rmo;
       if (footprint) {
@@ -600,7 +594,7 @@
       stack.appendChild(sizer);
       const layers = steps.map((step) => {
         const layer = document.createElement('div');
-        layer.className = 'emd-rmo-scrub-layer';
+        layer.className = 'emd-rmo-replay-layer';
         rmoBodyNodes(step.rmo).forEach((ch) => {
           layer.appendChild(ch.cloneNode(true));
         });
@@ -608,7 +602,7 @@
         return layer;
       });
       rmoEl.appendChild(stack);
-      lockRmoScrubColumnWidths(stack);
+      lockRmoReplayColumnWidths(stack);
       return layers;
     }
 
@@ -630,14 +624,14 @@
     }
 
     /**
-     * Match a scrub-timeline EVT to the board EVT that feeds this RMO.
-     * EMD GWT examples may omit props — require title + every scrub prop/value
+     * Match a replay-timeline EVT to the board EVT that feeds this RMO.
+     * EMD GWT examples may omit props — require title + every replay prop/value
      * present on the board card (subset match), prefer the tightest fit.
      */
-    function matchBoardEvtForScrub(scrubEvt, rmoEl) {
-      if (!scrubEvt || !rmoEl?.id) return null;
-      const title = evtTitle(scrubEvt);
-      const want = evtPropMap(scrubEvt);
+    function matchBoardEvtForReplay(replayEvt, rmoEl) {
+      if (!replayEvt || !rmoEl?.id) return null;
+      const title = evtTitle(replayEvt);
+      const want = evtPropMap(replayEvt);
       const liveJoins = emd._joins || joins;
       const candidates = liveJoins.filter(
         (j) => j.toId === rmoEl.id && j.fromEl && j.fromEl.classList.contains('evt')
@@ -660,20 +654,20 @@
       return best;
     }
 
-    /** Re-paint scrub time highlight after a hover session ends. */
-    function restoreScrubHighlight() {
-      if (!emd._rmoScrub || emd._rmoScrub.index < 0) return;
-      highlightScrubStep(emd._rmoScrub.index);
+    /** Re-paint replay time highlight after a hover session ends. */
+    function restoreReplayHighlight() {
+      if (!emd._rmoReplay || emd._rmoReplay.index < 0) return;
+      highlightReplayStep(emd._rmoReplay.index);
     }
-    emd._restoreScrubHighlight = restoreScrubHighlight;
+    emd._restoreReplayHighlight = restoreReplayHighlight;
 
     /**
      * Light EVT → same-title RMO joins for every family hit through the selected
      * step (including future instances you walked into). Never touch SCRs.
      */
-    function highlightScrubStep(i) {
-      if (!emd._rmoScrub) return;
-      const { rmo, steps, familyIds } = emd._rmoScrub;
+    function highlightReplayStep(i) {
+      if (!emd._rmoReplay) return;
+      const { rmo, steps, familyIds } = emd._rmoReplay;
       clearConnectionHighlight();
       const liveJoins = emd._joins || joins;
       const targets = familyIds?.size ? familyIds : new Set(rmo.id ? [rmo.id] : []);
@@ -687,7 +681,7 @@
       }
       if (idSet.size) {
         applyJoinHighlight(idSet, { skipScr: true });
-        markEndpoint(rmo); // keep the card being scrubbed lit even when joins target a later same-title RMO
+        markEndpoint(rmo); // keep the card being replayed lit even when joins target a later same-title RMO
         return;
       }
       emd.classList.add('path-focus');
@@ -696,7 +690,7 @@
 
     /**
      * Expand this MBA card to at least the last same-title instance’s box
-     * before mounting scrub layers (width especially — a narrow early card
+     * before mounting replay layers (width especially — a narrow early card
      * wraps the end-state last column and bumps height).
      */
     function sizeRmoToFamilyFootprint(rmoEl) {
@@ -714,19 +708,19 @@
     }
 
     /**
-     * After layers mount, grow further if any scrub snapshot is taller/wider
+     * After layers mount, grow further if any replay snapshot is taller/wider
      * than the last MBA card (e.g. Agenda Builder with 10 unassigned rows vs
      * a later card that moved most into schedule). Avoids scroll-off clipping.
      */
-    function fitRmoToScrubLayers(rmoEl) {
-      const stack = rmoEl.querySelector(':scope > .emd-rmo-scrub-stack');
+    function fitRmoToReplayLayers(rmoEl) {
+      const stack = rmoEl.querySelector(':scope > .emd-rmo-replay-stack');
       if (!stack) return;
       const h2 = rmoEl.querySelector(':scope > h2');
       const h2h = h2 ? h2.getBoundingClientRect().height : 0;
-      const sizer = stack.querySelector(':scope > .emd-rmo-scrub-sizer');
+      const sizer = stack.querySelector(':scope > .emd-rmo-replay-sizer');
       let bodyH = sizer ? sizer.scrollHeight : 0;
       let bodyW = sizer ? sizer.scrollWidth : 0;
-      stack.querySelectorAll(':scope > .emd-rmo-scrub-layer').forEach((layer) => {
+      stack.querySelectorAll(':scope > .emd-rmo-replay-layer').forEach((layer) => {
         // Absolute layers report the stack box, not content — probe statically.
         const css = layer.style.cssText;
         layer.style.position = 'static';
@@ -757,7 +751,7 @@
       }
     }
 
-    function unlockRmoScrubLayout(rmoEl) {
+    function unlockRmoReplayLayout(rmoEl) {
       rmoEl.style.boxSizing = '';
       rmoEl.style.width = '';
       rmoEl.style.minWidth = '';
@@ -770,17 +764,17 @@
       window.dispatchEvent(new Event('emd:retile'));
     }
 
-    /** Immediate retile (no 40ms debounce) — scrub resize must re-aim shafts now. */
+    /** Immediate retile (no 40ms debounce) — replay resize must re-aim shafts now. */
     function retileConnectorsSync() {
       window.dispatchEvent(new Event('emd:retile-sync'));
     }
 
     /**
-     * After the scrub card’s final box is known, wait for layout then re-aim
+     * After the replay card’s final box is known, wait for layout then re-aim
      * lower/upper band shafts at the RMO (growth is absorbed by the MBA bottom
      * flex gap, so the connector row does not move — tips must be redrawn).
      */
-    function afterScrubLayout(fn) {
+    function afterReplayLayout(fn) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           retileConnectorsSync();
@@ -790,16 +784,16 @@
     }
 
     /** Max tape offset: last step’s top under the pin. */
-    function scrubMaxY() {
-      if (!emd._rmoScrub) return 0;
-      const { stepEls } = emd._rmoScrub;
+    function replayMaxY() {
+      if (!emd._rmoReplay) return 0;
+      const { stepEls } = emd._rmoReplay;
       const last = stepEls[stepEls.length - 1];
       return last ? last.offsetTop : 0;
     }
 
     /** Step currently under the pin for a given tape offset. */
     function stepIndexAtY(y) {
-      const { stepEls } = emd._rmoScrub;
+      const { stepEls } = emd._rmoReplay;
       let i = 0;
       for (let k = 0; k < stepEls.length; k++) {
         if (stepEls[k].offsetTop <= y + 0.5) i = k;
@@ -809,127 +803,127 @@
     }
 
     /** Sync selected step / RMO layer / path highlight — does not move the tape. */
-    function applyScrubIndex(i) {
-      if (!emd._rmoScrub) return;
-      const { stepEls, layers } = emd._rmoScrub;
+    function applyReplayIndex(i) {
+      if (!emd._rmoReplay) return;
+      const { stepEls, layers } = emd._rmoReplay;
       const next = Math.max(0, Math.min(i, stepEls.length - 1));
-      const prev = emd._rmoScrub.index;
+      const prev = emd._rmoReplay.index;
       if (next === prev) return;
       if (prev >= 0) {
         stepEls[prev].classList.remove('is-selected');
         if (layers[prev]) layers[prev].classList.remove('is-active');
       }
-      emd._rmoScrub.index = next;
+      emd._rmoReplay.index = next;
       stepEls[next].classList.add('is-selected');
       if (layers[next]) layers[next].classList.add('is-active');
-      highlightScrubStep(next);
+      highlightReplayStep(next);
     }
 
-    function stopScrubMomentum() {
-      const scrub = emd._rmoScrub;
-      if (!scrub) return;
-      if (scrub._momentumRaf) {
-        cancelAnimationFrame(scrub._momentumRaf);
-        scrub._momentumRaf = 0;
+    function stopReplayMomentum() {
+      const replay = emd._rmoReplay;
+      if (!replay) return;
+      if (replay._momentumRaf) {
+        cancelAnimationFrame(replay._momentumRaf);
+        replay._momentumRaf = 0;
       }
-      scrub.velocity = 0;
-      scrub._momentumLast = 0;
+      replay.velocity = 0;
+      replay._momentumLast = 0;
     }
 
     /** Coast the tape after a wheel flick or drag release. */
-    function tickScrubMomentum(now) {
-      const scrub = emd._rmoScrub;
-      if (!scrub) return;
-      const last = scrub._momentumLast || now;
+    function tickReplayMomentum(now) {
+      const replay = emd._rmoReplay;
+      if (!replay) return;
+      const last = replay._momentumLast || now;
       const dt = Math.min(0.048, Math.max(0.001, (now - last) / 1000));
-      scrub._momentumLast = now;
+      replay._momentumLast = now;
       // Exponential friction (~ glide, then settle).
-      scrub.velocity *= Math.exp(-3.2 * dt);
-      if (Math.abs(scrub.velocity) < 8) {
-        scrub.velocity = 0;
-        scrub._momentumRaf = 0;
+      replay.velocity *= Math.exp(-3.2 * dt);
+      if (Math.abs(replay.velocity) < 8) {
+        replay.velocity = 0;
+        replay._momentumRaf = 0;
         return;
       }
-      const max = scrubMaxY();
-      let next = scrub.scrollY + scrub.velocity * dt;
+      const max = replayMaxY();
+      let next = replay.scrollY + replay.velocity * dt;
       if (next <= 0) {
         next = 0;
-        scrub.velocity = 0;
+        replay.velocity = 0;
       } else if (next >= max) {
         next = max;
-        scrub.velocity = 0;
+        replay.velocity = 0;
       }
-      setScrubScrollY(next, { jump: true });
-      if (scrub.velocity === 0) {
-        scrub._momentumRaf = 0;
+      setReplayScrollY(next, { jump: true });
+      if (replay.velocity === 0) {
+        replay._momentumRaf = 0;
         return;
       }
-      scrub._momentumRaf = requestAnimationFrame(tickScrubMomentum);
+      replay._momentumRaf = requestAnimationFrame(tickReplayMomentum);
     }
 
-    function startScrubMomentum() {
-      const scrub = emd._rmoScrub;
-      if (!scrub || Math.abs(scrub.velocity || 0) < 8) {
-        if (scrub) scrub.velocity = 0;
+    function startReplayMomentum() {
+      const replay = emd._rmoReplay;
+      if (!replay || Math.abs(replay.velocity || 0) < 8) {
+        if (replay) replay.velocity = 0;
         return;
       }
-      if (scrub._momentumRaf) return;
-      scrub._momentumLast = performance.now();
-      scrub._momentumRaf = requestAnimationFrame(tickScrubMomentum);
+      if (replay._momentumRaf) return;
+      replay._momentumLast = performance.now();
+      replay._momentumRaf = requestAnimationFrame(tickReplayMomentum);
     }
 
     /**
      * Scroll the tape so offset `y` sits under the pin. Wheel / drag feed
      * velocity for momentum; click / arrows can `{ seek: true }` for a short ease.
      */
-    function setScrubScrollY(y, opts) {
-      if (!emd._rmoScrub) return;
-      const { shell, col } = emd._rmoScrub;
-      const max = scrubMaxY();
+    function setReplayScrollY(y, opts) {
+      if (!emd._rmoReplay) return;
+      const { shell, col } = emd._rmoReplay;
+      const max = replayMaxY();
       const next = Math.max(0, Math.min(Number(y) || 0, max));
       // Seek eases to a clicked / arrow target; everything else tracks 1:1.
       const seek = !!(opts && opts.seek) && !(opts && opts.jump);
-      if (seek) stopScrubMomentum();
-      if (emd._rmoScrub._seekClear) {
-        col.removeEventListener('transitionend', emd._rmoScrub._seekClear);
-        emd._rmoScrub._seekClear = null;
+      if (seek) stopReplayMomentum();
+      if (emd._rmoReplay._seekClear) {
+        col.removeEventListener('transitionend', emd._rmoReplay._seekClear);
+        emd._rmoReplay._seekClear = null;
       }
       shell.classList.toggle('is-seeking', seek);
-      emd._rmoScrub.scrollY = next;
+      emd._rmoReplay.scrollY = next;
       col.style.transform = `translateY(${-next}px)`;
-      applyScrubIndex(stepIndexAtY(next));
+      applyReplayIndex(stepIndexAtY(next));
       if (seek) {
         const clearSeek = (ev) => {
           if (ev && ev.propertyName && ev.propertyName !== 'transform') return;
-          if (!emd._rmoScrub) return;
+          if (!emd._rmoReplay) return;
           shell.classList.remove('is-seeking');
           col.removeEventListener('transitionend', clearSeek);
-          emd._rmoScrub._seekClear = null;
+          emd._rmoReplay._seekClear = null;
         };
-        emd._rmoScrub._seekClear = clearSeek;
+        emd._rmoReplay._seekClear = clearSeek;
         col.addEventListener('transitionend', clearSeek);
       }
     }
 
     /** Align a step’s top with the pin (open / click / arrow). */
-    function selectRmoScrubStep(index, opts) {
-      if (!emd._rmoScrub) return;
-      const { stepEls } = emd._rmoScrub;
+    function selectRmoReplayStep(index, opts) {
+      if (!emd._rmoReplay) return;
+      const { stepEls } = emd._rmoReplay;
       const i = Math.max(0, Math.min(index, stepEls.length - 1));
       const row = stepEls[i];
       if (!row) return;
-      stopScrubMomentum();
-      setScrubScrollY(row.offsetTop, opts);
+      stopReplayMomentum();
+      setReplayScrollY(row.offsetTop, opts);
     }
 
     /**
-     * Pin the strip beside the scrubbed RMO card. Prefer the left; flip to the
+     * Pin the strip beside the replayed RMO card. Prefer the left; flip to the
      * right (and reverse the arrow) when there is no room — the pin always
      * points at `rmo`, not away from it.
      */
-    function positionScrubOverlay(opts) {
-      if (!emd._rmoScrub) return;
-      const { shell, slide, arrow, rmo } = emd._rmoScrub;
+    function positionReplayOverlay(opts) {
+      if (!emd._rmoReplay) return;
+      const { shell, slide, arrow, rmo } = emd._rmoReplay;
       const r = rmo.getBoundingClientRect();
       const gap = 10;
       const arrowSpace = Math.max(
@@ -951,25 +945,25 @@
       shell.style.top = `${Math.round(r.top)}px`;
       // Keep continuous tape offset (re-clamp after scale/retile).
       const y =
-        emd._rmoScrub.scrollY != null
-          ? emd._rmoScrub.scrollY
-          : emd._rmoScrub.index >= 0
-            ? emd._rmoScrub.stepEls[emd._rmoScrub.index]?.offsetTop || 0
+        emd._rmoReplay.scrollY != null
+          ? emd._rmoReplay.scrollY
+          : emd._rmoReplay.index >= 0
+            ? emd._rmoReplay.stepEls[emd._rmoReplay.index]?.offsetTop || 0
             : 0;
-      setScrubScrollY(y, opts && opts.jump ? { jump: true } : { jump: true });
+      setReplayScrollY(y, opts && opts.jump ? { jump: true } : { jump: true });
     }
 
-    function ensureRmoClock(rmoEl) {
+    function ensureRmoReplayBtn(rmoEl) {
       const h2 = rmoEl.querySelector(':scope > h2');
       if (!h2) return null;
       h2.classList.add('emd-rmo-title');
-      let btn = h2.querySelector(':scope > .emd-rmo-clock');
+      let btn = h2.querySelector(':scope > .emd-rmo-replay-btn');
       if (btn) return btn;
       btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'emd-rmo-clock';
-      btn.title = 'Scrub read-model over time';
-      btn.setAttribute('aria-label', 'Scrub read-model over time');
+      btn.className = 'emd-rmo-replay-btn';
+      btn.title = 'Replay read-model history';
+      btn.setAttribute('aria-label', 'Replay read-model history');
       btn.innerHTML =
         '<svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true">' +
         '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>' +
@@ -978,30 +972,30 @@
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggleRmoScrub(rmoEl);
+        toggleRmoReplay(rmoEl);
       });
       h2.appendChild(btn);
       return btn;
     }
 
-    function setRmoClockVisible(rmoEl, on) {
-      const btn = rmoEl.querySelector(':scope > h2 > .emd-rmo-clock');
+    function setRmoReplayBtnVisible(rmoEl, on) {
+      const btn = rmoEl.querySelector(':scope > h2 > .emd-rmo-replay-btn');
       if (!btn) return;
       btn.classList.toggle('is-visible', !!on);
     }
 
-    function beginRmoScrubSession() {
+    function beginRmoReplaySession() {
       cancelHoverShow();
       cancelHoverClear();
       emd._hoverClearPending = false;
-      emd.classList.add('is-rmo-scrubbing');
+      emd.classList.add('is-rmo-replaying');
     }
 
-    function closeRmoScrub() {
-      if (!emd._rmoScrub) return;
-      stopScrubMomentum();
+    function closeRmoReplay() {
+      if (!emd._rmoReplay) return;
+      stopReplayMomentum();
       const { rmo, savedBody, shell, onReposition, onOutside, onRetile } =
-        emd._rmoScrub;
+        emd._rmoReplay;
       if (onReposition) {
         emd.removeEventListener('scroll', onReposition);
         window.removeEventListener('scroll', onReposition, true);
@@ -1017,52 +1011,52 @@
       while (h2 && h2.nextSibling) h2.nextSibling.remove();
       savedBody.forEach((node) => rmo.appendChild(node));
       shell.remove();
-      unlockRmoScrubLayout(rmo);
-      rmo.classList.remove('is-scrubbing');
-      emd.classList.remove('is-rmo-scrubbing');
+      unlockRmoReplayLayout(rmo);
+      rmo.classList.remove('is-replaying');
+      emd.classList.remove('is-rmo-replaying');
       clearConnectionHighlight();
-      emd._rmoScrub = null;
-      setRmoClockVisible(rmo, rmo.matches(':hover'));
-      afterScrubLayout();
+      emd._rmoReplay = null;
+      setRmoReplayBtnVisible(rmo, rmo.matches(':hover'));
+      afterReplayLayout();
     }
 
-    function openRmoScrub(rmoEl) {
+    function openRmoReplay(rmoEl) {
       if (!rmoEmdGwtTimeline(rmoEl)) return;
-      const built = buildRmoScrubSteps(rmoEl);
+      const built = buildRmoReplaySteps(rmoEl);
       if (!built?.steps?.length) return;
       const { steps, openIndex, endRmo, familyIds } = built;
-      if (emd._rmoScrub) closeRmoScrub();
+      if (emd._rmoReplay) closeRmoReplay();
 
-      beginRmoScrubSession();
+      beginRmoReplaySession();
 
       const savedBody = rmoBodyNodes(rmoEl).map((n) => n.cloneNode(true));
       // Grow to last same-title RMO, mount layers, pin columns, then fit height.
       // Column lock can change wrap/height — fit must run after it, and connectors
-      // retile only once the final box is laid out (see afterScrubLayout below).
+      // retile only once the final box is laid out (see afterReplayLayout below).
       sizeRmoToFamilyFootprint(rmoEl);
-      const layers = mountRmoScrubStack(rmoEl, steps, endRmo);
-      const stack = rmoEl.querySelector(':scope > .emd-rmo-scrub-stack');
-      if (stack) lockRmoScrubColumnWidths(stack);
-      fitRmoToScrubLayers(rmoEl);
+      const layers = mountRmoReplayStack(rmoEl, steps, endRmo);
+      const stack = rmoEl.querySelector(':scope > .emd-rmo-replay-stack');
+      if (stack) lockRmoReplayColumnWidths(stack);
+      fitRmoToReplayLayers(rmoEl);
 
       const shell = document.createElement('div');
-      shell.className = 'emd-rmo-scrub';
+      shell.className = 'emd-rmo-replay';
       shell.setAttribute('role', 'dialog');
-      shell.setAttribute('aria-label', 'Read-model history');
+      shell.setAttribute('aria-label', 'Replay read-model history');
 
       const slide = document.createElement('div');
-      slide.className = 'emd-rmo-scrub-slide';
+      slide.className = 'emd-rmo-replay-slide';
       const col = document.createElement('div');
-      col.className = 'emd-rmo-scrub-col';
+      col.className = 'emd-rmo-replay-col';
       col.tabIndex = 0;
 
       const stepEls = steps.map((step, idx) => {
         const row = document.createElement('div');
-        row.className = 'emd-rmo-scrub-step';
+        row.className = 'emd-rmo-replay-step';
         row.dataset.step = String(idx);
         if (step.kind === 'blank') {
-          row.classList.add('emd-rmo-scrub-blank');
-          row.innerHTML = '<span class="emd-rmo-scrub-blank-label">Start</span>';
+          row.classList.add('emd-rmo-replay-blank');
+          row.innerHTML = '<span class="emd-rmo-replay-blank-label">Start</span>';
         } else {
           row.classList.add(step.progress ? 'is-progress' : 'is-context');
           const clone = step.evt.cloneNode(true);
@@ -1072,15 +1066,15 @@
         }
         // Click seeks (ignored after a drag). Wheel / drag free-scroll with momentum.
         row.addEventListener('click', () => {
-          if (emd._rmoScrub && emd._rmoScrub._dragMoved) return;
-          selectRmoScrubStep(idx, { seek: true });
+          if (emd._rmoReplay && emd._rmoReplay._dragMoved) return;
+          selectRmoReplayStep(idx, { seek: true });
         });
         col.appendChild(row);
         return row;
       });
 
       const onWheel = (e) => {
-        if (!emd._rmoScrub) return;
+        if (!emd._rmoReplay) return;
         e.preventDefault();
         e.stopPropagation();
         let delta = e.deltaY === 0 ? e.deltaX : e.deltaY;
@@ -1088,39 +1082,39 @@
         // Normalize line/page deltas to pixels so the tape tracks the wheel.
         if (e.deltaMode === 1) delta *= 16;
         else if (e.deltaMode === 2) delta *= 48;
-        const scrub = emd._rmoScrub;
-        if (scrub._seekClear) {
-          scrub.col.removeEventListener('transitionend', scrub._seekClear);
-          scrub._seekClear = null;
-          scrub.shell.classList.remove('is-seeking');
+        const replay = emd._rmoReplay;
+        if (replay._seekClear) {
+          replay.col.removeEventListener('transitionend', replay._seekClear);
+          replay._seekClear = null;
+          replay.shell.classList.remove('is-seeking');
         }
         // Impulse + short immediate move; RAF coasts the rest.
         const impulse = delta * 14;
-        scrub.velocity = (scrub.velocity || 0) * 0.55 + impulse;
-        setScrubScrollY(scrub.scrollY + delta * 0.45, { jump: true });
-        if (!scrub._momentumRaf) {
-          scrub._momentumLast = performance.now();
-          scrub._momentumRaf = requestAnimationFrame(tickScrubMomentum);
+        replay.velocity = (replay.velocity || 0) * 0.55 + impulse;
+        setReplayScrollY(replay.scrollY + delta * 0.45, { jump: true });
+        if (!replay._momentumRaf) {
+          replay._momentumLast = performance.now();
+          replay._momentumRaf = requestAnimationFrame(tickReplayMomentum);
         }
       };
       shell.addEventListener('wheel', onWheel, { passive: false });
 
       // Drag the tape like a physical strip; release keeps momentum.
       const onPointerDown = (e) => {
-        if (!emd._rmoScrub || e.button !== 0) return;
-        const scrub = emd._rmoScrub;
-        stopScrubMomentum();
-        if (scrub._seekClear) {
-          scrub.col.removeEventListener('transitionend', scrub._seekClear);
-          scrub._seekClear = null;
-          scrub.shell.classList.remove('is-seeking');
+        if (!emd._rmoReplay || e.button !== 0) return;
+        const replay = emd._rmoReplay;
+        stopReplayMomentum();
+        if (replay._seekClear) {
+          replay.col.removeEventListener('transitionend', replay._seekClear);
+          replay._seekClear = null;
+          replay.shell.classList.remove('is-seeking');
         }
-        scrub._dragging = true;
-        scrub._dragMoved = false;
-        scrub._dragLastY = e.clientY;
-        scrub._dragLastT = performance.now();
-        scrub.velocity = 0;
-        scrub.shell.classList.add('is-dragging');
+        replay._dragging = true;
+        replay._dragMoved = false;
+        replay._dragLastY = e.clientY;
+        replay._dragLastT = performance.now();
+        replay.velocity = 0;
+        replay.shell.classList.add('is-dragging');
         try {
           col.setPointerCapture(e.pointerId);
         } catch (_) {
@@ -1128,29 +1122,29 @@
         }
       };
       const onPointerMove = (e) => {
-        const scrub = emd._rmoScrub;
-        if (!scrub || !scrub._dragging) return;
-        const dy = scrub._dragLastY - e.clientY;
+        const replay = emd._rmoReplay;
+        if (!replay || !replay._dragging) return;
+        const dy = replay._dragLastY - e.clientY;
         const now = performance.now();
-        const dt = Math.max(1, now - scrub._dragLastT);
-        if (Math.abs(dy) > 2) scrub._dragMoved = true;
-        setScrubScrollY(scrub.scrollY + dy, { jump: true });
+        const dt = Math.max(1, now - replay._dragLastT);
+        if (Math.abs(dy) > 2) replay._dragMoved = true;
+        setReplayScrollY(replay.scrollY + dy, { jump: true });
         // px/s from this sample (blend so release velocity is stable).
         const sample = (dy / dt) * 1000;
-        scrub.velocity = scrub.velocity * 0.35 + sample * 0.65;
-        scrub._dragLastY = e.clientY;
-        scrub._dragLastT = now;
+        replay.velocity = replay.velocity * 0.35 + sample * 0.65;
+        replay._dragLastY = e.clientY;
+        replay._dragLastT = now;
       };
       const onPointerUp = () => {
-        const scrub = emd._rmoScrub;
-        if (!scrub || !scrub._dragging) return;
-        scrub._dragging = false;
-        scrub.shell.classList.remove('is-dragging');
-        startScrubMomentum();
+        const replay = emd._rmoReplay;
+        if (!replay || !replay._dragging) return;
+        replay._dragging = false;
+        replay.shell.classList.remove('is-dragging');
+        startReplayMomentum();
         // Keep _dragMoved through the click that follows pointerup.
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            if (emd._rmoScrub) emd._rmoScrub._dragMoved = false;
+            if (emd._rmoReplay) emd._rmoReplay._dragMoved = false;
           });
         });
       };
@@ -1161,28 +1155,28 @@
 
       slide.appendChild(col);
       const arrow = document.createElement('div');
-      arrow.className = 'emd-rmo-scrub-arrow';
+      arrow.className = 'emd-rmo-replay-arrow';
       arrow.setAttribute('aria-hidden', 'true');
       shell.appendChild(slide);
       shell.appendChild(arrow);
       // Hide until left/top are set — fixed + auto insets paint at the viewport
-      // edge for a frame if we wait on afterScrubLayout alone.
+      // edge for a frame if we wait on afterReplayLayout alone.
       shell.style.visibility = 'hidden';
       // Overlay on body: tape + pin share this layer (not the board / connector band).
       document.body.appendChild(shell);
 
-      rmoEl.classList.add('is-scrubbing');
-      ensureRmoClock(rmoEl);
-      setRmoClockVisible(rmoEl, true);
-      const onReposition = () => positionScrubOverlay();
+      rmoEl.classList.add('is-replaying');
+      ensureRmoReplayBtn(rmoEl);
+      setRmoReplayBtnVisible(rmoEl, true);
+      const onReposition = () => positionReplayOverlay();
       const onOutside = (e) => {
-        if (!emd._rmoScrub) return;
+        if (!emd._rmoReplay) return;
         const t = e.target;
-        if (t && t.closest && t.closest('.emd-rmo-scrub, .emd-rmo-clock')) return;
-        closeRmoScrub();
+        if (t && t.closest && t.closest('.emd-rmo-replay, .emd-rmo-replay-btn')) return;
+        closeRmoReplay();
       };
-      const onRetile = () => positionScrubOverlay({ jump: true });
-      emd._rmoScrub = {
+      const onRetile = () => positionReplayOverlay({ jump: true });
+      emd._rmoReplay = {
         rmo: rmoEl,
         steps,
         openIndex,
@@ -1214,39 +1208,39 @@
       });
       // Open step first (active layer), pin beside the RMO before first paint,
       // then retile shafts to the final RMO box and re-pin if the card shifted.
-      selectRmoScrubStep(openIndex, { jump: true });
-      positionScrubOverlay({ jump: true });
+      selectRmoReplayStep(openIndex, { jump: true });
+      positionReplayOverlay({ jump: true });
       shell.style.visibility = '';
-      afterScrubLayout(() => positionScrubOverlay({ jump: true }));
+      afterReplayLayout(() => positionReplayOverlay({ jump: true }));
       col.focus({ preventScroll: true });
     }
 
-    function toggleRmoScrub(rmoEl) {
-      if (emd._rmoScrub && emd._rmoScrub.rmo === rmoEl) {
-        closeRmoScrub();
+    function toggleRmoReplay(rmoEl) {
+      if (emd._rmoReplay && emd._rmoReplay.rmo === rmoEl) {
+        closeRmoReplay();
         return;
       }
-      openRmoScrub(rmoEl);
+      openRmoReplay(rmoEl);
     }
 
-    function bindRmoScrubClocks() {
+    function bindRmoReplayControls() {
       emd.querySelectorAll('.cell.mba article.rmo[data-emd-gwt]').forEach((rmoEl) => {
-        if (rmoEl._rmoScrubBound) return;
-        rmoEl._rmoScrubBound = true;
-        ensureRmoClock(rmoEl);
+        if (rmoEl._rmoReplayBound) return;
+        rmoEl._rmoReplayBound = true;
+        ensureRmoReplayBtn(rmoEl);
         rmoEl.addEventListener('mouseenter', () => {
           if (!rmoEmdGwtTimeline(rmoEl)) return;
-          setRmoClockVisible(rmoEl, true);
+          setRmoReplayBtnVisible(rmoEl, true);
         });
         rmoEl.addEventListener('mouseleave', (e) => {
-          if (emd._rmoScrub && emd._rmoScrub.rmo === rmoEl) return;
+          if (emd._rmoReplay && emd._rmoReplay.rmo === rmoEl) return;
           const to = e.relatedTarget;
-          if (to && (rmoEl.contains(to) || to.closest?.('.emd-rmo-scrub'))) return;
-          setRmoClockVisible(rmoEl, false);
+          if (to && (rmoEl.contains(to) || to.closest?.('.emd-rmo-replay'))) return;
+          setRmoReplayBtnVisible(rmoEl, false);
         });
       });
     }
-    bindRmoScrubClocks();
+    bindRmoReplayControls();
 
     /**
      * Settle delay before painting hover — stops flicker while the pointer moves.
@@ -1312,7 +1306,7 @@
       if (ms <= 0) {
         emd._hoverClearPending = false;
         clearConnectionHighlight();
-        restoreScrubHighlight();
+        restoreReplayHighlight();
         return;
       }
       hoverClearTimer = setTimeout(() => {
@@ -1328,13 +1322,13 @@
         emd._hoverClearPending = false;
         if (pointerOverHoverTarget()) return;
         clearConnectionHighlight();
-        restoreScrubHighlight();
+        restoreReplayHighlight();
       }, ms);
     }
 
     function scheduleHoverHighlight(fn) {
       // History simulator owns the path — ignore board hover until it closes.
-      if (emd._rmoScrub) return;
+      if (emd._rmoReplay) return;
       cancelHoverShow();
       // Content slides under the pointer while scrolling — skip work until idle.
       if (emd._scrolling) return;
@@ -1357,7 +1351,7 @@
 
     function clearHoverHighlight() {
       cancelHoverShow();
-      if (focusLock() || emd._rmoScrub) return;
+      if (focusLock() || emd._rmoReplay) return;
       // Content slides under the pointer (and pointer-events drop) while
       // scrolling — remember to clear after scroll settles.
       if (emd._scrolling) {
@@ -1388,7 +1382,7 @@
       cancelHoverClear();
       emd._hoverClearPending = false;
       clearConnectionHighlight();
-      restoreScrubHighlight();
+      restoreReplayHighlight();
     }
 
     // Latest paint owns these so the one-shot scroll guard can call current logic.
@@ -1528,7 +1522,7 @@
       if (!h2) return '';
       // Clone without chrome (clock) so the lock label stays clean.
       const clone = h2.cloneNode(true);
-      clone.querySelectorAll('.emd-rmo-clock').forEach((n) => n.remove());
+      clone.querySelectorAll('.emd-rmo-replay-btn').forEach((n) => n.remove());
       return clone.textContent.replace(/\s+/g, ' ').trim();
     }
 
@@ -1683,7 +1677,7 @@
       const bar = document.querySelector('.emd-unlock-focus');
       if (bar) bar.hidden = true;
       clearConnectionHighlight();
-      restoreScrubHighlight();
+      restoreReplayHighlight();
     }
 
     /**
@@ -1996,16 +1990,10 @@
         const host = mba.querySelector(':scope > .com, :scope > .rmo');
         if (!host) return;
         const hostNames = new Set(propNamesOn(host));
-        // COM: prefer COM→EVT local. RMO: SCR↔RMO upper local. Do not attach an
-        // EVT→RMO join (that would light an unrelated earlier EVT when several
-        // EVTs feed the same RMO).
+        // SCR↔COM / SCR↔RMO corridor is the upper-band local — never the
+        // COM→EVT write join (that left the upper shaft dark when a later MAP
+        // value was locked while the SCR was still marked as a write endpoint).
         const joinId = (() => {
-          if (host.classList.contains('com')) {
-            const localJoin = local.find(
-              (j) => j.cellSi === si && j.fromEl === host
-            );
-            return localJoin ? localJoin.id : null;
-          }
           const upperJoin = localUpper.find(
             (j) => j.cellSi === si && (j.fromEl === host || j.toEl === host)
           );
@@ -2225,30 +2213,45 @@
     function applyJoinHighlight(idSet, opts) {
       if (!idSet.size) return;
       const skipScr = !!(opts && opts.skipScr);
+      const endsOnly = !!(opts && opts.endsOnly);
+      // Tile paint set: a lit COM→EVT write also lights the SCR↔COM upper shaft
+      // in that column (the SCR is already an endpoint of the write path).
+      const paintIds = new Set(idSet);
+      if (!endsOnly) {
+        joins.forEach((j) => {
+          if (!idSet.has(String(j.id))) return;
+          if (j.band !== 'lower' || j.cellSi == null) return;
+          if (!j.fromEl || !j.fromEl.classList.contains('com')) return;
+          const upper = localUpper.find((u) => u.cellSi === j.cellSi);
+          if (upper) paintIds.add(String(upper.id));
+        });
+      }
       emd.classList.add('path-focus');
       emd.querySelectorAll('[data-join-ids]').forEach((el) => {
         if (el.classList.contains('hop')) {
           const hIds = (el.dataset.hJoinIds || '').split(',').filter(Boolean);
           const vIds = (el.dataset.vJoinIds || '').split(',').filter(Boolean);
-          if (hIds.some((id) => idSet.has(id))) el.classList.add('hot-h');
-          if (vIds.some((id) => idSet.has(id))) el.classList.add('hot-v');
+          if (hIds.some((id) => paintIds.has(id))) el.classList.add('hot-h');
+          if (vIds.some((id) => paintIds.has(id))) el.classList.add('hot-v');
           return;
         }
         const ids = el.dataset.joinIds.split(',');
-        if (ids.some((id) => idSet.has(id))) el.classList.add('path-hot');
+        if (ids.some((id) => paintIds.has(id))) el.classList.add('path-hot');
       });
       joins
         .filter((j) => idSet.has(String(j.id)))
         .forEach((j) => {
           markEndpoint(j.fromEl);
           markEndpoint(j.toEl);
+          // Connector hover: path tiles + the two ends only (no SCR / MAP fan-out).
+          if (endsOnly) return;
           // Same-slice write: keep SCR(s) above the COM lit.
           if (!skipScr && j.cellSi != null) {
             emd
               .querySelectorAll(`.cell.uba[data-slc="${j.cellSi}"] .scr`)
               .forEach(markEndpoint);
           }
-          // Projection into RMO: keep reader SCR(s) + MAP lit (SCR optional for scrub).
+          // Projection into RMO: keep reader SCR(s) + MAP lit (SCR optional for replay).
           if (j.toEl && j.toEl.classList.contains('rmo')) {
             if (!skipScr) {
               const si = sliceOf(j.toEl);
@@ -2264,15 +2267,28 @@
         });
     }
 
-    function highlightByJoinIds(joinIdsCsv) {
+    /**
+     * Connector hover/click: light one join’s tiles and its two endpoint cards.
+     * Shared DOM tags (write shaft ∪ projection) must not fan into both joins.
+     */
+    function highlightByJoinIds(joinIdsCsv, opts) {
       clearConnectionHighlight();
-      applyJoinHighlight(
-        new Set(
-          String(joinIdsCsv || '')
-            .split(',')
-            .filter(Boolean)
-        )
-      );
+      let ids = String(joinIdsCsv || '')
+        .split(',')
+        .filter(Boolean);
+      if (opts && opts.connectorHover && ids.length > 1) {
+        const localIds = new Set(
+          local.concat(localUpper).map((j) => String(j.id))
+        );
+        const locals = ids.filter((id) => localIds.has(id));
+        const cross = ids.filter((id) => !localIds.has(id));
+        // Mixed local + cross on one tile → keep the local write / SCR↔RMO join.
+        if (locals.length && cross.length) ids = [locals[0]];
+      }
+      applyJoinHighlight(new Set(ids), {
+        skipScr: !!(opts && (opts.skipScr || opts.endsOnly || opts.connectorHover)),
+        endsOnly: !!(opts && (opts.endsOnly || opts.connectorHover)),
+      });
     }
 
     /**
@@ -2442,12 +2458,14 @@
         el.removeEventListener('click', el._joinHover.click);
       }
       const enter = () => {
-        if (focusLock() || emd._rmoScrub || !hoverOn('connectors')) return;
+        if (focusLock() || emd._rmoReplay || !hoverOn('connectors')) return;
         const ids = joinIdsForConnector(el);
-        scheduleHoverHighlight(() => highlightByJoinIds(ids));
+        scheduleHoverHighlight(() =>
+          highlightByJoinIds(ids, { connectorHover: true })
+        );
       };
       const leave = () => {
-        if (emd._rmoScrub) return;
+        if (emd._rmoReplay) return;
         clearHoverHighlight();
       };
       const click = (e) => {
@@ -2520,25 +2538,15 @@
         tagCorridorPieces(pieces, [j.id]);
       });
       crossLower.forEach((j) => {
-        const pieces = [];
-        // Destination: UBA + MBA top corridor into the RMO/SCR.
-        const toSi = j.toSi;
-        pieces.push(
-          ...piecesFromGaps([
-            ...emd.querySelectorAll(`.cell.uba[data-slc="${toSi}"] .gap`),
-          ])
-        );
-        const toMba = emd.querySelector(`.cell.mba[data-slc="${toSi}"]`);
-        if (toMba) {
-          const gaps = [...toMba.querySelectorAll(':scope > .gap')];
-          if (gaps[0]) pieces.push(...piecesFromGaps([gaps[0]]));
-        }
-        // Source: LBA arrow onto the EVT — same corridor as the local COM→EVT
-        // write shaft. Without this, outbound stubs look "unjoined" from the card.
-        emd.querySelectorAll(`.cell.lba[data-slc="${j.fromSi}"]`).forEach((lba) => {
-          pieces.push(...piecesFromGaps([...lba.querySelectorAll('.gap')]));
-        });
-        tagCorridorPieces(pieces, [j.id]);
+        // Connector path-hot is join tiles + two ends. Do not retag the source
+        // LBA write corridor or the destination SCR↔RMO MBA shaft with EVT→RMO
+        // ids — that made projection hover light the COM→EVT vertical (and the
+        // reverse). ERR→SCR may still use the destination UBA corridor to the SCR.
+        if (!j.toEl || !j.toEl.classList.contains('scr')) return;
+        const pieces = piecesFromGaps([
+          ...emd.querySelectorAll(`.cell.uba[data-slc="${j.toSi}"] .gap`),
+        ]);
+        if (pieces.length) tagCorridorPieces(pieces, [j.id]);
       });
       // Upper RMO→SCR: only the destination SCR corridor (CSS under the SCR).
       // Source RMO’s MBA top shaft is the same-slice SCR↔RMO local — leave it
@@ -2662,8 +2670,8 @@
     // Card / property hover — a property value isolates that example through
     // the system (name + value); otherwise the card's joins stay lit.
     // Click the hovered target to lock the highlight for scrolling; click
-    // elsewhere, the padlock, or Escape to release. MBA RMO time scrubbing is
-    // separate (clock on the title — see bindRmoScrubClocks).
+    // elsewhere, the padlock, or Escape to release. MBA RMO time replaying is
+    // separate (replay control on the title — see bindRmoReplayControls).
     emd
       .querySelectorAll('article.scr, article.com, article.rmo, article.evt, article.err')
       .forEach((el) => {
@@ -2673,7 +2681,7 @@
           el.removeEventListener('click', el._joinHover.click);
         }
         const over = (e) => {
-          if (focusLock() || emd._rmoScrub) return;
+          if (focusLock() || emd._rmoReplay) return;
           const propEl = propTargetFromEvent(el, e.target);
           if (propEl && hoverOn('values')) {
             scheduleHoverHighlight(() => highlightPropTrace(propEl));
@@ -2687,12 +2695,12 @@
         };
         const out = (e) => {
           if (el.contains(e.relatedTarget)) return;
-          if (emd._rmoScrub) return;
+          if (emd._rmoReplay) return;
           clearHoverHighlight();
         };
         const click = (e) => {
-          if (e.target.closest('.emd-rmo-clock, .emd-rmo-scrub')) return;
-          if (emd._rmoScrub) return;
+          if (e.target.closest('.emd-rmo-replay-btn, .emd-rmo-replay')) return;
+          if (emd._rmoReplay) return;
           // Any click while locked clears the pin (empty board uses the
           // emd listener; cards stop here so we do not re-lock on this click).
           if (focusLock()) {
@@ -2742,16 +2750,16 @@
         el.removeEventListener('click', el._joinHover.click);
       }
       const enter = () => {
-        if (focusLock() || emd._rmoScrub || !hoverOn('values')) return;
+        if (focusLock() || emd._rmoReplay || !hoverOn('values')) return;
         scheduleHoverHighlight(() => highlightMap(el));
       };
       const leave = () => {
-        if (emd._rmoScrub) return;
+        if (emd._rmoReplay) return;
         clearHoverHighlight();
       };
       const click = (e) => {
         e.stopPropagation();
-        if (emd._rmoScrub || !hoverOn('values')) return;
+        if (emd._rmoReplay || !hoverOn('values')) return;
         if (focusLock()) {
           unlockFocus();
           return;
@@ -2782,7 +2790,7 @@
         if (!emd._focusLock) return;
         if (
           e.target.closest(
-            '.emd-unlock-focus, .emd-corner-tools, .emd-popover, .emd-rmo-scrub, .emd-rmo-clock'
+            '.emd-unlock-focus, .emd-corner-tools, .emd-popover, .emd-rmo-replay, .emd-rmo-replay-btn'
           )
         ) {
           return;
@@ -2793,17 +2801,17 @@
     if (!emd._focusLockEscBound) {
       emd._focusLockEscBound = true;
       window.addEventListener('keydown', (e) => {
-        if (emd._rmoScrub && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        if (emd._rmoReplay && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
           e.preventDefault();
-          selectRmoScrubStep(
-            emd._rmoScrub.index + (e.key === 'ArrowUp' ? -1 : 1),
+          selectRmoReplayStep(
+            emd._rmoReplay.index + (e.key === 'ArrowUp' ? -1 : 1),
             { seek: true }
           );
           return;
         }
         if (e.key !== 'Escape') return;
-        if (emd._rmoScrub) {
-          closeRmoScrub();
+        if (emd._rmoReplay) {
+          closeRmoReplay();
           return;
         }
         if (!emd._focusLock) return;
@@ -2899,13 +2907,12 @@
         const localJoinIds = localList
           .filter((j) => j.from.si === si || j.to.si === si)
           .map((j) => j.id);
-        // Outbound EVT→RMO joins share the center write shaft + LBA arrow with the
-        // local COM→EVT join; include them so path-focus lights the card corridor.
-        const outJoinIds = outFrom[si].map((j) => j.id);
+        // Center write / SCR↔RMO vertical is the local join only. Outbound
+        // EVT→RMO stubs carry their own ids — do not union them here or
+        // projection hover lights the COM→EVT shaft.
         const vertJoinIds = [
           ...new Set([
             ...localJoinIds,
-            ...outJoinIds,
             ...((corridorExtra && corridorExtra[si]) || []),
           ]),
         ];
@@ -3014,9 +3021,9 @@
       if (lowerCells.length) paintBandLayout(lowerLayout, crossLower, 'lower');
       if (upperCells.length) paintBandLayout(upperLayout, crossUpper, 'upper');
     };
-    // Scrub open/close needs shafts aimed at the post-resize RMO in the same
+    // Replay open/close needs shafts aimed at the post-resize RMO in the same
     // turn — a deferred rAF left tips short while the card had already grown.
-    if (emd._scrubSyncPaint) paintBands();
+    if (emd._replaySyncPaint) paintBands();
     else requestAnimationFrame(paintBands);
   }
 
@@ -3042,8 +3049,8 @@
             if (w !== lastW || h !== lastH) emd._retileAfterScroll = true;
             return;
           }
-          // Scrub stack holds max snapshot size — skip expensive retile while open.
-          if (!force && emd.classList.contains('is-rmo-scrubbing')) return;
+          // Replay stack holds max snapshot size — skip expensive retile while open.
+          if (!force && emd.classList.contains('is-rmo-replaying')) return;
           if (!force && w === lastW && h === lastH) return;
           lastW = w;
           lastH = h;
@@ -3057,18 +3064,18 @@
       window.addEventListener('resize', () => run(true));
       window.addEventListener('emd:retile', () => run(true));
       window.addEventListener('emd:retile-check', () => run(false));
-      // Scrub open/close: redraw shafts immediately at the post-resize RMO box
+      // Replay open/close: redraw shafts immediately at the post-resize RMO box
       // (syncPaint so tips land in this turn, not the next animation frame).
       window.addEventListener('emd:retile-sync', () => {
         clearTimeout(timer);
         const el = board();
         lastW = el.clientWidth;
         lastH = el.clientHeight;
-        emd._scrubSyncPaint = true;
+        emd._replaySyncPaint = true;
         try {
           drawJoins(emd);
         } finally {
-          emd._scrubSyncPaint = false;
+          emd._replaySyncPaint = false;
         }
       });
       if (document.fonts && document.fonts.ready) {

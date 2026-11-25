@@ -103,7 +103,7 @@ The goal is an EMD that tells the story of a system as a timeline: who does what
    - Represent the GWTs on one or more vertical timelines in that cell. Do not split a GWT into separate Given/When/Then blocks; the timeline order is the GWT. Use the example values of the COM or RMO being described (COM slice or RMO slice).
    - COM: place zero or more EVTs, then the COM, then the EVT (or ERR) that COM produced. That is one GWT: all EVTs above the COM are the Given, the COM is the When, the EVT (or ERR) right under the COM is the Then. To add another GWT for the same COM type on the same timeline, place another COM of that type and its Then EVT below it. That next When's Given is the previous COM's Given EVTs plus its Then EVTs — every EVT above that next COM.
    - RMO: place the RMO first (empty, or its state before any of this GWT's EVTs), then each EVT that RMO projects with the RMO again immediately after it. The pattern is RMO, EVT, RMO, EVT, …, RMO: the RMO appears at the beginning, between every EVT, and as the last step, so each RMO card shows how the projection changed when that EVT was received. Those EVTs are the Given; there is no When. **Structure from the first card:** every RMO snapshot on the timeline — including the opening empty one — already shows the RMO's full shape (every collection table with its column headers, or every single-object property name). Empty means no body rows / blank values, not a bare title. When the RMO has a main collection and lookups, both tables appear on every snapshot (main may stay header-only until its first row arrives). When the RMO joins, every intermediate RMO card must show what that EVT contributed — including lookup entries keyed by id (e.g., attendeeId → name after EVT Attendee Registered) — so a later EVT that only carries that id has a visible source for the looked-up property on the prior RMO cards. When a later GWT on the same timeline needs that history, the previous RMO's Given EVTs (and any Then EVTs already on that timeline) are included in the next When's Given if a COM follows, or continue as further EVTs interleaved with RMO snapshots if another RMO GWT follows.
-   - **EMD GWT:** every MBA RMO that appears needs a scrubber timeline. When the RMO appears **once**, put a labeled **EMD GWT** on that SLC — the full implied projection across every feeding EVT (empty structure first). When the **same RMO title appears again** later (e.g. Agenda Builder after Schedule Session, or Registrations again for the organizer Attendees screen), each appearance gets **its own** EMD GWT with a **distinct** timeline id: the first covers the EVTs that instance joins; each later one starts from the prior footprint and lists **only the new** feeding EVTs — do **not** re-join or re-list earlier EVTs on the later instance (the scrubber chains same-title GWTs and would show duplicates). Name each block `EMD GWT timeline (RMO …):` in the markdown; the board marks `.timeline.emd-gwt` with a stable id; that MBA card's `data-emd-gwt` points at **its** timeline.
+   - **EMD GWT:** every MBA RMO that appears needs a replay timeline. When the RMO appears **once**, put a labeled **EMD GWT** on that SLC — the full implied projection across every feeding EVT (empty structure first). When the **same RMO title appears again** later (e.g. Agenda Builder after Schedule Session, or Registrations again for the organizer Attendees screen), each appearance gets **its own** EMD GWT with a **distinct** timeline id: the first covers the EVTs that instance joins; each later one starts from the prior footprint and lists **only the new** feeding EVTs — do **not** re-join or re-list earlier EVTs on the later instance (the replayer chains same-title GWTs and would show duplicates). Name each block `EMD GWT timeline (RMO …):` in the markdown; the board marks `.timeline.emd-gwt` with a stable id; that MBA card's `data-emd-gwt` points at **its** timeline.
    - GWTs on separate timelines in the same slice do not share history. Only GWTs on the same timeline build on one another.
    - A MAP stays on its arrow. The Then EVT or RMO on the timeline carries the example values of the MAP's outputs; the timeline does not restate the MAP.
 
@@ -336,7 +336,7 @@ Bike rental shop.
 | **LBA: Fleet** | EVT Bike Received | | EVT Bike Registered | | | | | | | | | | | | | | |
 | **LBA: Customer** | | | | | | EVT Application Submitted | | | | | | | | | | | |
 | **LBA: Rental** | | | | | EVT Bike Listed | | | | MAP Full Name → EVT Customer Registered | | ERR Unknown Customer | | MAP Rental End → EVT Bike Rented | | EVT Bike Returned | | EVT Receipt Sent |
-| **GWT** | Receive Bike → Bike Received | Unregistered Bikes → Bike Received → Unregistered Bikes | | | | | | | | | (no Customer Registered for C-8) → Rent Bike → Unknown Customer | | Customer Registered → Rent Bike → Bike Rented → Rent Bike → Bike Rented | Rental Confirmation → Bike Rented → Rental Confirmation → Bike Listed → Rental Confirmation → Customer Registered → Rental Confirmation | | | |
+| **GWT** | Receive Bike → Bike Received | EMD GWT Unregistered Bikes | | EMD GWT Bike Listings TODO | | | EMD GWT Application Confirmation | EMD GWT Customer Names TODO | | EMD GWT Bike Catalog | (no Customer Registered for C-8) → Rent Bike → Unknown Customer | | Customer Registered → Rent Bike → Bike Rented → Rent Bike → Bike Rented | EMD GWT Rental Confirmation | | EMD GWT Receipts TODO | |
 
 **Slice types:**
 - COM slices: SLC1, SLC3, SLC5, SLC6, SLC9, SLC11, SLC13, SLC15, SLC17
@@ -388,7 +388,7 @@ Bike rental shop.
     - columns: Serial number (serialNumber) | Model (model) | Type (type) | button Register → SCR Register Bike Form
     - row: SN-48213 | Trailblazer 29 | Mountain | Register
     - (bikeId stays on the RMO / session for the COM — not on the wire)
-- GWT timeline (describes RMO Unregistered Bikes):
+- EMD GWT timeline (RMO Unregistered Bikes):
   - RMO Unregistered Bikes (Fleet): (empty) [bikeId, serialNumber, model, type]
   - EVT Bike Received (SLC1): bikeId = B-101, serialNumber = SN-48213, model = Trailblazer 29, type = Mountain
   - RMO Unregistered Bikes (Fleet): bikeId = B-101, serialNumber = SN-48213, model = Trailblazer 29, type = Mountain
@@ -409,6 +409,12 @@ Bike rental shop.
 **SLC4 (RMO slice)**
 - RMO Bike Listings TODO (Fleet), one task per registered bike not yet listed: bikeId = B-101, model = Trailblazer 29, dailyRate = 25.00
 - PRO Bike Lister (Sam): next task of RMO Bike Listings TODO
+- EMD GWT timeline (RMO Bike Listings TODO):
+  - RMO Bike Listings TODO (Fleet): (empty) [bikeId, model, dailyRate]
+  - EVT Bike Received (SLC1): bikeId = B-101, serialNumber = SN-48213, model = Trailblazer 29, type = Mountain
+  - RMO Bike Listings TODO (Fleet): (empty) [bikeId, model, dailyRate]
+  - EVT Bike Registered (SLC3): bikeId = B-101, dailyRate = 25.00
+  - RMO Bike Listings TODO (Fleet): bikeId = B-101, model = Trailblazer 29, dailyRate = 25.00
 
 **SLC5 (COM slice)**
 - PRO Bike Lister (Sam): bikeId = B-101, model = Trailblazer 29, dailyRate = 25.00
@@ -436,10 +442,18 @@ Bike rental shop.
     - row: label (firstName) = Jim | label (lastName) = Harper
     - label (email) = jim@example.com
     - (customerId stays on the RMO / COM path — not a field Jim reads on this screen)
+- EMD GWT timeline (RMO Application Confirmation):
+  - RMO Application Confirmation (Customer): (empty) customerId, firstName, lastName, email
+  - EVT Application Submitted (SLC6): customerId = C-7, firstName = Jim, lastName = Harper, email = jim@example.com
+  - RMO Application Confirmation (Customer): customerId = C-7, firstName = Jim, lastName = Harper, email = jim@example.com
 
 **SLC8 (RMO slice)**
 - RMO Customer Names TODO (Customer), one task per application not yet registered: customerId = C-7, firstName = Jim, lastName = Harper, email = jim@example.com
 - PRO Customer Registrar (Jim): next task of RMO Customer Names TODO
+- EMD GWT timeline (RMO Customer Names TODO):
+  - RMO Customer Names TODO (Customer): (empty) [customerId, firstName, lastName, email]
+  - EVT Application Submitted (SLC6): customerId = C-7, firstName = Jim, lastName = Harper, email = jim@example.com
+  - RMO Customer Names TODO (Customer): customerId = C-7, firstName = Jim, lastName = Harper, email = jim@example.com
 
 **SLC9 (COM slice)**
 - PRO Customer Registrar (Jim): customerId = C-7, firstName = Jim, lastName = Harper, email = jim@example.com
@@ -457,6 +471,12 @@ Bike rental shop.
     - columns: Model (model) | Type (type) | Daily rate (dailyRate) | button Rent → SCR Rent Bike Form
     - row: Trailblazer 29 | Mountain | 25.00 | Rent
     - (bikeId from the selected catalog row — session for the COM)
+- EMD GWT timeline (RMO Bike Catalog):
+  - RMO Bike Catalog (Fleet): (empty) [bikeId, model, type, dailyRate]
+  - EVT Bike Received (SLC1): bikeId = B-101, serialNumber = SN-48213, model = Trailblazer 29, type = Mountain
+  - RMO Bike Catalog (Fleet): (empty) [bikeId, model, type, dailyRate]
+  - EVT Bike Registered (SLC3): bikeId = B-101, dailyRate = 25.00
+  - RMO Bike Catalog (Fleet): bikeId = B-101, model = Trailblazer 29, type = Mountain, dailyRate = 25.00
 
 **SLC11 (COM slice, ERR)**
 - SCR Rent Bike Form (Jim):
@@ -527,7 +547,7 @@ Bike rental shop.
     - label (name) = Jim Harper
     - row: label Start (startDate) = 2026-10-22 | label End (endDate) = 2026-10-25 | label Days (days) = 3
     - label Total (total) = 75.00, right-aligned
-- GWT timeline (describes RMO Rental Confirmation):
+- EMD GWT timeline (RMO Rental Confirmation):
   - RMO Rental Confirmation (Rental): (empty) rentalId, bike, name, startDate, endDate, days, total
   - EVT Bike Rented (SLC13): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, days = 3, endDate = 2026-10-25
   - RMO Rental Confirmation (Rental): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, endDate = 2026-10-25, days = 3
@@ -553,6 +573,16 @@ Bike rental shop.
 - MAP Rental Total: days, dailyRate → total, on EVT Bike Rented, EVT Bike Listed → RMO Receipts TODO
 - RMO Receipts TODO (Rental), one task per returned rental not yet receipted: rentalId = R-1, customerId = C-7, name = Jim Harper, email = jim@example.com, returnDate = 2026-10-25, total = 75.00
 - PRO Receipt Sender (Jim): next task of RMO Receipts TODO
+- EMD GWT timeline (RMO Receipts TODO):
+  - RMO Receipts TODO (Rental): (empty) rentalId, customerId, name, email, returnDate, total
+  - EVT Customer Registered (SLC9): customerId = C-7, email = jim@example.com, name = Jim Harper
+  - RMO Receipts TODO (Rental): (empty) rentalId, customerId, name, email, returnDate, total
+  - EVT Bike Listed (SLC5): bikeId = B-101, model = Trailblazer 29, dailyRate = 25.00
+  - RMO Receipts TODO (Rental): (empty) rentalId, customerId, name, email, returnDate, total
+  - EVT Bike Rented (SLC13): rentalId = R-1, bikeId = B-101, customerId = C-7, startDate = 2026-10-22, days = 3, endDate = 2026-10-25
+  - RMO Receipts TODO (Rental): (empty) rentalId, customerId, name, email, returnDate, total
+  - EVT Bike Returned (SLC15): rentalId = R-1, returnDate = 2026-10-25
+  - RMO Receipts TODO (Rental): rentalId = R-1, customerId = C-7, name = Jim Harper, email = jim@example.com, returnDate = 2026-10-25, total = 75.00
 
 **SLC17 (COM slice)**
 - PRO Receipt Sender (Jim): rentalId = R-1
@@ -585,6 +615,7 @@ Read the `EMD.md` straight into the templates below:
 | SPA / multi-region SCR | same screen + `fieldset.area` regions in every slice; only values and `com-data` / `rmo-data` change |
 | Arrows between SLCs | `data-joins` only |
 | GWT timelines | `.timeline` stacks in that slice's `.cell.gwt` |
+| EMD GWT (each MBA RMO) | `.timeline.emd-gwt` + matching `data-emd-gwt` on the RMO card (drives the history replayer) |
 
 ### Emit from an EMD
 
@@ -616,12 +647,12 @@ An `.emd` for the Electron app is steps 2–9 only (the `<main class="emd">` tre
 - **UBA** — actors and their screens (**SCR**) or automations (**PRO**).
 - **MBA** — commands (**COM**, blue) and read models (**RMO**, green); empty in a NAV slice.
 - **LBA** — events (**EVT**, orange) the system recorded, or an error (**ERR**, red) when a command failed instead; empty in RMO and NAV slices.
-- **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id). Every read-model snapshot already shows the full shape (table headers or property names); empty means no rows yet. Each MBA **RMO** column also carries its **EMD GWT** for the clock scrubber (full story, or only new feeds when the same title appears again later).
+- **GWT** (bottom row) — optional given-when-then examples for that slice, as vertical timelines (no Given/When/Then labels). For a **COM**: events above the command are the Given, the command is the When, the event or error under it is the Then; another command of the same type on the same timeline builds on that history. For an **RMO**: read model, then event, then read model, … ending with the read model — so the reader sees how the projection changes as each event arrives (including lookup entries when the read model joins by id). Every read-model snapshot already shows the full shape (table headers or property names); empty means no rows yet. Each MBA **RMO** column also carries its **EMD GWT** for the history replayer (full story, or only new feeds when the same title appears again later).
 - **Arrows** — data flow **only left → right in story time**: screen → command → event (or error), event → a **later** read model → screen, and a read model → a **later** screen when that view first loads (upper connector band). Never event → earlier read model or read model → earlier screen. Several events into the same read model stay on consecutive connector rows (bundled, not merged). Later screens that show the same values again do so by session or query convention — no second arrow. A **MAP** on an arrow names inputs → outputs when data changes shape.
 - **SCR highlights** — on a COM slice, value fields the command takes from the screen are light blue (`.com-data` on the `input` / cell / value / checked radio that feeds the COM — not the property name), and the button that issues the COM is light blue too; on an RMO slice, value fields the read model puts on the screen are light green (`.rmo-data`). Radios/checks use the same 2px sketch stroke as other wire controls (not native greyed-out widgets). A later copy of that same screen in the USR's timeline keeps `data-prop` but omits `rmo-data` when values already came from an earlier view. Never paint labels, headers, or an empty RMO area. Shared RMO views appear in every USR SWL that uses them.
-- **Hover** — a **card**, **connector piece** (JS tile/shaft or CSS shaft/arrow — not empty gap space), or **property value** keeps that path lit and fades the rest. A property value isolates **that example** (same name **and** value) through COM / EVT / RMO / SCR, including carried-forward SCR fields; MAP renames still follow. Matching connectors stay lit.
+- **Hover** — a **card**, **connector piece** (JS tile/shaft or CSS shaft/arrow — not empty gap space), or **property value** keeps that path lit and fades the rest. A property value isolates **that example** (same name **and** value) through COM / EVT / RMO / SCR, including carried-forward SCR fields; MAP renames still follow. Matching connectors stay lit. **Write-path invariant:** a COM slice has two same-slice corridors — upper **SCR↔COM** (`.connector-upper` local) and lower **COM→EVT** (`.connector` local). Whenever the COM→EVT write join is lit (value / card / MAP hover or lock), the SCR above that COM is an endpoint **and** the upper SCR↔COM shaft in that column must light too — even when the locked value is a later MAP rename that never appears on the SCR (e.g. `signupToken` / `signupUrl` while the form only wires `title`). Do **not** attach the COM→EVT join id to SCR↔COM property-graph edges; those edges use the upper local id. Connector-only hover still lights that one join + its two ends (no fan-out).
 - **Lock** — **click** the hovered value, card, or MAP to pin the highlight. A top-right **padlock** bar shows what is locked; **‹ ›** center the previous/next instance (same-title cards, value-trace cards, or MAP endpoints) without changing the lock label. Release with the padlock, by **clicking elsewhere** on the board, or **Escape**. Connectors never lock — click only scrolls clipped ends into view.
-- **RMO scrubber** — hover an MBA **RMO** for a **clock**; click it for a floating strip beside the card (prefer left, flip + reverse pin when needed; scales with board settings; wheel/drag free-scrolls the tape with momentum — no per-EVT snap or hover highlight; click or Arrow Up/Down seeks; Start + subscribed feeds only; same-title EMD GWTs chain; footprint = final projection). Clock again, click outside, or Escape closes.
+- **RMO replayer** — hover an MBA **RMO** for a **replay** control; click it for a floating strip beside the card (prefer left, flip + reverse pin when needed; scales with board settings; wheel/drag free-scrolls the tape with momentum — no per-EVT snap or hover highlight; click or Arrow Up/Down seeks; Start + subscribed feeds only; same-title EMD GWTs chain; footprint = final projection). Replay again, click outside, or Escape closes.
 - **Settings (gear)** — scale (cards + RMO history strip), fade, connector tile size, **hover delay** (0–5s), and **Highlight on hover** for connectors / values / cards (each on by default).
 
 When you change how an EMD is read (new slice type, GWT shape, card kinds), update both the terms/construction above and this help list (and the matching HTML in `settings.js`).
@@ -1008,7 +1039,7 @@ The COM slice then continues like any COM slice (arrow into the COM, arrow into 
 
 ### Cards
 
-MBA **RMO** cards carry `data-emd-gwt` matching **that card's** EMD GWT timeline id (see **EMD GWT**). When the same title appears twice, each card points at its **own** timeline id — never both at one shared full timeline. COM cards do not need it. The history-walker clock is injected into the RMO `h2` by `connectors.js` — leave the title as a plain `h2`.
+MBA **RMO** cards carry `data-emd-gwt` matching **that card's** EMD GWT timeline id (see **EMD GWT**). When the same title appears twice, each card points at its **own** timeline id — never both at one shared full timeline. COM cards do not need it. The history-replay control is injected into the RMO `h2` by `connectors.js` — leave the title as a plain `h2`.
 
 ```html
 <article class="com" id="com-receive-bike">
@@ -1019,7 +1050,7 @@ MBA **RMO** cards carry `data-emd-gwt` matching **that card's** EMD GWT timeline
   </dl>
 </article>
 
-<!-- MBA cell: upper + lower gaps; RMO id + data-emd-gwt (clock is JS) -->
+<!-- MBA cell: upper + lower gaps; RMO id + data-emd-gwt (replay control is JS) -->
 <div class="cell mba" data-slc="2">
   <div class="gap"><div class="arr v"><div class="shaft"></div></div></div>
   <article class="rmo" id="rmo-unregistered-bikes" data-emd-gwt="emd-gwt-rmo-unregistered-bikes">
@@ -1141,7 +1172,7 @@ An SPA is still one SCR per slice: same screen name and the same areas in every 
 
 Never mix `com-data` and `rmo-data` on the same field. A NAV **error** screen has neither (message only). A NAV **title-view** that first reads an earlier RMO puts `rmo-data` on those fed value fields (see **NAV slice**).
 
-**`data-prop` (required for property hover).** Every SCR value that is a named property also gets `data-prop="<name>"` on that same value field — the same names as the COM / RMO / EVT `dt`s and collection headers. `connectors.js` traces by property name **and** example value (plus MAP notes for renames), so hovering one cell in a multi-row RMO collection or SCR table lights only that value wherever it flows — not every sibling row's same field — and fades the rest. Flat card `dl.props` rows need no extra attribute; the `dt` is the name and the `dd` is the value. Collection body cells carry `data-prop` on each `td`. On an SPA, put `data-prop` on every area that can show that property, and keep `com-data` / `rmo-data` only on the live fields for that slice — the tracer prefers those live fields when linking the screen to the COM or RMO.
+**`data-prop` (required for property hover).** Every SCR value that is a named property also gets `data-prop="<name>"` on that same value field — the same names as the COM / RMO / EVT `dt`s and collection headers. `connectors.js` traces by property name **and** example value (plus MAP notes for renames), so hovering one cell in a multi-row RMO collection or SCR table lights only that value wherever it flows — not every sibling row's same field — and fades the rest. Flat card `dl.props` rows need no extra attribute; the `dt` is the name and the `dd` is the value. Collection body cells carry `data-prop` on each `td`. On an SPA, put `data-prop` on every area that can show that property, and keep `com-data` / `rmo-data` only on the live fields for that slice — the tracer prefers those live fields when linking the screen to the COM or RMO. When the trace lights a same-slice **COM→EVT** write, it must also light that column's upper **SCR↔COM** shaft (see **Board help** → Hover write-path invariant) — the SCR is part of the write path even if the highlighted example never sat on that screen.
 
 Named value fields **always** carry `data-prop`. Add `com-data` or `rmo-data` when that slice's COM or RMO owns the value (see above). Idle SPA fields keep `data-prop` only.
 
@@ -1312,20 +1343,20 @@ The name sits above the gear. The card shows no properties. It lives in the COM 
 
 ### EMD GWT
 
-The MBA only shows an RMO at the slices where it appears — not after every feeding EVT. Each MBA RMO card needs an **EMD GWT** in that column's `.cell.gwt` so the clock scrubber has a timeline: `RMO → EVT → RMO → … → RMO`. Mark it with an `EMD GWT` label and `class="timeline emd-gwt"` plus a stable `id`. That card's `data-emd-gwt` points at **that** id (not a hidden bank).
+The MBA only shows an RMO at the slices where it appears — not after every feeding EVT. Each MBA RMO card needs an **EMD GWT** in that column's `.cell.gwt` so the history replayer has a timeline: `RMO → EVT → RMO → … → RMO`. Mark it with an `EMD GWT` label and `class="timeline emd-gwt"` plus a stable `id`. That card's `data-emd-gwt` points at **that** id (not a hidden bank).
 
-In the EMD markdown, name each block `EMD GWT timeline (RMO …):` on that SLC (same card list as any RMO GWT). Other optional slice GWTs may still exist; only the marked EMD GWT drives the scrubber for that card.
+In the EMD markdown, name each block `EMD GWT timeline (RMO …):` on that SLC (same card list as any RMO GWT). Other optional slice GWTs may still exist; only the marked EMD GWT drives the replayer for that card.
 
 **One appearance:** empty structure first, then one snapshot after every feeding EVT in story order (the full implied projection).
 
 **Same title again later** (Agenda Builder after Schedule Session; Registrations again for an organizer Attendees screen):
 
-1. Give the later MBA card a **new** `id` and a **distinct** `data-emd-gwt` / timeline id (same `h2` title so the scrubber can chain the family).
+1. Give the later MBA card a **new** `id` and a **distinct** `data-emd-gwt` / timeline id (same `h2` title so the replayer can chain the family).
 2. `data-joins` on the later card list **only the new** feeding EVTs — do **not** re-join EVTs the earlier same-title card already owns.
-3. The later EMD GWT **starts from the prior footprint** (final RMO snapshot of the earlier phase), then interleaves **only those new** EVTs. Do **not** replay earlier EVTs on that timeline, and do **not** point both MBA cards at one shared full timeline — either mistake makes the history walker show the same EVT twice.
+3. The later EMD GWT **starts from the prior footprint** (final RMO snapshot of the earlier phase), then interleaves **only those new** EVTs. Do **not** replay earlier EVTs on that timeline, and do **not** point both MBA cards at one shared full timeline — either mistake makes the history replayer show the same EVT twice.
 4. Catalog / arrows: note that the later slice projects only the new EVTs on top of the prior state.
 
-**Scrubber strip (runtime):** Start + **only the EVTs that RMO family subscribes to** (each instance's EMD GWT / `data-joins`). Unrelated LBA EVTs never appear. Same-title EMD GWTs are chained so you can walk past this column; this instance's feeds stay lit, other subscribed rows are dimmed, and the card footprint is the family's **final** projection. GWT EVT cards used for matching must carry the same identifying prop values as the board EVTs (e.g. the real `attendeeId` on each Topic Suggested). `diagram/connectors.js` also skips a board EVT id already taken from an earlier family GWT (safety net — still author delta GWTs correctly). Overlay UX (pin flip, `--scale`, momentum scroll, no tape hover chrome) is under **Scrubber UX** below and in [`html-css.md`](html-css.md) (**RMO history scrubber**).
+**Replayer strip (runtime):** Start + **only the EVTs that RMO family subscribes to** (each instance's EMD GWT / `data-joins`). Unrelated LBA EVTs never appear. Same-title EMD GWTs are chained so you can walk past this column; this instance's feeds stay lit, other subscribed rows are dimmed, and the card footprint is the family's **final** projection. GWT EVT cards used for matching must carry the same identifying prop values as the board EVTs (e.g. the real `attendeeId` on each Topic Suggested). `diagram/connectors.js` also skips a board EVT id already taken from an earlier family GWT (safety net — still author delta GWTs correctly). Overlay UX (pin flip, `--scale`, momentum scroll, no tape hover chrome) is under **Replayer UX** below and in [`html-css.md`](html-css.md) (**RMO history replayer**).
 
 ```html
 <!-- single appearance: full story -->
@@ -1400,7 +1431,7 @@ In the EMD markdown, name each block `EMD GWT timeline (RMO …):` on that SLC (
 </div>
 ```
 
-Scrubber UX (implemented by `diagram/connectors.js`): hover MBA RMO → clock in the `h2` → click opens Start + **subscribed feeds only** in a floating overlay pinned beside that card (appended to `document.body` — EVT tape and the fixed pin arrow share that overlay layer and never enter the board grid). Prefer the **left** of the card; flip to the right (and reverse the pin) when there is no room so the arrow always points at the scrubbed RMO. The strip follows board **`--scale`**. The tape **free-scrolls** under the pin (wheel / drag with momentum — no per-EVT snap, no hover highlight on tape EVTs); the RMO layer updates when the next step reaches the pin. Click a step or Arrow Up/Down to seek; open / scale / retile jump without easing. The MBA card **grows to at least the last same-title instance’s box**, then further if any scrub snapshot needs more height/width (e.g. a full unassigned list before rows move into schedule), so tables keep formatting without clipped rows or a wrapped last column. Growth is absorbed by the MBA cell’s bottom flex gap (the connector row does not shift); inbound shafts are **re-aimed synchronously** at the new RMO bottom after layout, and again on close. Same-title EMD GWTs chain so later feeds stay walkable; footprint = final projection; this instance's feeds lit, other subscribed rows dimmed; clock again, click outside, or Escape closes and restores the final markup. Sample RMO markup with `data-emd-gwt` is under **Cards** above; there is no separate HTML for the floating strip — JS builds it from the EMD GWT + board EVTs.
+Replayer UX (implemented by `diagram/connectors.js`): hover MBA RMO → replay control in the `h2` → click opens Start + **subscribed feeds only** in a floating overlay pinned beside that card (appended to `document.body` — EVT tape and the fixed pin arrow share that overlay layer and never enter the board grid). Prefer the **left** of the card; flip to the right (and reverse the pin) when there is no room so the arrow always points at the replayed RMO. The strip follows board **`--scale`**. The tape **free-scrolls** under the pin (wheel / drag with momentum — no per-EVT snap, no hover highlight on tape EVTs); the RMO layer updates when the next step reaches the pin. Click a step or Arrow Up/Down to seek; open / scale / retile jump without easing. The MBA card **grows to at least the last same-title instance’s box**, then further if any replay snapshot needs more height/width (e.g. a full unassigned list before rows move into schedule), so tables keep formatting without clipped rows or a wrapped last column. Growth is absorbed by the MBA cell’s bottom flex gap (the connector row does not shift); inbound shafts are **re-aimed synchronously** at the new RMO bottom after layout, and again on close. Same-title EMD GWTs chain so later feeds stay walkable; footprint = final projection; this instance's feeds lit, other subscribed rows dimmed; replay again, click outside, or Escape closes and restores the final markup. Sample RMO markup with `data-emd-gwt` is under **Cards** above; there is no separate HTML for the floating strip — JS builds it from the EMD GWT + board EVTs.
 
 ### GWT (below the LBA)
 
@@ -1533,9 +1564,9 @@ Do not reimplement these in the `.emd.html` file — only include the two script
 
 | Script | Behaviour |
 |---|---|
-| `diagram/connectors.js` | Fills empty `.cell.connector.connector-upper` (RMO→later SCR) and `.cell.connector` (EVT→RMO, ERR→SCR, COM→EVT / COM→ERR) cells; hover on cards / connectors / property values fades the rest (SCR wire values included on value lock); click a value, card, or MAP to lock (padlock bar + ‹ › instance nav, click elsewhere, or Escape); click a connector to scroll clipped ends into view; RMO history scrubber (scaled overlay, pin flip, wheel/drag momentum, seek on click/arrows); respects **Highlight on hover** prefs; **scroll guard** / soft `emd:retile-check` |
-| `diagram/settings.js` | Floating Settings/? chip + `.lane-label` chips; sizes `--lane` / `--lane-label-clearance` / `--lane-label-top`; scale (cards + scrub strip), fade, tile, hover delay, Highlight on hover; About-this-board help (keep in sync with **Board help**); scale/tile fire `emd:retile` |
+| `diagram/connectors.js` | Fills empty `.cell.connector.connector-upper` (RMO→later SCR, same-slice SCR↔COM / SCR↔RMO) and `.cell.connector` (EVT→RMO, ERR→SCR, COM→EVT / COM→ERR) cells; hover on cards / connectors / property values fades the rest (SCR wire values included on value lock; lighting COM→EVT also lights that column's SCR↔COM upper shaft — see **Board help** Hover); click a value, card, or MAP to lock (padlock bar + ‹ › instance nav, click elsewhere, or Escape); click a connector to scroll clipped ends into view; RMO history replayer (scaled overlay, pin flip, wheel/drag momentum, seek on click/arrows); respects **Highlight on hover** prefs; **scroll guard** / soft `emd:retile-check` |
+| `diagram/settings.js` | Floating Settings/? chip + `.lane-label` chips; sizes `--lane` / `--lane-label-clearance` / `--lane-label-top`; scale (cards + replay strip), fade, tile, hover delay, Highlight on hover; About-this-board help (keep in sync with **Board help**); scale/tile fire `emd:retile` |
 
-Tile files, sticky-row measurements, corridor continuity, **RMO history scrubber** overlay classes, and the **Scroll performance** CSS/JS samples are in [`html-css.md`](html-css.md). That file is a stylesheet lookup — **this HTML board section is the source of truth for markup**.
+Tile files, sticky-row measurements, corridor continuity, **RMO history replayer** overlay classes, and the **Scroll performance** CSS/JS samples are in [`html-css.md`](html-css.md). That file is a stylesheet lookup — **this HTML board section is the source of truth for markup**.
 
 For more on event modeling itself, see: [eventmodeling.org](https://eventmodeling.org).
