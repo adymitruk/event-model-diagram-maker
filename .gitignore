@@ -3,6 +3,9 @@ app/node_modules/
 
 # Client models — each projects/<name>/ is its own git repo (not nested in this one)
 projects/
+
+# Optional modules — each modules/<name>/ is its own git repo (not nested in this one)
+modules/
 compare-slices.html
 instruction-rebuild/
 lucid-chart/

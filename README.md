@@ -10,8 +10,9 @@ An EMD is an AST. An EMD board renders that AST using HTML/CSS.
 |---|---|
 | [`event-modeling-instructions.md`](event-modeling-instructions.md) | How to construct an EMD, and the HTML templates that turn an `EMD.md` into `.emd.html` |
 | [`html-css.md`](html-css.md) | Stylesheet lookup (tiles, sticky rows, corridor measurements, **scroll performance**) |
-| [`diagram/`](diagram/) | Shared diagram CSS, connectors JS, arrow tiles, and fonts — every `.emd.html` links these so boards inherit hover + smooth scroll |
+| [`diagram/`](diagram/) | Shared diagram CSS, connectors JS, modules host, arrow tiles, and fonts — every `.emd.html` links these so boards inherit hover + smooth scroll |
 | [`app/`](app/) | Electron viewer — load and save `.emd` boards |
+| [`modules/`](modules/) | Optional board modules — each `modules/<name>/` is its **own git repository** (the parent repo ignores that folder), same pattern as `projects/` |
 
 ## App
 

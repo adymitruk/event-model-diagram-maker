@@ -320,7 +320,7 @@
       '<li><strong>Hover</strong> a card, connector piece (tile/shaft — not empty gap), or property value to keep that path lit. A value isolates that example (same name and value) across COM / EVT / RMO / SCR, including carried-forward screen fields; MAP renames still follow. On a COM slice, lighting the COM→EVT write also lights the SCR↔COM upper shaft in that column (the screen is part of the write path even when the locked value is a later MAP rename that never sat on the form). On a horizontal connector, if either end is off-screen, a title chip appears left or right of the pointer (toggle with <strong>Off-screen ends</strong> in Settings).</li>' +
       '<li><strong>Lock</strong> — click the hovered value, card, or MAP. The top-right padlock bar names what is locked; ‹ › centers other instances without changing the label. Release with the padlock, click elsewhere, or Escape. Connectors never lock (click only scrolls clipped ends into view).</li>' +
       '<li><strong>RMO replayer</strong> — hover an MBA RMO for a replay control; click opens a floating EVT tape pinned beside that card (prefer left; flip + reverse the pin when there is no room). The strip scales with <strong>Scale items</strong>. Wheel or drag free-scrolls the tape with momentum under a fixed pin (no per-EVT snap, no hover highlight on tape cards); the RMO updates when the next step reaches the pin. Click a step or Arrow Up/Down to seek. Start + subscribed feeds only; same-title EMD GWTs chain to the final footprint. Replay again, click outside, or Escape closes.</li>' +
-      '<li><strong>Settings (gear)</strong> — scale (cards + RMO history strip), fade, connector tile size, hover delay (0–5s), and which hover highlights are on (connectors, values, cards, off-screen ends — all on by default).</li>' +
+      '<li><strong>Settings (gear)</strong> — scale (cards + RMO history strip), fade, connector tile size, hover delay (0–5s), and which hover highlights are on (connectors, values, cards, off-screen ends — all on by default). <strong>AST</strong> downloads <code>EMD.md</code> for the current board (the EMD is the AST; the board is its HTML rendering).</li>' +
       '</ul>' +
       '</div>';
 
@@ -405,6 +405,17 @@
 
     sizeLaneColumn();
   }
+
+  // AST export (EMD.md download) — shared sibling script.
+  (function loadAst() {
+    if (document.querySelector('script[data-emd-ast]')) return;
+    const src = document.currentScript && document.currentScript.src;
+    if (!src) return;
+    const script = document.createElement('script');
+    script.src = new URL('ast.js', src).href;
+    script.dataset.emdAst = '1';
+    document.head.appendChild(script);
+  })();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mount);
